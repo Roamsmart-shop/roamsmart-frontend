@@ -1,14 +1,12 @@
 // src/services/api.js
 import axios from 'axios';
-const API_URL = process.env.REACT_APP_API_URL || 'https://api.roamsmart.shop/api';
+// src/services/api.js
+import axios from 'axios';
 
-export const COMPANY_EMAILS = {
-  ADMIN: 'admin@roamsmart.shop',
-  PAYMENT: 'payment@roamsmart.shop',
-  SUPPORT: 'support@roamsmart.shop',
-  INFO: 'info@roamsmart.shop'
-};
+// Use Railway backend URL directly (Vercel environment variable will override in production)
+const API_URL = process.env.REACT_APP_API_URL || 'https://roamsmart-backend-production.up.railway.app/api';
 
+// Company Configuration
 export const COMPANY_CONFIG = {
   name: 'Roamsmart Digital Service',
   shortName: 'Roamsmart',
@@ -16,8 +14,10 @@ export const COMPANY_CONFIG = {
   phone: '0557388622',
   website: 'https://roamsmart.shop',
   domain: 'roamsmart.shop',
-  apiUrl: 'https://api.roamsmart.shop'
+  apiUrl: 'https://roamsmart-backend-production.up.railway.app'
 };
+
+// ... rest of your existing code
 
 const STORAGE_KEYS = {
   TOKEN: 'roamsmart_token',
