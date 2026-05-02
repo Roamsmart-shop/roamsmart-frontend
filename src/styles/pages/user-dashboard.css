@@ -1,0 +1,347 @@
+/* src/styles/pages/user-dashboard.css */
+.dashboard {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--spacing-lg);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: 30px;
+}
+
+.charts-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-lg);
+  margin-bottom: 30px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-lg);
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+
+.section-header h2 {
+  font-size: 1.3rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.network-tabs {
+  display: flex;
+  gap: 10px;
+}
+
+.tab-btn {
+  padding: 8px 20px;
+  border: none;
+  background: var(--gray-300);
+  border-radius: 30px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+.tab-btn.active {
+  background: var(--primary);
+  color: var(--white);
+}
+
+.bundles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: 30px;
+}
+
+.orders-table {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.order-id {
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.amount {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.status {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status.completed {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status.pending {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status.processing {
+  background: #cce5ff;
+  color: #004085;
+}
+
+.date {
+  font-size: 0.85rem;
+  color: var(--gray-500);
+}
+
+.text-center {
+  text-align: center;
+  padding: 40px;
+  color: var(--gray-500);
+}
+
+/* Additional Services Section */
+.additional-services-section {
+  margin: 40px 0;
+}
+
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 30px;
+  margin-top: var(--spacing-lg);
+}
+
+/* WAEC Voucher Styles */
+.waec-voucher-section {
+  width: 100%;
+}
+
+.voucher-types {
+  display: flex;
+  gap: 10px;
+  margin: var(--spacing-md) 0;
+  flex-wrap: wrap;
+}
+
+.voucher-type-btn {
+  flex: 1;
+  padding: 10px;
+  border: 2px solid var(--gray-300);
+  background: var(--white);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.voucher-type-btn.active {
+  border-color: var(--primary);
+  background: rgba(139,0,0,0.05);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.stock-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: var(--success);
+  color: var(--white);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+/* Bill Payment Styles */
+.billers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: var(--spacing-md);
+  margin: var(--spacing-lg) 0;
+}
+
+.biller-card {
+  padding: var(--spacing-md);
+  border: 2px solid var(--gray-300);
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--transition-fast);
+}
+
+.biller-card.active {
+  border-color: var(--primary);
+  background: rgba(139,0,0,0.05);
+}
+
+.biller-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.biller-name {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.validated-info {
+  background: #e8f4f8;
+  padding: var(--spacing-md);
+  border-radius: var(--radius-lg);
+  margin: var(--spacing-md) 0;
+}
+
+.payment-history {
+  margin-top: 30px;
+}
+
+/* Add to src/styles/pages/user-dashboard.css */
+
+/* Quick Tips Section */
+.quick-tips-section {
+  margin: 30px 0;
+  background: linear-gradient(135deg, #f8f9fa, #ffffff);
+  border-radius: 20px;
+  padding: 20px;
+}
+
+.quick-tips-section h3 {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tips-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.tip-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast);
+}
+
+.tip-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.tip-icon {
+  font-size: 2rem;
+}
+
+.tip-content h4 {
+  margin-bottom: 5px;
+  font-size: 1rem;
+}
+
+.tip-content p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--gray-500);
+}
+
+.size-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.size-input-group .form-control {
+  flex: 1;
+  padding: 12px;
+  font-size: 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+}
+
+.gb-label {
+  font-size: 18px;
+  font-weight: 600;
+  color: #8B0000;
+}
+
+.price-display {
+  background: #e8f5e9;
+  padding: 15px;
+  border-radius: 12px;
+  text-align: center;
+  margin: 15px 0;
+}
+
+.price-display p {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.price-display strong {
+  color: #8B0000;
+  font-size: 24px;
+}
+
+.price-not-found {
+  background: #fff3cd;
+  padding: 15px;
+  border-radius: 12px;
+  text-align: center;
+  margin: 15px 0;
+}
+
+.available-sizes {
+  margin-top: 20px;
+}
+
+.available-sizes h4 {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.size-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.size-chip {
+  background: #f0f0f0;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.size-chip:hover {
+  background: #8B0000;
+  color: white;
+}
+
+.size-chip.active {
+  background: #8B0000;
+  color: white;
+}

@@ -1,0 +1,63 @@
+/* src/styles/responsive/tablet.css */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .container {
+    padding: 0 var(--spacing-lg);
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .services-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .admin-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 10px;
+  }
+  
+  .agent-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+  
+  .store-form-container {
+    grid-template-columns: 1fr;
+  }
+  
+  .store-preview {
+    position: static;
+    margin-top: var(--spacing-lg);
+  }
+  
+  .cart-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .cart-summary {
+    position: static;
+  }
+  
+  .hero-content h1 {
+    font-size: 2.5rem;
+  }
+  
+  .hero-image {
+    display: none;
+  }
+  
+  .footer-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .notification-panel {
+    width: 300px;
+    right: 10px;
+  }
+  
+  .methods-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

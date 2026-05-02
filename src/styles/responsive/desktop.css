@@ -1,0 +1,63 @@
+/* src/styles/responsive/desktop.css */
+@media (min-width: 1025px) {
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .admin-tabs {
+    flex-wrap: wrap;
+  }
+  
+  .agent-tabs {
+    flex-wrap: wrap;
+  }
+  
+  .store-form-container {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .cart-grid {
+    grid-template-columns: 1fr 350px;
+  }
+  
+  .hero-image {
+    display: block;
+  }
+  
+  .footer-grid {
+    grid-template-columns: 2fr 1fr 1fr 1.5fr;
+  }
+  
+  .notifications-dropdown {
+    width: 380px;
+  }
+  
+  .methods-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .charts-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .chart-card.large {
+    grid-column: span 1;
+  }
+  
+  .services-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .earnings-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .withdrawal-section {
+    grid-template-columns: 1fr 1.5fr;
+  }
+}

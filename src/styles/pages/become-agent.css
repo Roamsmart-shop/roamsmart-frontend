@@ -1,0 +1,226 @@
+/* src/styles/pages/become-agent.css */
+.become-agent-page {
+  padding: 60px 0;
+  background: var(--gray-100);
+  min-height: calc(100vh - 200px);
+}
+
+.agent-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.agent-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
+
+.agent-header p {
+  color: var(--gray-500);
+  font-size: 1.1rem;
+}
+
+.agent-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+}
+
+.benefits-section h2,
+.application-section h2 {
+  margin-bottom: var(--spacing-lg);
+}
+
+.benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-lg);
+  margin-bottom: 30px;
+}
+
+.benefit-card {
+  background: var(--white);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-xl);
+  text-align: center;
+  transition: transform var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.benefit-card:hover {
+  transform: translateY(-5px);
+}
+
+.benefit-icon {
+  font-size: 2rem;
+  color: var(--primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.benefit-card h3 {
+  margin-bottom: var(--spacing-sm);
+}
+
+.benefit-card p {
+  color: var(--gray-500);
+  font-size: 0.9rem;
+}
+
+.testimonial {
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  color: var(--white);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-xl);
+  margin-top: 30px;
+}
+
+.testimonial-content p {
+  font-style: italic;
+  margin-bottom: var(--spacing-md);
+}
+
+.testimonial-author strong {
+  display: block;
+}
+
+.testimonial-author span {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.application-card {
+  background: var(--white);
+  padding: 30px;
+  border-radius: var(--radius-xxl);
+  box-shadow: var(--shadow-lg);
+}
+
+.fee-display {
+  background: var(--gray-100);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.fee-display span {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--gray-500);
+}
+
+.fee-display strong {
+  font-size: 1.5rem;
+  color: var(--primary);
+  display: block;
+}
+
+.payment-methods {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.payment-method {
+  flex: 1;
+  padding: var(--spacing-lg);
+  border: 2px solid var(--gray-300);
+  border-radius: var(--radius-lg);
+  background: var(--white);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.payment-method.active {
+  border-color: var(--primary);
+  background: rgba(139,0,0,0.05);
+}
+
+.payment-method:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.payment-info {
+  background: #fff3cd;
+  padding: var(--spacing-md);
+  border-radius: var(--radius-lg);
+  margin: var(--spacing-lg) 0;
+}
+
+.payment-details {
+  margin-top: var(--spacing-sm);
+}
+
+.payment-details strong {
+  display: block;
+  font-size: 1.1rem;
+  margin-bottom: 5px;
+}
+
+.info-text {
+  font-size: 0.8rem;
+  color: var(--gray-500);
+  margin-top: var(--spacing-lg);
+  text-align: center;
+}
+
+/* Application Status Card */
+.application-status-card {
+  background: var(--white);
+  border-radius: var(--radius-xxl);
+  padding: 40px;
+  text-align: center;
+  max-width: 500px;
+  margin: 0 auto;
+  box-shadow: var(--shadow-lg);
+}
+
+.application-status-card.pending {
+  border-top: 4px solid var(--warning);
+}
+
+.application-status-card.approved {
+  border-top: 4px solid var(--success);
+}
+
+.application-status-card.rejected {
+  border-top: 4px solid var(--danger);
+}
+
+.application-status-card h2 {
+  margin: var(--spacing-lg) 0 var(--spacing-sm);
+}
+
+.status-details {
+  background: var(--gray-100);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-lg);
+  margin: var(--spacing-lg) 0;
+  text-align: left;
+}
+
+.status-details p {
+  margin: var(--spacing-sm) 0;
+}
+
+.badge-pending {
+  background: var(--warning);
+  color: var(--gray-800);
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+}
+
+.already-agent-card {
+  text-align: center;
+  padding: 60px;
+}
+
+.already-agent-card svg {
+  margin-bottom: var(--spacing-lg);
+}

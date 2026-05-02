@@ -1,0 +1,149 @@
+/* src/styles/pages/support.css */
+.support-page {
+  padding: 60px 0;
+  background: var(--gray-100);
+}
+
+.support-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.support-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
+
+.support-header p {
+  color: var(--gray-500);
+  font-size: 1.1rem;
+}
+
+.support-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-bottom: 60px;
+}
+
+.support-channels h2,
+.ticket-form h2 {
+  margin-bottom: var(--spacing-lg);
+}
+
+.channels-grid {
+  display: grid;
+  gap: var(--spacing-lg);
+}
+
+.channel-card {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  background: var(--white);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-xl);
+  text-decoration: none;
+  color: inherit;
+  border-left: 4px solid;
+  transition: transform var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+}
+
+.channel-card:hover {
+  transform: translateX(5px);
+}
+
+.channel-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: var(--white);
+}
+
+.channel-card h3 {
+  margin-bottom: 5px;
+}
+
+.channel-card p {
+  color: var(--gray-500);
+  font-size: 0.85rem;
+}
+
+.support-hours {
+  background: var(--white);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-xl);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.support-hours svg {
+  font-size: 2rem;
+  color: var(--primary);
+}
+
+.support-hours strong {
+  display: block;
+}
+
+.support-hours p {
+  margin: 5px 0;
+}
+
+.support-hours small {
+  color: var(--gray-500);
+  font-size: 0.75rem;
+}
+
+.form-card {
+  background: var(--white);
+  padding: 30px;
+  border-radius: var(--radius-xxl);
+  box-shadow: var(--shadow-lg);
+}
+
+.faq-section {
+  margin-top: 60px;
+}
+
+.faq-section h2 {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.faq-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.faq-item {
+  background: var(--white);
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast);
+}
+
+.faq-item:hover {
+  transform: translateY(-3px);
+}
+
+.faq-item h4 {
+  color: var(--primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.faq-item p {
+  color: var(--gray-600);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}

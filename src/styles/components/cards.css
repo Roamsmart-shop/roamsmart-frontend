@@ -1,0 +1,225 @@
+/* src/styles/components/cards.css */
+.stat-card {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
+}
+
+.stat-icon {
+  width: 50px;
+  height: 50px;
+  background: rgba(139,0,0,0.1);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: var(--primary);
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--gray-800);
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: var(--gray-500);
+}
+
+/* Welcome Banner */
+.welcome-banner {
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  border-radius: var(--radius-xxl);
+  padding: 30px;
+  color: var(--white);
+  margin-bottom: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-lg);
+}
+
+.banner-content h1 {
+  font-size: 1.8rem;
+  margin-bottom: 10px;
+}
+
+.banner-stats {
+  display: flex;
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.banner-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: 0.85rem;
+}
+
+.banner-actions {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+/* Chart Card */
+.chart-card {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.chart-card h3 {
+  margin-bottom: var(--spacing-md);
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.date-select {
+  padding: 6px 12px;
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-md);
+  background: var(--white);
+}
+
+/* Bundle Card */
+.bundle-card {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid var(--gray-300);
+}
+
+.bundle-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary-light);
+}
+
+.bundle-size {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.bundle-price {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 10px 0;
+}
+
+.bundle-network {
+  color: var(--gray-500);
+  font-size: 0.85rem;
+  margin-bottom: 5px;
+}
+
+.bundle-delivery {
+  font-size: 0.7rem;
+  color: var(--success);
+  margin-bottom: var(--spacing-md);
+}
+
+/* Agent Bundle Card */
+.bundle-card-agent {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.bundle-card-agent:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
+}
+
+.bundle-wholesale {
+  font-size: 0.85rem;
+  color: var(--gray-500);
+  text-decoration: line-through;
+}
+
+.bundle-profit {
+  font-size: 0.85rem;
+  color: var(--primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.bundle-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Service Card */
+.service-card {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast);
+}
+
+.service-card:hover {
+  transform: translateY(-5px);
+}
+
+.service-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 2px solid var(--gray-200);
+}
+
+.service-icon {
+  font-size: 28px;
+  color: var(--primary);
+}
+
+.service-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.agent-badge-small {
+  background: var(--success);
+  color: var(--white);
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 20px;
+  margin-left: auto;
+}

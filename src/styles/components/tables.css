@@ -1,0 +1,87 @@
+/* src/styles/components/tables.css */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--spacing-md);
+  text-align: left;
+  border-bottom: 1px solid var(--gray-300);
+}
+
+.data-table th {
+  background: var(--gray-100);
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.data-table tr:hover {
+  background: var(--gray-100);
+}
+
+.table-responsive {
+  overflow-x: auto;
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-success {
+  background: #d4edda;
+  color: #155724;
+}
+
+.badge-warning {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.badge-danger {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.badge-info {
+  background: #cce5ff;
+  color: #004085;
+}
+
+.badge-secondary {
+  background: var(--gray-300);
+  color: var(--gray-700);
+}
+
+/* Type Badges */
+.type-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.type-credit {
+  background: #d4edda;
+  color: #155724;
+}
+
+.type-debit {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.type-refund {
+  background: #cce5ff;
+  color: #004085;
+}

@@ -1,0 +1,41 @@
+/* src/styles/main.css */
+
+/* Base Styles */
+@import url('./base/reset.css');
+@import url('./base/variables.css');
+@import url('./base/typography.css');
+
+/* Layouts */
+@import url('./layouts/app.css');
+@import url('./layouts/sidebar.css');
+@import url('./layouts/navbar.css');
+
+/* Components */
+@import url('./components/buttons.css');
+@import url('./components/cards.css');
+@import url('./components/modals.css');
+@import url('./components/forms.css');
+@import url('./components/tables.css');
+@import url('./components/charts.css');
+@import url('./components/progress-tracker.css');
+@import url('./components/whatsapp-bot.css');
+@import url('./components/notifications.css');
+
+/* Pages */
+@import url('./pages/auth.css');
+@import url('./pages/user-dashboard.css');
+@import url('./pages/agent-dashboard.css');
+@import url('./pages/admin-dashboard.css');
+@import url('./pages/profile.css');
+@import url('./pages/transactions.css');
+@import url('./pages/earnings.css');
+@import url('./pages/become-agent.css');
+@import url('./pages/support.css');
+@import url('./pages/landing.css');
+@import url('./pages/store.css');
+@import url('./pages/waec-bills.css');
+
+/* Responsive */
+@import url('./responsive/mobile.css');
+@import url('./responsive/tablet.css');
+@import url('./responsive/desktop.css');

@@ -1,0 +1,59 @@
+/* src/styles/pages/earnings.css */
+.earnings-page {
+  padding: var(--spacing-lg);
+}
+
+.earnings-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--spacing-lg);
+  margin-bottom: 30px;
+}
+
+.withdrawal-section {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 30px;
+}
+
+.withdrawal-card {
+  background: var(--white);
+  padding: 25px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.withdrawal-card h3 {
+  margin-bottom: var(--spacing-sm);
+}
+
+.withdrawal-card p {
+  color: var(--gray-500);
+  margin-bottom: var(--spacing-lg);
+}
+
+.withdrawal-history {
+  background: var(--white);
+  padding: 25px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.withdrawal-history h3 {
+  margin-bottom: var(--spacing-lg);
+}
+
+/* Commission History */
+.commission-history {
+  margin-top: 30px;
+}
+
+.commission-history h3 {
+  margin-bottom: var(--spacing-lg);
+}
+
+.commission-table {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  overflow-x: auto;
+}

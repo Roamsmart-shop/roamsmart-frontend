@@ -1,0 +1,88 @@
+/* src/styles/pages/waec-bills.css */
+.waec-voucher-section {
+  width: 100%;
+}
+
+.voucher-types {
+  display: flex;
+  gap: 10px;
+  margin: var(--spacing-md) 0;
+  flex-wrap: wrap;
+}
+
+.voucher-type-btn {
+  flex: 1;
+  padding: 10px;
+  border: 2px solid var(--gray-300);
+  background: var(--white);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.voucher-type-btn.active {
+  border-color: var(--primary);
+  background: rgba(139,0,0,0.05);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.stock-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: var(--success);
+  color: var(--white);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+/* Bill Payment Styles */
+.bill-payment-section {
+  width: 100%;
+}
+
+.billers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: var(--spacing-md);
+  margin: var(--spacing-lg) 0;
+}
+
+.biller-card {
+  padding: var(--spacing-md);
+  border: 2px solid var(--gray-300);
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--transition-fast);
+}
+
+.biller-card.active {
+  border-color: var(--primary);
+  background: rgba(139,0,0,0.05);
+}
+
+.biller-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.biller-name {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.validated-info {
+  background: #e8f4f8;
+  padding: var(--spacing-md);
+  border-radius: var(--radius-lg);
+  margin: var(--spacing-md) 0;
+}
+
+.payment-history {
+  margin-top: 30px;
+}

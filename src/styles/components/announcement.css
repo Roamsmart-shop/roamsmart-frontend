@@ -1,0 +1,80 @@
+/* Announcement Banner Styles */
+.announcement-banner {
+  position: relative;
+  color: white;
+  padding: 12px 0;
+  z-index: 100;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.announcement-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.announcement-icon {
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.announcement-text {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.announcement-text strong {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.announcement-text span {
+  font-size: 14px;
+  opacity: 0.95;
+}
+
+.network-badge {
+  background: rgba(255,255,255,0.2);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.announcement-close {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.announcement-close:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .announcement-text {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .announcement-content {
+    flex-direction: column;
+    text-align: center;
+  }
+}
