@@ -1,1 +1,0 @@
-module.exports = { style: { postcss: { plugins: [ require("autoprefixer") ] } }, webpack: { configure: { ignoreWarnings: [ function ignoreWarnings(warning) { return warning.message.includes("Failed to parse source map"); } ] } } }; 
