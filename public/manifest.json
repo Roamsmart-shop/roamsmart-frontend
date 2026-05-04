@@ -1,25 +1,74 @@
 {
-  "short_name": "Abigalistic",
-  "name": "Abigalistic Studious - Data Bundles & Telecom Services",
+  "short_name": "Roamsmart",
+  "name": "Roamsmart Digital Service - Buy Data, WAEC Vouchers & Bills | Ghana",
+  "description": "Ghana's leading digital service platform for instant data bundles, WAEC vouchers, bill payments, and more. Get 2-second delivery on all purchases.",
   "icons": [
     {
       "src": "favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "type": "image/x-icon",
+      "purpose": "any"
     },
     {
       "src": "logo192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
       "src": "logo512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
   "display": "standalone",
   "theme_color": "#8B0000",
-  "background_color": "#ffffff"
+  "background_color": "#ffffff",
+  "orientation": "portrait",
+  "categories": ["business", "finance", "shopping"],
+  "lang": "en-GH",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Buy Data",
+      "short_name": "Data",
+      "description": "Purchase data bundles instantly",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "logo192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "WAEC Vouchers",
+      "short_name": "WAEC",
+      "description": "Buy WAEC result checker vouchers",
+      "url": "/waec-vouchers"
+    },
+    {
+      "name": "Agent Dashboard",
+      "short_name": "Agent",
+      "description": "Agent portal for selling data",
+      "url": "/agent"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshot1.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "screenshot2.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ]
 }

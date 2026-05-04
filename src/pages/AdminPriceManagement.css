@@ -16,7 +16,7 @@
 }
 
 .price-auth-card {
-  background: white;
+  background: #ffffff;
   border-radius: 20px;
   padding: 40px;
   text-align: center;
@@ -32,17 +32,17 @@
   align-items: center;
   justify-content: center;
   margin: 0 auto 20px;
-  color: white;
+  color: #ffffff;
 }
 
 .price-auth-card h2 {
   font-size: 24px;
   margin-bottom: 10px;
-  color: #333;
+  color: #1a2c3e;
 }
 
 .price-auth-card p {
-  color: #666;
+  color: #5a6e7c;
   margin-bottom: 30px;
 }
 
@@ -63,6 +63,7 @@
 .price-password-input:focus {
   outline: none;
   border-color: #8B0000;
+  box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.1);
 }
 
 .price-toggle-password {
@@ -73,14 +74,22 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: #666;
+  color: #5a6e7c;
   font-size: 18px;
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.price-toggle-password:hover {
+  color: #8B0000;
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .price-auth-btn {
   width: 100%;
   background: #8B0000;
-  color: white;
+  color: #ffffff;
   border: none;
   padding: 14px 20px;
   border-radius: 12px;
@@ -97,11 +106,13 @@
 .price-auth-btn:hover:not(:disabled) {
   background: #6b0000;
   transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 0, 0, 0.3);
 }
 
 .price-auth-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+  transform: none;
 }
 
 .price-auth-footer {
@@ -114,10 +125,15 @@
   color: #8B0000;
   cursor: pointer;
   font-size: 14px;
+  font-weight: 500;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.2s;
 }
 
 .price-link-btn:hover {
   text-decoration: underline;
+  background: rgba(139, 0, 0, 0.05);
 }
 
 /* Main Container */
@@ -139,14 +155,15 @@
 
 .price-header-info h1 {
   font-size: 28px;
-  color: #333;
+  color: #1a2c3e;
   display: flex;
   align-items: center;
   gap: 10px;
+  font-weight: 700;
 }
 
 .price-header-info p {
-  color: #666;
+  color: #5a6e7c;
   margin-top: 5px;
 }
 
@@ -160,10 +177,12 @@
   align-items: center;
   gap: 8px;
   transition: all 0.3s ease;
+  font-weight: 500;
 }
 
 .price-logout-btn:hover {
   background: #e0e0e0;
+  transform: translateY(-2px);
 }
 
 /* Tabs */
@@ -187,25 +206,29 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  font-weight: 500;
+  color: #5a6e7c;
 }
 
 .price-tab:hover {
   background: #f0f0f0;
+  color: #1a2c3e;
 }
 
 .price-tab.active {
   background: #8B0000;
-  color: white;
+  color: #ffffff;
 }
 
 /* Tables */
 .price-table-wrapper {
-  background: white;
+  background: #ffffff;
   border-radius: 16px;
   padding: 20px;
   margin-bottom: 30px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   overflow-x: auto;
+  border: 1px solid #e8e8e8;
 }
 
 .price-section-header {
@@ -218,6 +241,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  color: #1a2c3e;
+  font-weight: 700;
 }
 
 .price-table-responsive {
@@ -239,13 +264,19 @@
 
 .price-data-table th {
   background: #f8f9fa;
-  font-weight: 600;
+  font-weight: 700;
+  color: #1a2c3e;
+}
+
+.price-data-table td {
+  color: #1a2c3e;
 }
 
 .price-network-cell {
-  font-weight: 600;
+  font-weight: 700;
   background: #f8f9fa;
   text-align: left;
+  color: #1a2c3e;
 }
 
 .price-cell {
@@ -260,7 +291,8 @@
 }
 
 .price-display span {
-  font-weight: 500;
+  font-weight: 600;
+  color: #1a2c3e;
 }
 
 .price-edit-btn {
@@ -275,6 +307,7 @@
 
 .price-edit-btn:hover {
   background: #f0f0f0;
+  transform: scale(1.1);
 }
 
 .price-edit-container {
@@ -294,6 +327,12 @@
   text-align: center;
 }
 
+.price-input:focus,
+.price-rate-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(139, 0, 0, 0.1);
+}
+
 .price-save-btn,
 .price-cancel-btn {
   background: none;
@@ -301,6 +340,7 @@
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
+  transition: all 0.2s;
 }
 
 .price-save-btn {
@@ -309,6 +349,7 @@
 
 .price-save-btn:hover {
   background: #d4edda;
+  transform: scale(1.1);
 }
 
 .price-cancel-btn {
@@ -317,6 +358,7 @@
 
 .price-cancel-btn:hover {
   background: #f8d7da;
+  transform: scale(1.1);
 }
 
 /* Profit Margin */
@@ -324,6 +366,12 @@
   margin-top: 30px;
   padding-top: 20px;
   border-top: 1px solid #e0e0e0;
+}
+
+.price-profit-margin h4 {
+  color: #1a2c3e;
+  font-weight: 700;
+  margin-bottom: 15px;
 }
 
 .price-margin-grid {
@@ -337,27 +385,32 @@
   background: #f8f9fa;
   border-radius: 12px;
   padding: 15px;
+  border: 1px solid #e0e0e0;
 }
 
 .price-margin-card h5 {
   margin-bottom: 10px;
   color: #8B0000;
+  font-weight: 700;
 }
 
 .price-margin-item {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   padding: 8px 0;
   border-bottom: 1px solid #e0e0e0;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .price-margin-amount {
   color: #28a745;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .price-margin-percent {
-  color: #666;
+  color: #5a6e7c;
   font-size: 12px;
 }
 
@@ -373,11 +426,18 @@
   border-radius: 12px;
   padding: 20px;
   text-align: center;
+  border: 1px solid #e0e0e0;
+  transition: all 0.2s;
+}
+
+.price-waec-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .price-waec-type {
   font-size: 18px;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 15px;
   color: #8B0000;
 }
@@ -395,6 +455,13 @@
   padding: 20px;
   text-align: center;
   border-left: 4px solid;
+  border: 1px solid #e0e0e0;
+  transition: all 0.2s;
+}
+
+.price-commission-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .price-commission-card.bronze {
@@ -412,8 +479,9 @@
 
 .price-tier-name {
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 15px;
+  color: #1a2c3e;
 }
 
 .price-rate-display {
@@ -426,17 +494,18 @@
 
 .price-rate-value {
   font-size: 32px;
-  font-weight: bold;
+  font-weight: 800;
   color: #8B0000;
 }
 
 .price-percent-sign {
   font-size: 16px;
+  color: #5a6e7c;
 }
 
 .price-tier-requirement {
   font-size: 12px;
-  color: #666;
+  color: #5a6e7c;
   margin-top: 10px;
 }
 
@@ -448,6 +517,8 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -455,12 +526,24 @@
 }
 
 .price-modal-content {
-  background: white;
+  background: #ffffff;
   border-radius: 20px;
   padding: 30px;
   max-width: 450px;
   width: 90%;
   position: relative;
+  animation: modalFadeIn 0.3s ease;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .price-modal-close {
@@ -471,7 +554,19 @@
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: #666;
+  color: #5a6e7c;
+  transition: all 0.2s;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.price-modal-close:hover {
+  color: #8B0000;
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .price-form-group {
@@ -481,8 +576,8 @@
 .price-form-group label {
   display: block;
   margin-bottom: 8px;
-  font-weight: 500;
-  color: #333;
+  font-weight: 600;
+  color: #1a2c3e;
 }
 
 .price-form-input {
@@ -491,6 +586,13 @@
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   font-size: 14px;
+  transition: all 0.2s;
+}
+
+.price-form-input:focus {
+  outline: none;
+  border-color: #8B0000;
+  box-shadow: 0 0 0 3px rgba(139, 0, 0, 0.1);
 }
 
 .price-modal-actions {
@@ -507,24 +609,29 @@
   border: none;
   cursor: pointer;
   font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
 }
 
 .price-btn-primary {
   background: #8B0000;
-  color: white;
+  color: #ffffff;
 }
 
 .price-btn-primary:hover:not(:disabled) {
   background: #6b0000;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(139, 0, 0, 0.3);
 }
 
 .price-btn-secondary {
   background: #f0f0f0;
-  color: #333;
+  color: #1a2c3e;
 }
 
 .price-btn-secondary:hover {
   background: #e0e0e0;
+  transform: translateY(-1px);
 }
 
 .price-footer {
@@ -533,7 +640,8 @@
 }
 
 .price-footer-text {
-  color: #666;
+  color: #5a6e7c;
+  font-size: 0.85rem;
 }
 
 /* Loading States */
@@ -549,7 +657,7 @@
 .spinner {
   width: 40px;
   height: 40px;
-  border: 3px solid #f3f3f3;
+  border: 3px solid #f0f0f0;
   border-top: 3px solid #8B0000;
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -565,7 +673,18 @@
   100% { transform: rotate(360deg); }
 }
 
-/* Responsive */
+/* ========== RESPONSIVE STYLES ========== */
+@media (max-width: 1024px) {
+  .price-management-container {
+    padding: 20px;
+  }
+  
+  .price-data-table th,
+  .price-data-table td {
+    padding: 10px 12px;
+  }
+}
+
 @media (max-width: 768px) {
   .price-management-container {
     padding: 15px;
@@ -576,18 +695,34 @@
     text-align: center;
   }
   
+  .price-header-info h1 {
+    font-size: 22px;
+  }
+  
   .price-tabs {
     justify-content: center;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 5px;
+  }
+  
+  .price-tab {
+    white-space: nowrap;
+    padding: 8px 16px;
+    font-size: 14px;
   }
   
   .price-data-table th,
   .price-data-table td {
-    padding: 8px;
+    padding: 8px 10px;
     font-size: 12px;
   }
   
-  .price-input {
-    width: 60px;
+  .price-input,
+  .price-rate-input {
+    width: 55px;
+    font-size: 12px;
   }
   
   .price-margin-grid,
@@ -598,5 +733,198 @@
   
   .price-auth-card {
     padding: 30px 20px;
+  }
+  
+  .price-auth-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+  }
+  
+  .price-auth-card h2 {
+    font-size: 20px;
+  }
+  
+  .price-margin-item {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .price-rate-value {
+    font-size: 24px;
+  }
+  
+  .price-modal-content {
+    padding: 20px;
+    width: 95%;
+  }
+}
+
+@media (max-width: 480px) {
+  .price-management-container {
+    padding: 10px;
+  }
+  
+  .price-header-info h1 {
+    font-size: 18px;
+  }
+  
+  .price-header-info p {
+    font-size: 12px;
+  }
+  
+  .price-tab {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  
+  .price-table-wrapper {
+    padding: 12px;
+  }
+  
+  .price-section-header h2 {
+    font-size: 16px;
+  }
+  
+  .price-data-table th,
+  .price-data-table td {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+  
+  .price-input,
+  .price-rate-input {
+    width: 45px;
+    font-size: 11px;
+  }
+  
+  .price-edit-btn,
+  .price-save-btn,
+  .price-cancel-btn {
+    padding: 2px 4px;
+  }
+  
+  .price-auth-card {
+    padding: 20px;
+  }
+  
+  .price-password-input {
+    padding: 12px 40px 12px 12px;
+    font-size: 14px;
+  }
+  
+  .price-auth-btn {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+}
+
+/* Touch-friendly tap targets */
+@media (max-width: 768px) {
+  .price-tab,
+  .price-edit-btn,
+  .price-save-btn,
+  .price-cancel-btn,
+  .price-logout-btn,
+  .price-auth-btn,
+  .price-link-btn,
+  .price-modal-close,
+  .price-btn-primary,
+  .price-btn-secondary {
+    min-height: 44px;
+  }
+  
+  .price-input,
+  .price-rate-input,
+  .price-form-input {
+    font-size: 16px !important;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .price-auth-card,
+  .price-table-wrapper,
+  .price-modal-content {
+    background: #1a1a2e;
+    border-color: #2a2a3e;
+  }
+  
+  .price-auth-card h2,
+  .price-header-info h1,
+  .price-section-header h2,
+  .price-data-table th,
+  .price-data-table td,
+  .price-network-cell,
+  .price-display span,
+  .price-tier-name {
+    color: #f8f9fa;
+  }
+  
+  .price-auth-card p,
+  .price-header-info p,
+  .price-margin-percent,
+  .price-percent-sign,
+  .price-tier-requirement,
+  .price-footer-text {
+    color: #aaa;
+  }
+  
+  .price-data-table th {
+    background: #2a2a3a;
+  }
+  
+  .price-margin-card,
+  .price-waec-card,
+  .price-commission-card {
+    background: #2a2a3a;
+    border-color: #3a3a4a;
+  }
+  
+  .price-tab {
+    color: #aaa;
+  }
+  
+  .price-tab:hover {
+    background: #2a2a3a;
+    color: #f8f9fa;
+  }
+  
+  .price-password-input,
+  .price-form-input {
+    background: #2a2a3a;
+    border-color: #3a3a4a;
+    color: #f8f9fa;
+  }
+  
+  .price-logout-btn {
+    background: #2a2a3a;
+    color: #f8f9fa;
+  }
+  
+  .price-logout-btn:hover {
+    background: #3a3a4a;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .price-auth-btn,
+  .price-tab,
+  .price-edit-btn,
+  .price-logout-btn,
+  .price-waec-card,
+  .price-commission-card {
+    transition: none;
+  }
+  
+  .price-auth-btn:hover,
+  .price-waec-card:hover,
+  .price-commission-card:hover {
+    transform: none;
+  }
+  
+  .price-modal-content {
+    animation: none;
   }
 }

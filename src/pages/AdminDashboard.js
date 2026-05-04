@@ -31,6 +31,8 @@ import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
 import * as XLSX from 'xlsx';
 import io from 'socket.io-client';
+import AdminPriceManagement from './AdminPriceManagement';
+
 
 // IMPORTANT: Register Chart.js components
 import {
@@ -122,6 +124,7 @@ export default function AdminDashboard() {
   const [showNetworkPurchaseModal, setShowNetworkPurchaseModal] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState('mtn');
   const [networkSales, setNetworkSales] = useState({ mtn: 0, telecel: 0, airteltigo: 0 });
+  
 
   // Live Stats
   const [liveStats, setLiveStats] = useState({

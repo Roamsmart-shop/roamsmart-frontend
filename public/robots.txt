@@ -1,4 +1,8 @@
-# https://www.robotstxt.org/robotstxt.html
+# public/robots.txt
 User-agent: *
 Allow: /
-Sitemap: https://abigalistic.com/sitemap.xml
+Sitemap: https://roamsmart.shop/sitemap.xml
+Disallow: /api/
+Disallow: /admin/
+Disallow: /profile/
+Disallow: /wallet/

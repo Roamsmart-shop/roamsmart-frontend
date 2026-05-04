@@ -29,7 +29,7 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
     const handleAvatarUpdate = (event) => {
       console.log('Navbar: Avatar update received', event.detail);
       setAvatarTimestamp(Date.now());
-      setAvatarError(false); // Reset error state on new avatar
+      setAvatarError(false);
     };
     
     const handleUserUpdate = (event) => {
@@ -69,26 +69,17 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
 
   // Get avatar URL - handles both 'avatar_url' and 'avatar' field names
   const getAvatarUrl = () => {
-    // Check both possible field names
     const avatarField = user?.avatar_url || user?.avatar;
-    
-    console.log('Navbar: Getting avatar URL, avatarField:', avatarField);
-    console.log('Navbar: User object:', user);
     
     if (avatarField && !avatarError) {
       const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-      // Ensure the path starts with a slash if needed
       const avatarPath = avatarField.startsWith('/') ? avatarField : `/${avatarField}`;
       const fullUrl = `${baseUrl}${avatarPath}?t=${avatarTimestamp}`;
-      console.log('Navbar: Full avatar URL:', fullUrl);
       return fullUrl;
     }
     
-    // Fallback to avatar generator
     const username = user?.username || 'User';
-    const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=8B0000&color=fff&size=40&bold=true`;
-    console.log('Navbar: Using fallback avatar URL:', fallbackUrl);
-    return fallbackUrl;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=8B0000&color=fff&size=40&bold=true`;
   };
 
   return (
@@ -96,12 +87,18 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
       <div className="navbar-left">
         {showMenu && (
           <>
-            <button className="menu-btn" onClick={onMenuClick}>
+            {/* Mobile menu button - only visible on mobile */}
+            <button 
+              className="menu-btn mobile-menu-btn" 
+              onClick={onMenuClick}
+              aria-label="Open menu"
+            >
               <FaBars />
             </button>
-            {/* Collapse/Expand Button */}
+            
+            {/* Desktop collapse/expand button - hidden on mobile */}
             <button 
-              className="collapse-btn" 
+              className="collapse-btn desktop-only" 
               onClick={toggleCollapse} 
               title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
             >
@@ -207,10 +204,7 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
                 alt={user?.username || 'User'} 
                 className="user-avatar"
                 onError={(e) => {
-                  console.error('Navbar: Avatar failed to load for user:', user?.username);
-                  console.error('Navbar: Failed avatar URL was:', getAvatarUrl());
                   setAvatarError(true);
-                  // Use a reliable fallback
                   const username = user?.username || 'User';
                   e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=8B0000&color=fff&size=40&bold=true`;
                 }}

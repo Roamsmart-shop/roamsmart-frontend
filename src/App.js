@@ -51,7 +51,6 @@ const RefundPolicy = lazy(() => import('./pages/RefundPolicy'));
 const TwoFactorSetup = lazy(() => import('./pages/TwoFactorSetup'));
 const Sessions = lazy(() => import('./pages/Sessions'));
 
-// Loading Component
 const LoadingScreen = () => (
   <div className="loading-screen">
     <div className="spinner"></div>
@@ -75,6 +74,7 @@ function AppContent() {
     const saved = localStorage.getItem('sidebar_collapsed');
     return saved !== null ? JSON.parse(saved) : false;
   });
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Save sidebar state to localStorage
   useEffect(() => {
@@ -93,6 +93,7 @@ function AppContent() {
       
       if (mobile) {
         setSidebarOpen(false);
+        setIsMobileSidebarOpen(false);
       } else {
         const saved = localStorage.getItem('sidebar_open');
         if (saved === null) {
@@ -109,7 +110,7 @@ function AppContent() {
   // Close sidebar on mobile when route changes
   useEffect(() => {
     if (isMobile) {
-      setSidebarOpen(false);
+      setIsMobileSidebarOpen(false);
     }
   }, [location.pathname, isMobile]);
 
@@ -118,34 +119,56 @@ function AppContent() {
   const showSidebar = user && (isAdmin || isAgent || user.role === 'user');
 
   const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
+    if (isMobile) {
+      setIsMobileSidebarOpen(!isMobileSidebarOpen);
+    } else {
+      setSidebarOpen(!sidebarOpen);
+    }
   };
 
   const toggleCollapse = () => {
-    setIsCollapsed(!isCollapsed);
+    if (!isMobile) {
+      setIsCollapsed(!isCollapsed);
+    }
   };
 
   const closeSidebar = () => {
     if (isMobile) {
+      setIsMobileSidebarOpen(false);
+    } else {
       setSidebarOpen(false);
     }
   };
+
+  // Determine if sidebar should be visible
+  const isSidebarVisible = isMobile ? isMobileSidebarOpen : sidebarOpen;
 
   return (
     <>
       {user && <AnnouncementBanner />}
       
+      {/* Mobile Sidebar Toggle Button */}
+      {showSidebar && isMobile && (
+        <button 
+          className="mobile-sidebar-toggle" 
+          onClick={toggleSidebar}
+          aria-label="Toggle menu"
+        >
+          <span className="toggle-icon">☰</span>
+        </button>
+      )}
+      
       <div className="app">
         {/* Sidebar Overlay for Mobile */}
-        {showSidebar && sidebarOpen && isMobile && (
-          <div className="sidebar-overlay" onClick={closeSidebar} />
+        {showSidebar && isSidebarVisible && isMobile && (
+          <div className="sidebar-overlay show" onClick={closeSidebar} />
         )}
         
         {/* Sidebar - This will push content on desktop */}
         {showSidebar && (
-          <div className={`sidebar-container ${isCollapsed ? 'collapsed' : ''}`}>
+          <div className={`sidebar-container ${isCollapsed ? 'collapsed' : ''} ${isSidebarVisible ? 'open' : 'closed'}`}>
             <Sidebar 
-              isOpen={sidebarOpen} 
+              isOpen={isSidebarVisible} 
               onClose={closeSidebar} 
               user={user}
               isCollapsed={isCollapsed}
@@ -155,14 +178,14 @@ function AppContent() {
         )}
         
         {/* Main Content */}
-        <div className="main-content">
+        <div className={`main-content ${showSidebar && isSidebarVisible ? 'with-sidebar' : ''} ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
           <Navbar 
             onMenuClick={toggleSidebar} 
             showMenu={showSidebar}
             isMobile={isMobile}
             onCollapse={toggleCollapse}
             isCollapsed={isCollapsed}
-            sidebarOpen={sidebarOpen}
+            sidebarOpen={isSidebarVisible}
           />
           
           <Suspense fallback={<LoadingScreen />}>
