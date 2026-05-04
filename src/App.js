@@ -147,16 +147,7 @@ function AppContent() {
     <>
       {user && <AnnouncementBanner />}
       
-      {/* Mobile Sidebar Toggle Button */}
-      {showSidebar && isMobile && (
-        <button 
-          className="mobile-sidebar-toggle" 
-          onClick={toggleSidebar}
-          aria-label="Toggle menu"
-        >
-          <span className="toggle-icon">☰</span>
-        </button>
-      )}
+      
       
       <div className="app">
         {/* Sidebar Overlay for Mobile */}

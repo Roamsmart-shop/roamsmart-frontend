@@ -608,3 +608,339 @@ th { background: #f8f9fa; font-weight: 600; color: #1a2c3e; }
     font-size: 1.2rem;
   }
 }
+
+/* ========== MOBILE NAVBAR STYLES ========== */
+@media (max-width: 768px) {
+  /* Navbar mobile fixes */
+  .navbar {
+    padding: 10px 15px;
+  }
+  
+  .navbar-left .logo h1 {
+    font-size: 18px;
+  }
+  
+  .navbar-right {
+    gap: 10px;
+  }
+  
+  .wallet-chip {
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  
+  .wallet-chip span {
+    display: none;
+  }
+  
+  .notification-btn {
+    font-size: 18px;
+  }
+  
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+
+
+@media (max-width: 768px) {
+  .sidebar-toggle-btn {
+    display: flex;
+  }
+}
+
+/* ========== ADMIN DASHBOARD MOBILE FIXES ========== */
+@media (max-width: 768px) {
+  /* Admin tabs - make scrollable */
+  .admin-tabs {
+    display: flex;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    gap: 8px;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+  }
+  
+  .admin-tabs .tab-btn {
+    flex: 0 0 auto;
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+  
+  /* Stats grid - 2 columns */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  /* Stat cards */
+  .stat-card {
+    padding: 12px;
+  }
+  
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+  
+  .stat-value {
+    font-size: 1.1rem;
+  }
+  
+  .stat-label {
+    font-size: 0.7rem;
+  }
+  
+  /* Charts - stack vertically */
+  .charts-row {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+  
+  /* Tables - horizontal scroll */
+  .table-responsive,
+  .orders-table,
+  .customers-table,
+  .withdrawals-table,
+  .transactions-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .data-table {
+    min-width: 600px;
+  }
+  
+  .data-table th,
+  .data-table td {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+  
+  /* Modal fixes */
+  .modal-content {
+    width: 95%;
+    max-width: 95%;
+    margin: 10px;
+    border-radius: 16px;
+  }
+  
+  .modal-header h3 {
+    font-size: 16px;
+  }
+  
+  /* Form inputs */
+  .form-control {
+    padding: 10px;
+    font-size: 14px;
+  }
+  
+  /* Buttons */
+  .btn-primary,
+  .btn-secondary,
+  .btn-outline {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+  
+  /* Dashboard header */
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .dashboard-header h1 {
+    font-size: 20px;
+  }
+  
+  .dashboard-header p {
+    font-size: 12px;
+  }
+  
+  /* Wallet card in header */
+  .wallet-card {
+    align-self: flex-start;
+  }
+  
+  /* Agent dashboard specific */
+  .agent-tabs {
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .agent-tabs .tab {
+    display: inline-block;
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+  
+  /* Earnings page */
+  .earnings-summary {
+    flex-direction: column;
+  }
+  
+  .earnings-card {
+    width: 100%;
+  }
+  
+  .earnings-stats {
+    width: 100%;
+  }
+  
+  /* Bundles grid */
+  .bundles-grid,
+  .bundles-grid-agent {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .bundle-card,
+  .bundle-card-agent {
+    padding: 12px;
+  }
+  
+  .bundle-size {
+    font-size: 18px;
+  }
+  
+  .bundle-price {
+    font-size: 16px;
+  }
+  
+  /* Customer input row */
+  .customer-input-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  /* Quick actions bar */
+  .quick-actions-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .quick-actions-bar .action-btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  /* Progress bar */
+  .progress-bar-container {
+    width: 100%;
+  }
+  
+  /* Tier progress card */
+  .tier-progress-card {
+    padding: 15px;
+  }
+  
+  .tier-progress-card h3 {
+    font-size: 14px;
+  }
+}
+
+/* ========== EXTRA SMALL PHONES (max-width: 480px) ========== */
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .bundles-grid,
+  .bundles-grid-agent {
+    grid-template-columns: 1fr;
+  }
+  
+  .header-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .header-actions .btn-primary,
+  .header-actions .btn-outline {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+  
+  .banner-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .banner-actions button {
+    width: 100%;
+  }
+  
+  .network-tabs {
+    flex-wrap: wrap;
+  }
+  
+  .tab-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  
+  /* Pagination */
+  .pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .pagination button,
+  .pagination span {
+    margin: 5px;
+  }
+}
+
+/* ========== TABLET LANDSCAPE (768px - 1024px) ========== */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .bundles-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .dashboard {
+    padding: 20px;
+  }
+}
+
+/* ========== FIX FOR MODAL SCROLLING ON MOBILE ========== */
+@media (max-width: 768px) {
+  .modal-overlay {
+    align-items: flex-start;
+    padding-top: 20px;
+  }
+  
+  .modal-content {
+    max-height: 85vh;
+    margin-top: 20px;
+  }
+}
+
+/* ========== TOUCH FRIENDLY BUTTONS ========== */
+@media (max-width: 768px) {
+  button, 
+  .nav-link,
+  .tab-btn,
+  .action-btn,
+  .quick-action-btn {
+    min-height: 44px;
+  }
+  
+  input, 
+  select, 
+  textarea {
+    font-size: 16px !important; /* Prevents zoom on focus in iOS */
+  }
+}
