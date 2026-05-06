@@ -7,6 +7,7 @@ import Sidebar from './components/Sidebar';
 import PrivateRoute from './components/PrivateRoute';
 import AnnouncementBanner from './components/AnnouncementBanner';
 import { Toaster } from 'react-hot-toast';
+import api from './services/api';
 
 // Direct imports for core components
 import AgentOrders from './pages/AgentOrders';
@@ -19,13 +20,13 @@ import ResetPassword from './pages/ResetPassword';
 import WAECVouchersPage from './pages/WAECVouchersPage';
 import AdminPriceManagement from './pages/AdminPriceManagement';
 import AdminDashboard from './pages/AdminDashboard';
+
 // Lazy load pages for better performance
 const Landing = lazy(() => import('./pages/Landingpages'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const UserDashboard = lazy(() => import('./pages/UserDashboard'));
 const AgentDashboard = lazy(() => import('./pages/AgentDashboard'));
-
 const BecomeAgent = lazy(() => import('./pages/BecomeAgent'));
 const Transactions = lazy(() => import('./pages/Transactions'));
 const Support = lazy(() => import('./pages/Support'));
@@ -59,8 +60,12 @@ const LoadingScreen = () => (
 );
 
 function AppContent() {
-  const { user, loading, isAdmin, isAgent } = useAuth();
+  const { user, loading, isAdmin, isAgent, refreshUser } = useAuth();
   const location = useLocation();
+  
+  // State for role overrides (to prevent wrong redirects on refresh)
+  const [verifiedRole, setVerifiedRole] = useState(null);
+  const [verifyingRole, setVerifyingRole] = useState(true);
   
   // Load saved state from localStorage
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -75,6 +80,44 @@ function AppContent() {
     return saved !== null ? JSON.parse(saved) : false;
   });
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // CRITICAL: Verify user role from backend on page load (prevents wrong redirects on refresh)
+  useEffect(() => {
+    const verifyUserRole = async () => {
+      const token = localStorage.getItem('roamsmart_token');
+      if (!token) {
+        setVerifyingRole(false);
+        return;
+      }
+      
+      try {
+        const res = await api.get('/user/stats');
+        const userData = res.data.user || res.data.data?.user;
+        
+        if (userData) {
+          console.log('Verified user role from backend:', userData.role);
+          setVerifiedRole(userData.role);
+          
+          // If role is different from stored, update localStorage
+          const storedUser = localStorage.getItem('roamsmart_user');
+          if (storedUser) {
+            const parsedUser = JSON.parse(storedUser);
+            if (parsedUser.role !== userData.role) {
+              console.log('Updating stored user role from', parsedUser.role, 'to', userData.role);
+              parsedUser.role = userData.role;
+              localStorage.setItem('roamsmart_user', JSON.stringify(parsedUser));
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to verify user role:', error);
+      } finally {
+        setVerifyingRole(false);
+      }
+    };
+    
+    verifyUserRole();
+  }, []);
 
   // Save sidebar state to localStorage
   useEffect(() => {
@@ -114,9 +157,72 @@ function AppContent() {
     }
   }, [location.pathname, isMobile]);
 
-  if (loading) return <LoadingScreen />;
+  // Don't render until we've verified the role
+  if (loading || verifyingRole) {
+    return <LoadingScreen />;
+  }
 
-  const showSidebar = user && (isAdmin || isAgent || user.role === 'user');
+  // Determine actual role (prioritize verified role from backend)
+  let actualRole = user?.role;
+  let actualIsAgent = user?.is_agent;
+  let actualIsAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+  
+  // Override with verified role if available (prevents wrong redirects on refresh)
+  if (verifiedRole) {
+    actualRole = verifiedRole;
+    actualIsAdmin = verifiedRole === 'admin' || verifiedRole === 'super_admin';
+    actualIsAgent = false; // Admin is not an agent
+  }
+  
+  // Special case for admin email
+  if (user?.email === 'admin@roamsmart.shop' && actualRole !== 'super_admin') {
+    console.log('Admin email detected - forcing super_admin role');
+    actualRole = 'super_admin';
+    actualIsAdmin = true;
+    actualIsAgent = false;
+  }
+  
+  // Determine which dashboard to show based on verified role
+  let dashboardToShow = null;
+  
+  if (actualRole === 'super_admin' || actualRole === 'admin') {
+    dashboardToShow = 'admin';
+  } else if (actualIsAgent || user?.is_agent) {
+    dashboardToShow = 'agent';
+  } else {
+    dashboardToShow = 'user';
+  }
+  
+  console.log('Dashboard determination:', { 
+    actualRole, 
+    actualIsAdmin, 
+    dashboardToShow,
+    userEmail: user?.email 
+  });
+  
+  // Force redirect based on current path
+  const currentPath = location.pathname;
+  
+  // If user is on wrong dashboard, redirect
+  if (dashboardToShow === 'admin' && !currentPath.startsWith('/admin')) {
+    console.log('Redirecting admin to /admin');
+    window.location.href = '/admin';
+    return null;
+  }
+  
+  if (dashboardToShow === 'agent' && !currentPath.startsWith('/agent') && !currentPath.startsWith('/store') && !currentPath.startsWith('/inventory')) {
+    console.log('Redirecting agent to /agent');
+    window.location.href = '/agent';
+    return null;
+  }
+  
+  if (dashboardToShow === 'user' && currentPath === '/admin') {
+    console.log('User trying to access admin - redirecting to /dashboard');
+    window.location.href = '/dashboard';
+    return null;
+  }
+
+  const showSidebar = user && (actualIsAdmin || actualIsAgent || user.role === 'user');
 
   const toggleSidebar = () => {
     if (isMobile) {
@@ -140,14 +246,11 @@ function AppContent() {
     }
   };
 
-  // Determine if sidebar should be visible
   const isSidebarVisible = isMobile ? isMobileSidebarOpen : sidebarOpen;
 
   return (
     <>
       {user && <AnnouncementBanner />}
-      
-      
       
       <div className="app">
         {/* Sidebar Overlay for Mobile */}
