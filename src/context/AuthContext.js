@@ -1,6 +1,6 @@
 // src/context/AuthContext.js
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
@@ -13,6 +13,9 @@ const STORAGE_KEYS = {
   USER: 'roamsmart_user',
   TOKEN_EXPIRY: 'roamsmart_token_expiry'
 };
+
+// Public routes that should not show logged-in user
+const PUBLIC_ROUTES = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/verify'];
 
 // Company configuration
 const COMPANY_CONFIG = {
@@ -34,6 +37,10 @@ export function AuthProvider({ children }) {
   const [unreadCount, setUnreadCount] = useState(0);
   
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Check if current route is public
+  const isPublicRoute = PUBLIC_ROUTES.includes(location.pathname) || location.pathname.startsWith('/verify');
 
   // Session timeout duration (30 minutes)
   const SESSION_TIMEOUT = 30 * 60 * 1000;
@@ -41,38 +48,36 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
     const userData = localStorage.getItem(STORAGE_KEYS.USER);
+    const tokenExpiry = localStorage.getItem(STORAGE_KEYS.TOKEN_EXPIRY);
+    
+    // Check if token is expired
+    if (tokenExpiry && Date.now() > parseInt(tokenExpiry)) {
+      handleSessionExpired();
+      setLoading(false);
+      return;
+    }
     
     if (token && userData) {
       try {
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
-        // Check if token is expired
-        const tokenExpiry = localStorage.getItem(STORAGE_KEYS.TOKEN_EXPIRY);
-        if (tokenExpiry && Date.now() > parseInt(tokenExpiry)) {
-          handleSessionExpired();
-        } else {
-          fetchUser();
-          startSessionTimer();
-        }
+        fetchUser();
+        startSessionTimer();
       } catch (error) {
+        console.error('Failed to parse user data:', error);
         localStorage.removeItem(STORAGE_KEYS.TOKEN);
         localStorage.removeItem(STORAGE_KEYS.USER);
         localStorage.removeItem(STORAGE_KEYS.TOKEN_EXPIRY);
         setLoading(false);
       }
-    } else if (token) {
-      fetchUser();
     } else {
       setLoading(false);
     }
     
-    // Listen for tab close to logout
-    window.addEventListener('beforeunload', handleBeforeUnload);
     // Listen for storage changes across tabs
     window.addEventListener('storage', handleStorageChange);
     
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('storage', handleStorageChange);
       if (sessionTimeout) clearTimeout(sessionTimeout);
     };
@@ -98,12 +103,10 @@ export function AuthProvider({ children }) {
   // ========== FETCH USER DATA ==========
   const fetchUser = async () => {
     try {
-      // Use /user/stats endpoint
       const res = await api.get('/user/stats');
       
       console.log('Fetch user response:', res.data);
       
-      // Handle different response structures
       let userData;
       if (res.data.user) {
         userData = res.data.user;
@@ -120,7 +123,7 @@ export function AuthProvider({ children }) {
         userData.role = userData.is_agent ? 'agent' : 'user';
       }
       
-      // Map avatar field to avatar_url for consistency
+      // Map avatar field for consistency
       if (userData.avatar && !userData.avatar_url) {
         userData.avatar_url = userData.avatar;
       }
@@ -129,14 +132,13 @@ export function AuthProvider({ children }) {
       }
       
       console.log('Processed user data:', userData);
-      console.log('Avatar URL:', userData.avatar_url);
       
       setUser(userData);
       
-      // Store user in localStorage using consistent keys
+      // Store user in localStorage
       localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
       
-      // Set token expiry (7 days from now) if not already set
+      // Set token expiry if not already set
       if (!localStorage.getItem(STORAGE_KEYS.TOKEN_EXPIRY)) {
         const expiry = Date.now() + (7 * 24 * 60 * 60 * 1000);
         localStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRY, expiry.toString());
@@ -179,13 +181,6 @@ export function AuthProvider({ children }) {
         handleSessionExpired();
       }
       
-      // Don't clear token on 405 errors
-      if (error.response?.status !== 405) {
-        localStorage.removeItem(STORAGE_KEYS.TOKEN);
-        localStorage.removeItem(STORAGE_KEYS.USER);
-        localStorage.removeItem(STORAGE_KEYS.TOKEN_EXPIRY);
-      }
-      
       throw error;
     } finally {
       setLoading(false);
@@ -197,10 +192,8 @@ export function AuthProvider({ children }) {
     
     setUser(prevUser => {
       const newUser = { ...prevUser, ...updatedUserData };
-      // Update localStorage using consistent keys
       localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(newUser));
       
-      // Dispatch custom event for other components
       window.dispatchEvent(new CustomEvent('user-context-updated', { 
         detail: { user: newUser }
       }));
@@ -288,8 +281,6 @@ export function AuthProvider({ children }) {
     });
   };
 
-  const handleBeforeUnload = () => {};
-
   // ========== ACTIVITY TRACKING ==========
   useEffect(() => {
     const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
@@ -319,31 +310,24 @@ export function AuthProvider({ children }) {
       if (res.data.success) {
         const { token, user: userData, redirect } = res.data;
         
-        // Store token and user data using consistent keys
         localStorage.setItem(STORAGE_KEYS.TOKEN, token);
         localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
         
-        // Set token expiry (remember me = 30 days, else 7 days)
         const expiryDays = rememberMe ? 30 : 7;
         const expiry = Date.now() + (expiryDays * 24 * 60 * 60 * 1000);
         localStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRY, expiry.toString());
         
         setUser(userData);
         
-        // Fetch permissions for admin
         if (userData.role === 'admin' || userData.role === 'super_admin') {
           fetchPermissions();
         }
         
-        // Fetch notifications
         fetchNotifications();
-        
-        // Start session timer
         startSessionTimer();
         
         toast.success(`Welcome back, ${userData.username}!`);
         
-        // Log login activity
         api.post('/auth/log-activity', { action: 'login' }).catch(err => {
           console.warn('Could not log activity:', err);
         });
@@ -378,6 +362,16 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // ========== LOGOUT FUNCTION ==========
+  const logout = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEYS.TOKEN);
+    localStorage.removeItem(STORAGE_KEYS.USER);
+    localStorage.removeItem(STORAGE_KEYS.TOKEN_EXPIRY);
+    setUser(null);
+    if (sessionTimeout) clearTimeout(sessionTimeout);
+    navigate('/login');
+  }, [navigate, sessionTimeout]);
+
   // ========== REGISTER FUNCTION ==========
   const register = async (userData) => {
     try {
@@ -394,7 +388,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // ========== VERIFY REGISTRATION CODE ==========
+// ========== VERIFY REGISTRATION CODE ==========
   const verifyRegistrationCode = async (code, email) => {
     try {
       const res = await api.post('/auth/verify-code', { code, email });
@@ -415,33 +409,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // ========== LOGOUT FUNCTION ==========
-  const logout = async () => {
-    try {
-      await api.post('/auth/log-activity', { action: 'logout' }).catch(() => {});
-    } catch (error) {}
-    
-    // Clear all storage using consistent keys
-    localStorage.removeItem(STORAGE_KEYS.TOKEN);
-    localStorage.removeItem(STORAGE_KEYS.USER);
-    localStorage.removeItem(STORAGE_KEYS.TOKEN_EXPIRY);
-    sessionStorage.clear();
-    
-    // Clear state
-    setUser(null);
-    setPermissions([]);
-    setNotifications([]);
-    setUnreadCount(0);
-    
-    // Clear session timer
-    if (sessionTimeout) {
-      clearTimeout(sessionTimeout);
-      setSessionTimeout(null);
-    }
-    
-    toast.success('Logged out successfully');
-    navigate('/login');
-  };
+ 
 
   // ========== UPDATE USER PROFILE ==========
   const updateProfile = async (updates) => {

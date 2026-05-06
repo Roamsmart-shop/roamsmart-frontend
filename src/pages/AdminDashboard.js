@@ -214,10 +214,22 @@ export default function AdminDashboard() {
     { region: 'Bono', sales: 22000, users: 450, agents: 6 },
     { region: 'Northern', sales: 18000, users: 350, agents: 5 }
   ]);
-
-  // ========== WEBSOCKET FOR LIVE DATA ==========
+ 
+  
+useEffect(() => {
+  const user = JSON.parse(localStorage.getItem('roamsmart_user') || '{}');
+ 
+  if (user.role !== 'admin' && user.role !== 'super_admin') {
+    if (user.is_agent) {
+      window.location.href = '/agent';
+    } else {
+      window.location.href = '/dashboard';
+    }
+  }
+}, []);
+ 
   useEffect(() => {
-    // Use environment variable for WebSocket URL - no hardcoded localhost in production
+    
     const wsUrl = process.env.REACT_APP_WS_URL || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
     socketRef.current = io(wsUrl, {
       path: '/socket.io',
