@@ -1,13 +1,13 @@
 // src/components/Navbar.js
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
   FaBars, FaBell, FaUserCircle, FaSignOutAlt, FaWallet,
   FaShoppingCart, FaEnvelope, FaSearch, FaTimes, FaAngleLeft, FaAngleRight
 } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
-
+import { useLocation } from 'react-router-dom';
 // Company Configuration
 const COMPANY = {
   name: 'Roamsmart Digital Service',
@@ -15,41 +15,14 @@ const COMPANY = {
   email: 'support@roamsmart.shop'
 };
 
-// List of public routes (no authentication needed)
-const PUBLIC_ROUTES = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/verify'];
-
 export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, isCollapsed, sidebarOpen }) {
   const { user, logout, unreadCount, markAllNotificationsRead, notifications, updateUserContext } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [avatarTimestamp, setAvatarTimestamp] = useState(Date.now());
   const [avatarError, setAvatarError] = useState(false);
-
-  // Check if current route is public
-  const isPublicRoute = PUBLIC_ROUTES.includes(location.pathname) || location.pathname.startsWith('/verify');
-  
-  // For public routes, don't show user-specific content
-  if (isPublicRoute) {
-    return (
-      <nav className="navbar">
-        <div className="navbar-left">
-          <Link to="/" className="logo">
-            <span className="logo-icon">🚀</span>
-            <span className="logo-text">Roamsmart<span>Digital Service</span></span>
-          </Link>
-        </div>
-        <div className="navbar-right">
-          <div className="auth-buttons">
-            <Link to="/login" className="btn-login">Login to Roamsmart</Link>
-            <Link to="/register" className="btn-register">Sign Up</Link>
-          </div>
-        </div>
-      </nav>
-    );
-  }
 
   // Listen for avatar updates    
   useEffect(() => {
@@ -73,11 +46,6 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
       window.removeEventListener('user-context-updated', handleUserUpdate);
     };
   }, []);
-
-  // If no user on protected route, don't render (should redirect)
-  if (!user) {
-    return null;
-  }
 
   const handleLogout = () => {
     logout();
@@ -175,79 +143,86 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
       </div>
 
       <div className="navbar-right">
-        <>
-          {/* Notification Bell */}
-          <div className="notification-dropdown">
-            <button 
-              className="notification-btn" 
-              onClick={() => setShowNotifications(!showNotifications)}
-            >
-              <FaBell />
-              {unreadCount > 0 && (
-                <span className="notification-badge">{unreadCount}</span>
-              )}
-            </button>
-            
-            <AnimatePresence>
-              {showNotifications && (
-                <motion.div 
-                  className="notification-panel"
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                >
-                  <div className="notification-header">
-                    <h4>Roamsmart Notifications</h4>
-                    {unreadCount > 0 && (
-                      <button onClick={markAllNotificationsRead} className="mark-read-btn">
-                        Mark all as read
-                      </button>
-                    )}
-                  </div>
-                  <div className="notification-list">
-                    {notifications?.length === 0 ? (
-                      <p className="no-notifications">No notifications from Roamsmart</p>
-                    ) : (
-                      notifications?.slice(0, 5).map(notif => (
-                        <div key={notif.id} className={`notification-item ${notif.read ? 'read' : 'unread'}`}>
-                          <div className="notification-content">
-                            <p>{notif.message}</p>
-                            <small>{new Date(notif.created_at).toLocaleString()}</small>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  {notifications?.length > 5 && (
-                    <div className="notification-footer">
-                      <Link to="/notifications">View all notifications on Roamsmart</Link>
+        {user ? (
+          <>
+            {/* Notification Bell */}
+            <div className="notification-dropdown">
+              <button 
+                className="notification-btn" 
+                onClick={() => setShowNotifications(!showNotifications)}
+              >
+                <FaBell />
+                {unreadCount > 0 && (
+                  <span className="notification-badge">{unreadCount}</span>
+                )}
+              </button>
+              
+              <AnimatePresence>
+                {showNotifications && (
+                  <motion.div 
+                    className="notification-panel"
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                  >
+                    <div className="notification-header">
+                      <h4>Roamsmart Notifications</h4>
+                      {unreadCount > 0 && (
+                        <button onClick={markAllNotificationsRead} className="mark-read-btn">
+                          Mark all as read
+                        </button>
+                      )}
                     </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-          
-          {/* User Menu */}
-          <div className="user-menu">
-            <img 
-              src={getAvatarUrl()} 
-              alt={user?.username || 'User'} 
-              className="user-avatar"
-              onError={(e) => {
-                setAvatarError(true);
-                const username = user?.username || 'User';
-                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=8B0000&color=fff&size=40&bold=true`;
-              }}
-            />
-            <div className="user-dropdown">
-              <Link to="/profile"><FaUserCircle /> Profile</Link>
-              <Link to="/wallet/transactions"><FaWallet /> Wallet</Link>
-              {user.is_agent && <Link to="/earnings"><FaShoppingCart /> Earnings on Roamsmart</Link>}
-              <button onClick={handleLogout}><FaSignOutAlt /> Logout</button>
+                    <div className="notification-list">
+                      {notifications?.length === 0 ? (
+                        <p className="no-notifications">No notifications from Roamsmart</p>
+                      ) : (
+                        notifications?.slice(0, 5).map(notif => (
+                          <div key={notif.id} className={`notification-item ${notif.read ? 'read' : 'unread'}`}>
+                            <div className="notification-content">
+                              <p>{notif.message}</p>
+                              <small>{new Date(notif.created_at).toLocaleString()}</small>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    {notifications?.length > 5 && (
+                      <div className="notification-footer">
+                        <Link to="/notifications">View all notifications on Roamsmart</Link>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
+            
+            {/* User Menu */}
+            <div className="user-menu">
+              <img 
+                src={getAvatarUrl()} 
+                alt={user?.username || 'User'} 
+                className="user-avatar"
+                onError={(e) => {
+                  setAvatarError(true);
+                  const username = user?.username || 'User';
+                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=8B0000&color=fff&size=40&bold=true`;
+                }}
+              />
+              <div className="user-dropdown">
+                <Link to="/profile"><FaUserCircle /> Profile</Link>
+                <Link to="/wallet/transactions"><FaWallet /> Wallet</Link>
+                {user.is_agent && <Link to="/earnings"><FaShoppingCart /> Earnings on Roamsmart</Link>}
+                <button onClick={handleLogout}><FaSignOutAlt /> Logout</button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="auth-buttons">
+            <Link to="/login" className="btn-login">Login to Roamsmart</Link>
+            <Link to="/register" className="btn-register">Sign Up</Link>
           </div>
-        </>
+        )}
       </div>
     </nav>
   );
