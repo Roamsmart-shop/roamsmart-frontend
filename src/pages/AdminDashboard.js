@@ -216,17 +216,7 @@ export default function AdminDashboard() {
   ]);
  
   
-useEffect(() => {
-  const user = JSON.parse(localStorage.getItem('roamsmart_user') || '{}');
- 
-  if (user.role !== 'admin' && user.role !== 'super_admin') {
-    if (user.is_agent) {
-      window.location.href = '/agent';
-    } else {
-      window.location.href = '/dashboard';
-    }
-  }
-}, []);
+
  
   useEffect(() => {
     
