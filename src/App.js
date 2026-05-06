@@ -18,14 +18,14 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import WAECVouchersPage from './pages/WAECVouchersPage';
 import AdminPriceManagement from './pages/AdminPriceManagement';
-
+import AdminDashboard from './pages/AdminDashboard';
 // Lazy load pages for better performance
 const Landing = lazy(() => import('./pages/Landingpages'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const UserDashboard = lazy(() => import('./pages/UserDashboard'));
 const AgentDashboard = lazy(() => import('./pages/AgentDashboard'));
-const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+
 const BecomeAgent = lazy(() => import('./pages/BecomeAgent'));
 const Transactions = lazy(() => import('./pages/Transactions'));
 const Support = lazy(() => import('./pages/Support'));
