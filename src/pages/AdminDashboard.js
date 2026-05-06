@@ -71,7 +71,7 @@ const COMPANY = {
   domain: 'roamsmart.shop'
 };
 
-// Helper function for safe value handling
+// Helper functions
 const safeValue = (value, fallback = '') => {
   return value !== undefined && value !== null ? value : fallback;
 };
@@ -87,7 +87,12 @@ const safeToUpperCase = (value, defaultValue = '') => {
 };
 
 export default function AdminDashboard() {
-  // ========== STATE MANAGEMENT ==========
+  console.log('===== ADMIN DASHBOARD DEBUG =====');
+  console.log('1. Component rendering start');
+  
+  // ========== STATE MANAGEMENT (ALL useState FIRST) ==========
+  console.log('2. Initializing useState hooks...');
+  
   const [stats, setStats] = useState({
     total_users: 0, total_agents: 0, pending_agents: 0, total_revenue: 0,
     total_orders: 0, pending_manual: 0, total_withdrawals: 0, pending_withdrawals: 0,
@@ -124,9 +129,6 @@ export default function AdminDashboard() {
   const [showNetworkPurchaseModal, setShowNetworkPurchaseModal] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState('mtn');
   const [networkSales, setNetworkSales] = useState({ mtn: 0, telecel: 0, airteltigo: 0 });
-  
-
-  // Live Stats
   const [liveStats, setLiveStats] = useState({
     online_users: 0,
     active_purchases_per_sec: 0,
@@ -137,51 +139,29 @@ export default function AdminDashboard() {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const socketRef = useRef(null);
-  
-  // Announcement State
   const [announcement, setAnnouncement] = useState({
     is_active: false, message: '', type: 'info', network_affected: 'all', expires_at: ''
   });
-  
-  // Create User Form State
   const [newUser, setNewUser] = useState({
     username: '', email: '', phone: '', password: '', role: 'user', wallet_balance: 0
   });
-  
-  // Bulk Approve State
   const [selectedRequests, setSelectedRequests] = useState([]);
-  
-  // Backup State
   const [backups, setBackups] = useState([]);
   const [backupProgress, setBackupProgress] = useState(0);
-  
-  // Webhook State
   const [webhooks, setWebhooks] = useState([]);
   const [newWebhook, setNewWebhook] = useState({ url: '', events: [], secret: '' });
-  
-  // KYC State
   const [kycRequests, setKycRequests] = useState([]);
-  
-  // WAEC State
   const [waecVouchers, setWaecVouchers] = useState([]);
   const [waecStats, setWaecStats] = useState({ total: 0, used: 0, available: 0 });
   const [newWAEC, setNewWAEC] = useState({ exam_type: 'WASSCE', year: new Date().getFullYear(), quantity: 100, retail_price: 20, agent_price: 18, wholesale_price: 15 });
-  
-  // Bill Payments State
   const [billPayments, setBillPayments] = useState([]);
   const [billStats, setBillStats] = useState({ total: 0, completed: 0, pending: 0 });
-  
-  // Network Inventory State
   const [masterInventory, setMasterInventory] = useState({});
   const [networkPurchase, setNetworkPurchase] = useState({ network: 'mtn', size_gb: 10, quantity: 1 });
-  
-  // AI Analytics
   const [predictions, setPredictions] = useState({
     next_month_revenue: 0, peak_hour_prediction: '6 PM', churn_risk_users: [],
     demand_forecast: {}
   });
-  
-  // System Settings
   const [systemSettings, setSystemSettings] = useState({
     agent_fee: 100, min_withdrawal: 50, max_withdrawal: 10000,
     commission_rates: { bronze: 10, silver: 15, gold: 20, platinum: 25 },
@@ -194,16 +174,12 @@ export default function AdminDashboard() {
     backup_frequency: 'daily', backup_retention_days: 30,
     waec_commission: 10, bill_commission: 5
   });
-  
-  // Admin Role State
   const [adminRole, setAdminRole] = useState('super_admin');
   const [adminPermissions, setAdminPermissions] = useState({
     can_manage_users: true, can_manage_agents: true, can_manage_payments: true,
     can_manage_withdrawals: true, can_view_reports: true, can_manage_settings: true,
     can_broadcast: true, can_manage_backups: true
   });
-  
-  // Geographic Data (Ghana regions)
   const [regionalStats, setRegionalStats] = useState([
     { region: 'Greater Accra', sales: 125000, users: 2500, agents: 45 },
     { region: 'Ashanti', sales: 89000, users: 1800, agents: 32 },
@@ -214,10 +190,11 @@ export default function AdminDashboard() {
     { region: 'Bono', sales: 22000, users: 450, agents: 6 },
     { region: 'Northern', sales: 18000, users: 350, agents: 5 }
   ]);
- 
-  
 
- 
+  console.log('3. All useState hooks initialized');
+
+  // ========== ALL useEffect HOOKS (BEFORE ANY CONDITIONAL RETURNS) ==========
+  console.log('4. Initializing useEffect hooks...');
   useEffect(() => {
     
     const wsUrl = process.env.REACT_APP_WS_URL || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
