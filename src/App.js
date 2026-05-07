@@ -7,7 +7,7 @@ import Sidebar from './components/Sidebar';
 import PrivateRoute from './components/PrivateRoute';
 import AnnouncementBanner from './components/AnnouncementBanner';
 import { Toaster } from 'react-hot-toast';
-import api from './services/api';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Direct imports for core components
 import AgentOrders from './pages/AgentOrders';
@@ -60,7 +60,7 @@ const LoadingScreen = () => (
 );
 
 function AppContent() {
-  const { user, loading, isAdmin, isAgent, refreshUser } = useAuth();
+  const { user, loading, refreshUser } = useAuth();
   const location = useLocation();
   
   // State for role overrides (to prevent wrong redirects on refresh)
@@ -81,17 +81,40 @@ function AppContent() {
   });
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // CRITICAL: Verify user role from backend on page load (prevents wrong redirects on refresh)
+  // CRITICAL FIX: Verify user role from backend but DON'T logout on failure
   useEffect(() => {
+    let isMounted = true;
+    
     const verifyUserRole = async () => {
       const token = localStorage.getItem('roamsmart_token');
+      const tokenExpiry = localStorage.getItem('roamsmart_token_expiry');
+      
+      // Check if token exists and is not expired
       if (!token) {
-        setVerifyingRole(false);
+        if (isMounted) setVerifyingRole(false);
+        return;
+      }
+      
+      // Check if token is expired
+      if (tokenExpiry && Date.now() > parseInt(tokenExpiry)) {
+        console.log('Token expired, but not logging out immediately - will redirect on next action');
+        if (isMounted) setVerifyingRole(false);
         return;
       }
       
       try {
-        const res = await api.get('/user/stats');
+        // Use a timeout to prevent hanging requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        // Use fetch directly for better error control, or import api dynamically
+        const { default: api } = await import('./services/api');
+        
+        const res = await api.get('/user/stats', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
+        if (!isMounted) return;
+        
         const userData = res.data.user || res.data.data?.user;
         
         if (userData) {
@@ -105,19 +128,38 @@ function AppContent() {
             if (parsedUser.role !== userData.role) {
               console.log('Updating stored user role from', parsedUser.role, 'to', userData.role);
               parsedUser.role = userData.role;
+              parsedUser.is_agent = userData.is_agent || false;
               localStorage.setItem('roamsmart_user', JSON.stringify(parsedUser));
             }
           }
+          
+          // Update token expiry to keep user logged in (extend session)
+          const newExpiry = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 days
+          localStorage.setItem('roamsmart_token_expiry', newExpiry.toString());
         }
       } catch (error) {
-        console.error('Failed to verify user role:', error);
+        // CRITICAL: Don't logout on network errors or connection issues
+        console.warn('Role verification failed (non-critical):', error.message);
+        
+        // Check if token is still valid locally
+        const storedUser = localStorage.getItem('roamsmart_user');
+        if (storedUser && tokenExpiry && Date.now() < parseInt(tokenExpiry)) {
+          // Use stored user data - don't logout
+          const parsedUser = JSON.parse(storedUser);
+          console.log('Using stored user role due to verification failure:', parsedUser.role);
+          setVerifiedRole(parsedUser.role);
+        }
       } finally {
-        setVerifyingRole(false);
+        if (isMounted) setVerifyingRole(false);
       }
     };
     
     verifyUserRole();
-  }, []);
+    
+    return () => {
+      isMounted = false;
+    };
+  }, []); // Only run once on mount
 
   // Save sidebar state to localStorage
   useEffect(() => {
@@ -157,21 +199,26 @@ function AppContent() {
     }
   }, [location.pathname, isMobile]);
 
-  // Don't render until we've verified the role
+  // Don't block rendering for too long - show loading briefly then use stored data
   if (loading || verifyingRole) {
     return <LoadingScreen />;
   }
 
-  // Determine actual role (prioritize verified role from backend)
+  // Determine actual role (prioritize verified role from backend, but fallback to stored user)
   let actualRole = user?.role;
   let actualIsAgent = user?.is_agent;
   let actualIsAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   
-  // Override with verified role if available (prevents wrong redirects on refresh)
+  // Override with verified role if available
   if (verifiedRole) {
     actualRole = verifiedRole;
     actualIsAdmin = verifiedRole === 'admin' || verifiedRole === 'super_admin';
-    actualIsAgent = false; // Admin is not an agent
+    actualIsAgent = false;
+  } else if (user) {
+    // Fallback to user object from context
+    actualRole = user.role;
+    actualIsAdmin = user.role === 'admin' || user.role === 'super_admin';
+    actualIsAgent = user.is_agent || false;
   }
   
   // Special case for admin email
@@ -182,44 +229,42 @@ function AppContent() {
     actualIsAgent = false;
   }
   
-  // Determine which dashboard to show based on verified role
-  let dashboardToShow = null;
+  // Determine which dashboard to show
+  let userDashboardPath = null;
   
   if (actualRole === 'super_admin' || actualRole === 'admin') {
-    dashboardToShow = 'admin';
+    userDashboardPath = '/admin';
   } else if (actualIsAgent || user?.is_agent) {
-    dashboardToShow = 'agent';
+    userDashboardPath = '/agent';
   } else {
-    dashboardToShow = 'user';
+    userDashboardPath = '/dashboard';
   }
   
-  console.log('Dashboard determination:', { 
-    actualRole, 
-    actualIsAdmin, 
-    dashboardToShow,
-    userEmail: user?.email 
-  });
-  
-  // Force redirect based on current path
+  // CRITICAL FIX: Use React Router navigate instead of window.location.href
   const currentPath = location.pathname;
   
-  // If user is on wrong dashboard, redirect
-  if (dashboardToShow === 'admin' && !currentPath.startsWith('/admin')) {
-    console.log('Redirecting admin to /admin');
-    window.location.href = '/admin';
-    return null;
-  }
+  // Only redirect if user is on wrong dashboard AND not already on correct one
+  const shouldRedirect = () => {
+    if (!user) return false;
+    
+    if (userDashboardPath === '/admin') {
+      return !currentPath.startsWith('/admin');
+    }
+    if (userDashboardPath === '/agent') {
+      return !currentPath.startsWith('/agent') && 
+             !currentPath.startsWith('/store') && 
+             !currentPath.startsWith('/inventory');
+    }
+    if (userDashboardPath === '/dashboard') {
+      return currentPath === '/admin' || currentPath === '/agent';
+    }
+    return false;
+  };
   
-  if (dashboardToShow === 'agent' && !currentPath.startsWith('/agent') && !currentPath.startsWith('/store') && !currentPath.startsWith('/inventory')) {
-    console.log('Redirecting agent to /agent');
-    window.location.href = '/agent';
-    return null;
-  }
-  
-  if (dashboardToShow === 'user' && currentPath === '/admin') {
-    console.log('User trying to access admin - redirecting to /dashboard');
-    window.location.href = '/dashboard';
-    return null;
+  // Use Navigate component instead of window.location for smoother transitions
+  if (shouldRedirect()) {
+    console.log(`Redirecting to ${userDashboardPath} from ${currentPath}`);
+    return <Navigate to={userDashboardPath} replace />;
   }
 
   const showSidebar = user && (actualIsAdmin || actualIsAgent || user.role === 'user');
@@ -509,9 +554,11 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

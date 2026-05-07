@@ -35,6 +35,7 @@ export function AuthProvider({ children }) {
   const [permissions, setPermissions] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [lastActivity, setLastActivity] = useState(Date.now());
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -42,8 +43,8 @@ export function AuthProvider({ children }) {
   // Check if current route is public
   const isPublicRoute = PUBLIC_ROUTES.includes(location.pathname) || location.pathname.startsWith('/verify');
 
-  // Session timeout duration (30 minutes)
-  const SESSION_TIMEOUT = 30 * 60 * 1000;
+  // CHANGED: Session timeout duration from 30 minutes to 2 hours (or 1 hour)
+  const SESSION_TIMEOUT = 2 * 60 * 60 * 1000; // 2 hours (change to 60 * 60 * 1000 for 1 hour)
 
   useEffect(() => {
     const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
@@ -52,7 +53,8 @@ export function AuthProvider({ children }) {
     
     // Check if token is expired
     if (tokenExpiry && Date.now() > parseInt(tokenExpiry)) {
-      handleSessionExpired();
+      console.log('Token expired in storage, will redirect on next action');
+      // Don't auto logout - just mark as needs refresh
       setLoading(false);
       return;
     }
@@ -61,7 +63,11 @@ export function AuthProvider({ children }) {
       try {
         const parsedUser = JSON.parse(userData);
         setUser(parsedUser);
-        fetchUser();
+        // Don't auto-fetch user on load - let it load from cache first
+        // This prevents API errors from disrupting the session
+        setTimeout(() => {
+          fetchUser().catch(err => console.warn('Background user fetch failed:', err.message));
+        }, 1000);
         startSessionTimer();
       } catch (error) {
         console.error('Failed to parse user data:', error);
@@ -95,15 +101,32 @@ export function AuthProvider({ children }) {
       }
     }
     if (e.key === STORAGE_KEYS.TOKEN && !e.newValue) {
-      // Token was removed in another tab
-      logout();
+      // Token was removed in another tab - only logout if we have a user
+      if (user) {
+        logout();
+      }
     }
   };
 
-  // ========== FETCH USER DATA ==========
+  // ========== FETCH USER DATA (with better error handling) ==========
   const fetchUser = async () => {
+    const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+    if (!token) return null;
+    
+    // Check if token is expired locally first
+    const tokenExpiry = localStorage.getItem(STORAGE_KEYS.TOKEN_EXPIRY);
+    if (tokenExpiry && Date.now() > parseInt(tokenExpiry)) {
+      console.log('Token expired locally, skipping fetch');
+      return null;
+    }
+    
     try {
-      const res = await api.get('/user/stats');
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+      
+      const res = await api.get('/user/stats', { signal: controller.signal });
+      clearTimeout(timeoutId);
       
       console.log('Fetch user response:', res.data);
       
@@ -138,11 +161,9 @@ export function AuthProvider({ children }) {
       // Store user in localStorage
       localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
       
-      // Set token expiry if not already set
-      if (!localStorage.getItem(STORAGE_KEYS.TOKEN_EXPIRY)) {
-        const expiry = Date.now() + (7 * 24 * 60 * 60 * 1000);
-        localStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRY, expiry.toString());
-      }
+      // Update token expiry to extend session (keep user logged in)
+      const expiry = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 days
+      localStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRY, expiry.toString());
       
       // Fetch user permissions
       if (userData.role === 'admin' || userData.role === 'super_admin') {
@@ -162,11 +183,29 @@ export function AuthProvider({ children }) {
       return userData;
       
     } catch (error) {
+      // CRITICAL: Don't logout on network errors
+      if (error.code === 'ERR_NETWORK' || error.name === 'AbortError' || error.message?.includes('timeout')) {
+        console.warn('Network error while fetching user, using cached data');
+        // Return cached user data
+        const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
+        if (storedUser) {
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            console.log('Using stored user data as fallback:', parsedUser);
+            if (!user) setUser(parsedUser);
+            return parsedUser;
+          } catch (e) {
+            console.error('Failed to parse stored user:', e);
+          }
+        }
+        return null;
+      }
+      
       console.error('Failed to fetch user:', error);
       
       // Try to get user from localStorage as fallback
       const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
-      if (storedUser) {
+      if (storedUser && !user) {
         try {
           const parsedUser = JSON.parse(storedUser);
           console.log('Using stored user data as fallback:', parsedUser);
@@ -177,11 +216,12 @@ export function AuthProvider({ children }) {
         }
       }
       
+      // Only logout on 401 (unauthorized) - not on other errors
       if (error.response?.status === 401) {
         handleSessionExpired();
       }
       
-      throw error;
+      return null;
     } finally {
       setLoading(false);
     }
@@ -235,6 +275,7 @@ export function AuthProvider({ children }) {
   };
 
   const resetSessionTimer = () => {
+    setLastActivity(Date.now());
     if (sessionTimeout) {
       clearTimeout(sessionTimeout);
       startSessionTimer();
@@ -242,6 +283,11 @@ export function AuthProvider({ children }) {
   };
 
   const handleSessionTimeout = async () => {
+    // Don't show timeout dialog on public routes or if no user
+    if (isPublicRoute || !user) {
+      return;
+    }
+    
     const result = await Swal.fire({
       title: 'Session Timeout',
       text: 'Your session is about to expire due to inactivity. Do you want to stay logged in?',
@@ -257,36 +303,45 @@ export function AuthProvider({ children }) {
     
     if (result.isConfirmed) {
       try {
+        // Try to refresh token
         await api.post('/auth/refresh');
         resetSessionTimer();
         toast.success('Session extended');
       } catch (error) {
-        handleSessionExpired();
+        console.warn('Token refresh failed, but keeping user logged in with stored data');
+        // Don't logout on refresh failure - just reset timer
+        resetSessionTimer();
       }
     } else {
+      // User chose to logout
       logout();
     }
   };
 
   const handleSessionExpired = () => {
-    Swal.fire({
-      title: 'Session Expired',
-      text: 'Your session has expired. Please login again.',
-      icon: 'info',
-      confirmButtonColor: '#8B0000',
-      confirmButtonText: 'Login Again'
-    }).then(() => {
+    // Only show if user exists and not on public route
+    if (!isPublicRoute && user) {
+      Swal.fire({
+        title: 'Session Expired',
+        text: 'Your session has expired. Please login again.',
+        icon: 'info',
+        confirmButtonColor: '#8B0000',
+        confirmButtonText: 'Login Again'
+      }).then(() => {
+        logout();
+        navigate('/login');
+      });
+    } else {
       logout();
-      navigate('/login');
-    });
+    }
   };
 
   // ========== ACTIVITY TRACKING ==========
   useEffect(() => {
-    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
     
     const handleActivity = () => {
-      if (user) {
+      if (user && !isPublicRoute) {
         resetSessionTimer();
       }
     };
@@ -300,7 +355,7 @@ export function AuthProvider({ children }) {
         window.removeEventListener(event, handleActivity);
       });
     };
-  }, [user]);
+  }, [user, isPublicRoute]);
 
   // ========== LOGIN FUNCTION ==========
   const login = async (email, password, rememberMe = false) => {
@@ -364,6 +419,7 @@ export function AuthProvider({ children }) {
 
   // ========== LOGOUT FUNCTION ==========
   const logout = useCallback(() => {
+    console.log('Logging out user');
     localStorage.removeItem(STORAGE_KEYS.TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER);
     localStorage.removeItem(STORAGE_KEYS.TOKEN_EXPIRY);
@@ -388,7 +444,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-// ========== VERIFY REGISTRATION CODE ==========
+  // ========== VERIFY REGISTRATION CODE ==========
   const verifyRegistrationCode = async (code, email) => {
     try {
       const res = await api.post('/auth/verify-code', { code, email });
@@ -408,8 +464,6 @@ export function AuthProvider({ children }) {
       return { success: false, error: error.response?.data?.error || 'Verification failed' };
     }
   };
-
- 
 
   // ========== UPDATE USER PROFILE ==========
   const updateProfile = async (updates) => {
@@ -526,7 +580,8 @@ export function AuthProvider({ children }) {
       return userData;
     } catch (error) {
       console.error('Refresh user failed:', error);
-      return null;
+      // Return existing user instead of null
+      return user;
     }
   };
 
@@ -612,42 +667,42 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const value = {
+    user,
+    loading,
+    permissions,
+    notifications,
+    unreadCount,
+    companyConfig: COMPANY_CONFIG,
+    login,
+    register,
+    verifyRegistrationCode,
+    logout,
+    updateProfile,
+    changePassword,
+    forgotPassword,
+    resetPassword,
+    refreshUser,
+    updateUserContext,
+    hasPermission,
+    hasRole,
+    markNotificationRead,
+    markAllNotificationsRead,
+    fetchNotifications,
+    enable2FA,
+    verify2FA,
+    disable2FA,
+    socialLogin,
+    getActiveSessions,
+    revokeSession,
+    revokeAllOtherSessions,
+    isAdmin: user?.role === 'admin' || user?.role === 'super_admin',
+    isAgent: user?.is_agent || false,
+    isSuperAdmin: user?.role === 'super_admin'
+  };
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        permissions,
-        notifications,
-        unreadCount,
-        companyConfig: COMPANY_CONFIG,
-        login,
-        register,
-        verifyRegistrationCode,
-        logout,
-        updateProfile,
-        changePassword,
-        forgotPassword,
-        resetPassword,
-        refreshUser,
-        updateUserContext,
-        hasPermission,
-        hasRole,
-        markNotificationRead,
-        markAllNotificationsRead,
-        fetchNotifications,
-        enable2FA,
-        verify2FA,
-        disable2FA,
-        socialLogin,
-        getActiveSessions,
-        revokeSession,
-        revokeAllOtherSessions,
-        isAdmin: user?.role === 'admin' || user?.role === 'super_admin',
-        isAgent: user?.is_agent || false,
-        isSuperAdmin: user?.role === 'super_admin'
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
