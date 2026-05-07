@@ -1,12 +1,13 @@
 // src/App.js
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import PrivateRoute from './components/PrivateRoute';
 import AnnouncementBanner from './components/AnnouncementBanner';
 import { Toaster } from 'react-hot-toast';
+import api from './services/api';
 import ErrorBoundary from './components/ErrorBoundary';
 
 // Direct imports for core components
@@ -60,8 +61,12 @@ const LoadingScreen = () => (
 );
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, loading, refreshUser } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Track if this is a refresh/reload
+  const [isRestoring, setIsRestoring] = useState(true);
   
   // Load saved state from localStorage
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -76,6 +81,61 @@ function AppContent() {
     return saved !== null ? JSON.parse(saved) : false;
   });
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Save current dashboard path when navigating (for refresh restore)
+  useEffect(() => {
+    if (user && location.pathname && !isRestoring) {
+      const currentPath = location.pathname;
+      // Only save dashboard paths
+      if (currentPath.startsWith('/admin') || 
+          currentPath.startsWith('/agent') || 
+          currentPath.startsWith('/dashboard') ||
+          currentPath.startsWith('/store') ||
+          currentPath.startsWith('/inventory')) {
+        sessionStorage.setItem('roamsmart_last_dashboard', currentPath);
+        console.log('Saved dashboard path:', currentPath);
+      }
+    }
+  }, [location.pathname, user, isRestoring]);
+
+  // Restore dashboard after refresh
+  useEffect(() => {
+    if (!loading && user && isRestoring) {
+      const lastDashboard = sessionStorage.getItem('roamsmart_last_dashboard');
+      const currentPath = location.pathname;
+      
+      // Determine correct role-based dashboard
+      const isSuperAdmin = user?.role === 'super_admin';
+      const isAdminUser = user?.role === 'admin';
+      const isAgentUser = user?.is_agent;
+      const correctDashboard = isSuperAdmin || isAdminUser ? '/admin' : (isAgentUser ? '/agent' : '/dashboard');
+      
+      console.log('Restoring dashboard - Current:', currentPath, 'Last:', lastDashboard, 'Correct:', correctDashboard);
+      
+      // If we have a last dashboard and it's different from current, restore it
+      if (lastDashboard && lastDashboard !== currentPath) {
+        // Verify the last dashboard is valid for this user's role
+        const isValidForRole = 
+          ((isSuperAdmin || isAdminUser) && lastDashboard.startsWith('/admin')) ||
+          (isAgentUser && (lastDashboard.startsWith('/agent') || lastDashboard.startsWith('/store') || lastDashboard.startsWith('/inventory'))) ||
+          (!isSuperAdmin && !isAdminUser && !isAgentUser && lastDashboard.startsWith('/dashboard'));
+        
+        if (isValidForRole) {
+          console.log('Restoring last dashboard:', lastDashboard);
+          navigate(lastDashboard, { replace: true });
+        } else if (currentPath === '/' || currentPath === '/login' || currentPath === '/register') {
+          console.log('Redirecting to correct dashboard:', correctDashboard);
+          navigate(correctDashboard, { replace: true });
+        }
+      } else if (currentPath === '/' || currentPath === '/login' || currentPath === '/register') {
+        // First time login or on public route
+        console.log('First visit - redirecting to:', correctDashboard);
+        navigate(correctDashboard, { replace: true });
+      }
+      
+      setIsRestoring(false);
+    }
+  }, [loading, user, location.pathname, navigate, isRestoring]);
 
   // Save sidebar state to localStorage
   useEffect(() => {
@@ -115,62 +175,57 @@ function AppContent() {
     }
   }, [location.pathname, isMobile]);
 
-  if (loading) {
+  // Show loading while restoring or loading
+  if (loading || isRestoring) {
     return <LoadingScreen />;
   }
 
-  // Determine user role from stored data
-  let actualRole = user?.role;
-  let actualIsAgent = user?.is_agent;
-  let actualIsAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+  // Determine user role
+  const isSuperAdmin = user?.role === 'super_admin';
+  const isAdminUser = user?.role === 'admin';
+  const isAgentUser = user?.is_agent;
   
   // Special case for admin email
-  if (user?.email === 'admin@roamsmart.shop' && actualRole !== 'super_admin') {
+  let actualIsAdmin = isSuperAdmin || isAdminUser;
+  let actualIsAgent = isAgentUser;
+  
+  if (user?.email === 'admin@roamsmart.shop' && !actualIsAdmin) {
     console.log('Admin email detected - forcing super_admin role');
-    actualRole = 'super_admin';
     actualIsAdmin = true;
     actualIsAgent = false;
   }
   
   // Determine which dashboard to show
-  let userDashboardPath = null;
+  let dashboardPath = null;
   
-  if (actualRole === 'super_admin' || actualRole === 'admin') {
-    userDashboardPath = '/admin';
-  } else if (actualIsAgent || user?.is_agent) {
-    userDashboardPath = '/agent';
+  if (actualIsAdmin) {
+    dashboardPath = '/admin';
+  } else if (actualIsAgent) {
+    dashboardPath = '/agent';
   } else {
-    userDashboardPath = '/dashboard';
+    dashboardPath = '/dashboard';
   }
   
   const currentPath = location.pathname;
   
-  // Only redirect if user is on wrong dashboard
+  // Only redirect if on wrong dashboard and not on a valid page
   const shouldRedirect = () => {
     if (!user) return false;
     
-    // If on login page or public routes, don't redirect
-    if (currentPath === '/login' || currentPath === '/register' || currentPath === '/') {
-      return false;
-    }
+    // Don't redirect if already on correct dashboard
+    if (dashboardPath === '/admin' && currentPath.startsWith('/admin')) return false;
+    if (dashboardPath === '/agent' && (currentPath.startsWith('/agent') || currentPath.startsWith('/store') || currentPath.startsWith('/inventory'))) return false;
+    if (dashboardPath === '/dashboard' && currentPath.startsWith('/dashboard')) return false;
     
-    if (userDashboardPath === '/admin') {
-      return !currentPath.startsWith('/admin');
-    }
-    if (userDashboardPath === '/agent') {
-      return !currentPath.startsWith('/agent') && 
-             !currentPath.startsWith('/store') && 
-             !currentPath.startsWith('/inventory');
-    }
-    if (userDashboardPath === '/dashboard') {
-      return !currentPath.startsWith('/dashboard');
-    }
-    return false;
+    // Don't redirect on public routes
+    if (currentPath === '/' || currentPath === '/login' || currentPath === '/register') return false;
+    
+    return true;
   };
   
   if (shouldRedirect()) {
-    console.log(`Redirecting to ${userDashboardPath} from ${currentPath}`);
-    return <Navigate to={userDashboardPath} replace />;
+    console.log(`Redirecting to ${dashboardPath} from ${currentPath}`);
+    return <Navigate to={dashboardPath} replace />;
   }
 
   const showSidebar = user && (actualIsAdmin || actualIsAgent || user.role === 'user');
@@ -209,7 +264,7 @@ function AppContent() {
           <div className="sidebar-overlay show" onClick={closeSidebar} />
         )}
         
-        {/* Sidebar */}
+        {/* Sidebar - This will push content on desktop */}
         {showSidebar && (
           <div className={`sidebar-container ${isCollapsed ? 'collapsed' : ''} ${isSidebarVisible ? 'open' : 'closed'}`}>
             <Sidebar 
@@ -320,7 +375,7 @@ function AppContent() {
                 </PrivateRoute>
               } />
               
-              {/* Agent Routes */}
+              {/* Agent Inventory & Store Routes */}
               <Route path="/inventory" element={
                 <PrivateRoute allowedRoles={['agent']}>
                   <AgentInventory />
