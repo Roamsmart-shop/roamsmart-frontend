@@ -28,6 +28,23 @@ const COMPANY_CONFIG = {
   website: 'https://roamsmart.shop'
 };
 
+// Helper function to enforce admin role consistently
+const enforceAdminRole = (userData) => {
+  if (!userData) return userData;
+  
+  // Check if email is the admin email
+  if (userData.email === 'admin@roamsmart.shop') {
+    console.log('🔧 Enforcing super_admin role for admin email');
+    return {
+      ...userData,
+      role: 'super_admin',
+      is_agent: false,
+      is_admin: true
+    };
+  }
+  return userData;
+};
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -43,28 +60,33 @@ export function AuthProvider({ children }) {
   // Check if current route is public
   const isPublicRoute = PUBLIC_ROUTES.includes(location.pathname) || location.pathname.startsWith('/verify');
 
-  // CHANGED: Session timeout duration from 30 minutes to 2 hours (or 1 hour)
-  const SESSION_TIMEOUT = 2 * 60 * 60 * 1000; // 2 hours (change to 60 * 60 * 1000 for 1 hour)
+  // Session timeout duration
+  const SESSION_TIMEOUT = 2 * 60 * 60 * 1000; // 2 hours
 
   useEffect(() => {
     const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
-    const userData = localStorage.getItem(STORAGE_KEYS.USER);
+    let userData = localStorage.getItem(STORAGE_KEYS.USER);
     const tokenExpiry = localStorage.getItem(STORAGE_KEYS.TOKEN_EXPIRY);
     
     // Check if token is expired
     if (tokenExpiry && Date.now() > parseInt(tokenExpiry)) {
       console.log('Token expired in storage, will redirect on next action');
-      // Don't auto logout - just mark as needs refresh
       setLoading(false);
       return;
     }
     
     if (token && userData) {
       try {
-        const parsedUser = JSON.parse(userData);
+        let parsedUser = JSON.parse(userData);
+        // Enforce admin role on load
+        parsedUser = enforceAdminRole(parsedUser);
         setUser(parsedUser);
-        // Don't auto-fetch user on load - let it load from cache first
-        // This prevents API errors from disrupting the session
+        
+        // Also update localStorage if role was changed
+        if (parsedUser.email === 'admin@roamsmart.shop' && parsedUser.role !== 'super_admin') {
+          localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(parsedUser));
+        }
+        
         setTimeout(() => {
           fetchUser().catch(err => console.warn('Background user fetch failed:', err.message));
         }, 1000);
@@ -80,7 +102,6 @@ export function AuthProvider({ children }) {
       setLoading(false);
     }
     
-    // Listen for storage changes across tabs
     window.addEventListener('storage', handleStorageChange);
     
     return () => {
@@ -93,7 +114,8 @@ export function AuthProvider({ children }) {
   const handleStorageChange = (e) => {
     if (e.key === STORAGE_KEYS.USER && e.newValue) {
       try {
-        const updatedUser = JSON.parse(e.newValue);
+        let updatedUser = JSON.parse(e.newValue);
+        updatedUser = enforceAdminRole(updatedUser);
         setUser(updatedUser);
         console.log('User updated from another tab:', updatedUser);
       } catch (error) {
@@ -101,7 +123,6 @@ export function AuthProvider({ children }) {
       }
     }
     if (e.key === STORAGE_KEYS.TOKEN && !e.newValue) {
-      // Token was removed in another tab - only logout if we have a user
       if (user) {
         logout();
       }
@@ -113,7 +134,6 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
     if (!token) return null;
     
-    // Check if token is expired locally first
     const tokenExpiry = localStorage.getItem(STORAGE_KEYS.TOKEN_EXPIRY);
     if (tokenExpiry && Date.now() > parseInt(tokenExpiry)) {
       console.log('Token expired locally, skipping fetch');
@@ -121,9 +141,8 @@ export function AuthProvider({ children }) {
     }
     
     try {
-      // Add timeout to prevent hanging
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
       
       const res = await api.get('/user/stats', { signal: controller.signal });
       clearTimeout(timeoutId);
@@ -146,6 +165,9 @@ export function AuthProvider({ children }) {
         userData.role = userData.is_agent ? 'agent' : 'user';
       }
       
+      // Enforce admin role
+      userData = enforceAdminRole(userData);
+      
       // Map avatar field for consistency
       if (userData.avatar && !userData.avatar_url) {
         userData.avatar_url = userData.avatar;
@@ -157,25 +179,18 @@ export function AuthProvider({ children }) {
       console.log('Processed user data:', userData);
       
       setUser(userData);
-      
-      // Store user in localStorage
       localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
       
-      // Update token expiry to extend session (keep user logged in)
-      const expiry = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 days
+      const expiry = Date.now() + (7 * 24 * 60 * 60 * 1000);
       localStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRY, expiry.toString());
       
-      // Fetch user permissions
       if (userData.role === 'admin' || userData.role === 'super_admin') {
         fetchPermissions();
       }
       
-      // Fetch notifications
       fetchNotifications();
-      
       startSessionTimer();
       
-      // Dispatch event for user update
       window.dispatchEvent(new CustomEvent('user-context-updated', { 
         detail: { user: userData }
       }));
@@ -183,14 +198,13 @@ export function AuthProvider({ children }) {
       return userData;
       
     } catch (error) {
-      // CRITICAL: Don't logout on network errors
       if (error.code === 'ERR_NETWORK' || error.name === 'AbortError' || error.message?.includes('timeout')) {
         console.warn('Network error while fetching user, using cached data');
-        // Return cached user data
         const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
         if (storedUser) {
           try {
-            const parsedUser = JSON.parse(storedUser);
+            let parsedUser = JSON.parse(storedUser);
+            parsedUser = enforceAdminRole(parsedUser);
             console.log('Using stored user data as fallback:', parsedUser);
             if (!user) setUser(parsedUser);
             return parsedUser;
@@ -203,11 +217,11 @@ export function AuthProvider({ children }) {
       
       console.error('Failed to fetch user:', error);
       
-      // Try to get user from localStorage as fallback
       const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
       if (storedUser && !user) {
         try {
-          const parsedUser = JSON.parse(storedUser);
+          let parsedUser = JSON.parse(storedUser);
+          parsedUser = enforceAdminRole(parsedUser);
           console.log('Using stored user data as fallback:', parsedUser);
           setUser(parsedUser);
           return parsedUser;
@@ -216,7 +230,6 @@ export function AuthProvider({ children }) {
         }
       }
       
-      // Only logout on 401 (unauthorized) - not on other errors
       if (error.response?.status === 401) {
         handleSessionExpired();
       }
@@ -231,7 +244,8 @@ export function AuthProvider({ children }) {
     console.log('updateUserContext called with:', updatedUserData);
     
     setUser(prevUser => {
-      const newUser = { ...prevUser, ...updatedUserData };
+      let newUser = { ...prevUser, ...updatedUserData };
+      newUser = enforceAdminRole(newUser);
       localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(newUser));
       
       window.dispatchEvent(new CustomEvent('user-context-updated', { 
@@ -283,7 +297,6 @@ export function AuthProvider({ children }) {
   };
 
   const handleSessionTimeout = async () => {
-    // Don't show timeout dialog on public routes or if no user
     if (isPublicRoute || !user) {
       return;
     }
@@ -303,23 +316,19 @@ export function AuthProvider({ children }) {
     
     if (result.isConfirmed) {
       try {
-        // Try to refresh token
         await api.post('/auth/refresh');
         resetSessionTimer();
         toast.success('Session extended');
       } catch (error) {
         console.warn('Token refresh failed, but keeping user logged in with stored data');
-        // Don't logout on refresh failure - just reset timer
         resetSessionTimer();
       }
     } else {
-      // User chose to logout
       logout();
     }
   };
 
   const handleSessionExpired = () => {
-    // Only show if user exists and not on public route
     if (!isPublicRoute && user) {
       Swal.fire({
         title: 'Session Expired',
@@ -363,9 +372,12 @@ export function AuthProvider({ children }) {
       const res = await api.post('/auth/login', { email, password, remember_me: rememberMe });
       
       if (res.data.success) {
-        const { token, user: userData, redirect } = res.data;
+        let userData = res.data.user;
         
-        localStorage.setItem(STORAGE_KEYS.TOKEN, token);
+        // Enforce admin role on login
+        userData = enforceAdminRole(userData);
+        
+        localStorage.setItem(STORAGE_KEYS.TOKEN, res.data.token);
         localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
         
         const expiryDays = rememberMe ? 30 : 7;
@@ -373,6 +385,11 @@ export function AuthProvider({ children }) {
         localStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRY, expiry.toString());
         
         setUser(userData);
+        
+        // Save dashboard preference for admin
+        if (userData.role === 'super_admin' || userData.role === 'admin') {
+          sessionStorage.setItem('roamsmart_last_dashboard', '/admin');
+        }
         
         if (userData.role === 'admin' || userData.role === 'super_admin') {
           fetchPermissions();
@@ -387,7 +404,9 @@ export function AuthProvider({ children }) {
           console.warn('Could not log activity:', err);
         });
         
-        return { success: true, redirect };
+        // Redirect to admin dashboard for admin users
+        const redirectPath = (userData.role === 'super_admin' || userData.role === 'admin') ? '/admin' : (res.data.redirect || '/dashboard');
+        return { success: true, redirect: redirectPath };
       }
       
       return { success: false, error: res.data.error };
@@ -423,6 +442,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem(STORAGE_KEYS.TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER);
     localStorage.removeItem(STORAGE_KEYS.TOKEN_EXPIRY);
+    sessionStorage.removeItem('roamsmart_last_dashboard');
     setUser(null);
     if (sessionTimeout) clearTimeout(sessionTimeout);
     navigate('/login');
@@ -451,9 +471,11 @@ export function AuthProvider({ children }) {
       
       if (res.data.success) {
         if (res.data.token) {
+          let userData = res.data.user;
+          userData = enforceAdminRole(userData);
           localStorage.setItem(STORAGE_KEYS.TOKEN, res.data.token);
-          localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(res.data.user));
-          setUser(res.data.user);
+          localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
+          setUser(userData);
         }
         toast.success('Email verified successfully!');
         return { success: true, data: res.data };
@@ -471,7 +493,8 @@ export function AuthProvider({ children }) {
       const res = await api.put('/user/profile', updates);
       
       if (res.data.success) {
-        const updatedUser = { ...user, ...res.data.user };
+        let updatedUser = { ...user, ...res.data.user };
+        updatedUser = enforceAdminRole(updatedUser);
         setUser(updatedUser);
         localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
         toast.success('Profile updated successfully');
@@ -580,7 +603,6 @@ export function AuthProvider({ children }) {
       return userData;
     } catch (error) {
       console.error('Refresh user failed:', error);
-      // Return existing user instead of null
       return user;
     }
   };
@@ -624,10 +646,12 @@ export function AuthProvider({ children }) {
       const res = await api.post(`/auth/${provider}`, { token });
       
       if (res.data.success) {
+        let userData = res.data.user;
+        userData = enforceAdminRole(userData);
         localStorage.setItem(STORAGE_KEYS.TOKEN, res.data.token);
-        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(res.data.user));
-        setUser(res.data.user);
-        toast.success(`Welcome ${res.data.user.username}!`);
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
+        setUser(userData);
+        toast.success(`Welcome ${userData.username}!`);
         return { success: true, redirect: res.data.redirect };
       }
       
@@ -667,8 +691,11 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Compute role booleans with enforcement
+  const effectiveUser = user ? enforceAdminRole(user) : null;
+  
   const value = {
-    user,
+    user: effectiveUser,
     loading,
     permissions,
     notifications,
@@ -696,9 +723,9 @@ export function AuthProvider({ children }) {
     getActiveSessions,
     revokeSession,
     revokeAllOtherSessions,
-    isAdmin: user?.role === 'admin' || user?.role === 'super_admin',
-    isAgent: user?.is_agent || false,
-    isSuperAdmin: user?.role === 'super_admin'
+    isAdmin: effectiveUser?.role === 'admin' || effectiveUser?.role === 'super_admin',
+    isAgent: effectiveUser?.is_agent || false,
+    isSuperAdmin: effectiveUser?.role === 'super_admin'
   };
 
   return (
