@@ -32,38 +32,60 @@ export default function AgentOrders() {
 
   // Connect to WebSocket for real-time updates
   useEffect(() => {
-    const wsUrl = process.env.REACT_APP_WS_URL || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`;
-    socketRef.current = io(wsUrl, {
-      path: '/socket.io',
-      transports: ['websocket']
-    });
-    
-    socketRef.current.on('order_update', (data) => {
-      const currentUser = JSON.parse(localStorage.getItem('user'));
-      if (data.agent_id === currentUser?.id) {
-        toast.success(`Order #${data.order_id} status: ${data.status} on Roamsmart`);
-        fetchOrders();
-        setLiveUpdates(prev => [data, ...prev].slice(0, 10));
-      }
-    });
-    
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-    };
-  }, []);
-
-  const fetchOrders = useCallback(async () => {
-    try {
-      const res = await api.get('/agent/orders');
-      setOrders(res.data.data || []);
-    } catch (error) {
-      toast.error('Failed to load orders from Roamsmart');
-    } finally {
-      setLoading(false);
+  // Use the production backend URL for Socket.IO
+  const socketUrl = process.env.REACT_APP_SOCKET_URL || 'https://roamsmart-backend-production.up.railway.app';
+  
+  // Only initialize socket if we have a token
+  const token = localStorage.getItem('roamsmart_token');
+  if (!token) return;
+  
+  socketRef.current = io(socketUrl, {
+    path: '/socket.io',
+    transports: ['polling'], // Use polling instead of websocket for better reliability
+    reconnection: false, // Don't auto-reconnect to prevent errors
+    autoConnect: true,
+    timeout: 10000
+  });
+  
+  socketRef.current.on('connect', () => {
+    console.log('Admin socket connected to:', socketUrl);
+    socketRef.current.emit('admin_join', { role: adminRole });
+  });
+  
+  socketRef.current.on('connect_error', (error) => {
+    console.warn('Admin socket connection error (non-critical):', error.message);
+    // Don't show error to user - just log silently
+  });
+  
+  socketRef.current.on('live_stats', (data) => {
+    if (data) setLiveStats(data);
+  });
+  
+  socketRef.current.on('new_order', (order) => {
+    if (order) {
+      showOrderNotification(order);
+      fetchAllData();
     }
-  }, []);
+  });
+  
+  socketRef.current.on('new_agent_request', (request) => {
+    if (request) {
+      showAgentRequestNotification(request);
+      fetchAllData();
+    }
+  });
+  
+  socketRef.current.on('admin_alert', (alert) => {
+    if (alert) addNotification(alert);
+  });
+  
+  return () => {
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+  };
+}, [adminRole]);
 
   useEffect(() => {
     fetchOrders();

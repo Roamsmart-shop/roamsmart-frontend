@@ -28,27 +28,41 @@ export default function AnnouncementBanner() {
   };
 
   useEffect(() => {
-    fetchAnnouncement();
+  fetchAnnouncement();
+  
+  // Connect to WebSocket for real-time updates - USE PRODUCTION URL
+  const wsUrl = process.env.REACT_APP_SOCKET_URL || 'https://roamsmart-backend-production.up.railway.app';
+  
+  // Only create socket if we have a URL
+  if (wsUrl) {
+    socketRef.current = io(wsUrl, {
+      path: '/socket.io',
+      transports: ['polling'],
+      reconnection: false,
+      timeout: 10000
+    });
     
-    // Connect to WebSocket for real-time updates
-    const wsUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:5000';
-    socketRef.current = io(wsUrl);
+    socketRef.current.on('connect_error', (error) => {
+      console.warn('Announcement socket error (non-critical):', error.message);
+    });
     
     socketRef.current.on('announcement_update', () => {
       console.log('Announcement updated, refreshing...');
       fetchAnnouncement();
     });
-    
-    // Also refresh every minute as fallback
-    const interval = setInterval(fetchAnnouncement, 60 * 1000);
-    
-    return () => {
-      clearInterval(interval);
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-    };
-  }, []);
+  }
+  
+  // Also refresh every minute as fallback
+  const interval = setInterval(fetchAnnouncement, 60 * 1000);
+  
+  return () => {
+    clearInterval(interval);
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+  };
+}, []);
 
   const getIcon = (type) => {
     switch(type) {
