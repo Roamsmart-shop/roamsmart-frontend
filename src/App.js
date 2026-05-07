@@ -60,12 +60,8 @@ const LoadingScreen = () => (
 );
 
 function AppContent() {
-  const { user, loading, refreshUser } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
-  
-  // State for role overrides (to prevent wrong redirects on refresh)
-  const [verifiedRole, setVerifiedRole] = useState(null);
-  const [verifyingRole, setVerifyingRole] = useState(true);
   
   // Load saved state from localStorage
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -80,86 +76,6 @@ function AppContent() {
     return saved !== null ? JSON.parse(saved) : false;
   });
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-
-  // CRITICAL FIX: Verify user role from backend but DON'T logout on failure
-  useEffect(() => {
-    let isMounted = true;
-    
-    const verifyUserRole = async () => {
-      const token = localStorage.getItem('roamsmart_token');
-      const tokenExpiry = localStorage.getItem('roamsmart_token_expiry');
-      
-      // Check if token exists and is not expired
-      if (!token) {
-        if (isMounted) setVerifyingRole(false);
-        return;
-      }
-      
-      // Check if token is expired
-      if (tokenExpiry && Date.now() > parseInt(tokenExpiry)) {
-        console.log('Token expired, but not logging out immediately - will redirect on next action');
-        if (isMounted) setVerifyingRole(false);
-        return;
-      }
-      
-      try {
-        // Use a timeout to prevent hanging requests
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-        
-        // Use fetch directly for better error control, or import api dynamically
-        const { default: api } = await import('./services/api');
-        
-        const res = await api.get('/user/stats', { signal: controller.signal });
-        clearTimeout(timeoutId);
-        
-        if (!isMounted) return;
-        
-        const userData = res.data.user || res.data.data?.user;
-        
-        if (userData) {
-          console.log('Verified user role from backend:', userData.role);
-          setVerifiedRole(userData.role);
-          
-          // If role is different from stored, update localStorage
-          const storedUser = localStorage.getItem('roamsmart_user');
-          if (storedUser) {
-            const parsedUser = JSON.parse(storedUser);
-            if (parsedUser.role !== userData.role) {
-              console.log('Updating stored user role from', parsedUser.role, 'to', userData.role);
-              parsedUser.role = userData.role;
-              parsedUser.is_agent = userData.is_agent || false;
-              localStorage.setItem('roamsmart_user', JSON.stringify(parsedUser));
-            }
-          }
-          
-          // Update token expiry to keep user logged in (extend session)
-          const newExpiry = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 days
-          localStorage.setItem('roamsmart_token_expiry', newExpiry.toString());
-        }
-      } catch (error) {
-        // CRITICAL: Don't logout on network errors or connection issues
-        console.warn('Role verification failed (non-critical):', error.message);
-        
-        // Check if token is still valid locally
-        const storedUser = localStorage.getItem('roamsmart_user');
-        if (storedUser && tokenExpiry && Date.now() < parseInt(tokenExpiry)) {
-          // Use stored user data - don't logout
-          const parsedUser = JSON.parse(storedUser);
-          console.log('Using stored user role due to verification failure:', parsedUser.role);
-          setVerifiedRole(parsedUser.role);
-        }
-      } finally {
-        if (isMounted) setVerifyingRole(false);
-      }
-    };
-    
-    verifyUserRole();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, []); // Only run once on mount
 
   // Save sidebar state to localStorage
   useEffect(() => {
@@ -199,27 +115,14 @@ function AppContent() {
     }
   }, [location.pathname, isMobile]);
 
-  // Don't block rendering for too long - show loading briefly then use stored data
-  if (loading || verifyingRole) {
+  if (loading) {
     return <LoadingScreen />;
   }
 
-  // Determine actual role (prioritize verified role from backend, but fallback to stored user)
+  // Determine user role from stored data
   let actualRole = user?.role;
   let actualIsAgent = user?.is_agent;
   let actualIsAdmin = user?.role === 'admin' || user?.role === 'super_admin';
-  
-  // Override with verified role if available
-  if (verifiedRole) {
-    actualRole = verifiedRole;
-    actualIsAdmin = verifiedRole === 'admin' || verifiedRole === 'super_admin';
-    actualIsAgent = false;
-  } else if (user) {
-    // Fallback to user object from context
-    actualRole = user.role;
-    actualIsAdmin = user.role === 'admin' || user.role === 'super_admin';
-    actualIsAgent = user.is_agent || false;
-  }
   
   // Special case for admin email
   if (user?.email === 'admin@roamsmart.shop' && actualRole !== 'super_admin') {
@@ -240,12 +143,16 @@ function AppContent() {
     userDashboardPath = '/dashboard';
   }
   
-  // CRITICAL FIX: Use React Router navigate instead of window.location.href
   const currentPath = location.pathname;
   
-  // Only redirect if user is on wrong dashboard AND not already on correct one
+  // Only redirect if user is on wrong dashboard
   const shouldRedirect = () => {
     if (!user) return false;
+    
+    // If on login page or public routes, don't redirect
+    if (currentPath === '/login' || currentPath === '/register' || currentPath === '/') {
+      return false;
+    }
     
     if (userDashboardPath === '/admin') {
       return !currentPath.startsWith('/admin');
@@ -256,12 +163,11 @@ function AppContent() {
              !currentPath.startsWith('/inventory');
     }
     if (userDashboardPath === '/dashboard') {
-      return currentPath === '/admin' || currentPath === '/agent';
+      return !currentPath.startsWith('/dashboard');
     }
     return false;
   };
   
-  // Use Navigate component instead of window.location for smoother transitions
   if (shouldRedirect()) {
     console.log(`Redirecting to ${userDashboardPath} from ${currentPath}`);
     return <Navigate to={userDashboardPath} replace />;
@@ -303,7 +209,7 @@ function AppContent() {
           <div className="sidebar-overlay show" onClick={closeSidebar} />
         )}
         
-        {/* Sidebar - This will push content on desktop */}
+        {/* Sidebar */}
         {showSidebar && (
           <div className={`sidebar-container ${isCollapsed ? 'collapsed' : ''} ${isSidebarVisible ? 'open' : 'closed'}`}>
             <Sidebar 
@@ -414,7 +320,7 @@ function AppContent() {
                 </PrivateRoute>
               } />
               
-              {/* Agent Inventory & Store Routes */}
+              {/* Agent Routes */}
               <Route path="/inventory" element={
                 <PrivateRoute allowedRoles={['agent']}>
                   <AgentInventory />
