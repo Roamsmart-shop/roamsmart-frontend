@@ -53,6 +53,15 @@ const RefundPolicy = lazy(() => import('./pages/RefundPolicy'));
 const TwoFactorSetup = lazy(() => import('./pages/TwoFactorSetup'));
 const Sessions = lazy(() => import('./pages/Sessions'));
 
+// ========== LOADING SCREEN COMPONENT ==========
+const LoadingScreen = () => (
+  <div className="loading-screen">
+    <div className="spinner"></div>
+    <p>Loading Roamsmart...</p>
+  </div>
+);
+
+// ========== APP CONTENT ==========
 function AppContent() {
   const { user, loading, refreshUser } = useAuth();
   const location = useLocation();
@@ -98,14 +107,14 @@ function AppContent() {
     }
   }, [location.pathname, user, isRestoring]);
 
-  // Check loading duration - FIXED
+  // Check loading duration
   useEffect(() => {
     const checkLoading = setInterval(() => {
       const isLoading = loading || verifyingRole || isRestoring;
       if (isLoading && (Date.now() - loadingStartTime.current) > 8000) {
         console.log('Loading taking too long - forcing render');
         setLoadingTimeout(true);
-        setIsRestoring(false); // Force exit restoring state
+        setIsRestoring(false);
       }
     }, 1000);
     
@@ -118,7 +127,6 @@ function AppContent() {
       const lastDashboard = sessionStorage.getItem('roamsmart_last_dashboard');
       const currentPath = location.pathname;
       
-      // Determine correct role-based dashboard
       const isSuperAdmin = user?.role === 'super_admin';
       const isAdminUser = user?.role === 'admin';
       const isAgentUser = user?.is_agent;
@@ -126,9 +134,7 @@ function AppContent() {
       
       console.log('Restoring dashboard - Current:', currentPath, 'Last:', lastDashboard, 'Correct:', correctDashboard);
       
-      // If we have a last dashboard and it's different from current, restore it
       if (lastDashboard && lastDashboard !== currentPath) {
-        // Verify the last dashboard is valid for this user's role
         const isValidForRole = 
           ((isSuperAdmin || isAdminUser) && lastDashboard.startsWith('/admin')) ||
           (isAgentUser && (lastDashboard.startsWith('/agent') || lastDashboard.startsWith('/store') || lastDashboard.startsWith('/inventory'))) ||
@@ -142,7 +148,6 @@ function AppContent() {
           navigate(correctDashboard, { replace: true });
         }
       } else if (currentPath === '/' || currentPath === '/login' || currentPath === '/register') {
-        // First time login or on public route
         console.log('First visit - redirecting to:', correctDashboard);
         navigate(correctDashboard, { replace: true });
       }
@@ -189,7 +194,7 @@ function AppContent() {
     }
   }, [location.pathname, isMobile]);
 
-  // Show loading while restoring or loading - FIXED CONDITION
+  // Show loading while restoring or loading
   if ((loading || verifyingRole || isRestoring) && !loadingTimeout) {
     return <LoadingScreen />;
   }
@@ -242,12 +247,9 @@ function AppContent() {
   const shouldRedirect = () => {
     if (!user) return false;
     
-    // Don't redirect if already on correct dashboard
     if (dashboardPath === '/admin' && currentPath.startsWith('/admin')) return false;
     if (dashboardPath === '/agent' && (currentPath.startsWith('/agent') || currentPath.startsWith('/store') || currentPath.startsWith('/inventory'))) return false;
     if (dashboardPath === '/dashboard' && currentPath.startsWith('/dashboard')) return false;
-    
-    // Don't redirect on public routes
     if (currentPath === '/' || currentPath === '/login' || currentPath === '/register') return false;
     
     return true;
@@ -289,12 +291,10 @@ function AppContent() {
       {user && <AnnouncementBanner />}
       
       <div className="app">
-        {/* Sidebar Overlay for Mobile */}
         {showSidebar && isSidebarVisible && isMobile && (
           <div className="sidebar-overlay show" onClick={closeSidebar} />
         )}
         
-        {/* Sidebar - This will push content on desktop */}
         {showSidebar && (
           <div className={`sidebar-container ${isCollapsed ? 'collapsed' : ''} ${isSidebarVisible ? 'open' : 'closed'}`}>
             <Sidebar 
@@ -306,6 +306,7 @@ function AppContent() {
             />
           </div>
         )}
+        
         
         {/* Main Content */}
         <div className={`main-content ${showSidebar && isSidebarVisible ? 'with-sidebar' : ''} ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
