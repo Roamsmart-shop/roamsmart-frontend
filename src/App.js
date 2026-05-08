@@ -53,13 +53,6 @@ const RefundPolicy = lazy(() => import('./pages/RefundPolicy'));
 const TwoFactorSetup = lazy(() => import('./pages/TwoFactorSetup'));
 const Sessions = lazy(() => import('./pages/Sessions'));
 
-const LoadingScreen = () => (
-  <div className="loading-screen">
-    <div className="spinner"></div>
-    <p>Loading Roamsmart...</p>
-  </div>
-);
-
 function AppContent() {
   const { user, loading, refreshUser } = useAuth();
   const location = useLocation();
@@ -67,6 +60,9 @@ function AppContent() {
   
   // Track if this is a refresh/reload
   const [isRestoring, setIsRestoring] = useState(true);
+  
+  // Add this missing state
+  const [verifyingRole, setVerifyingRole] = useState(false);
   
   // Load saved state from localStorage
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -81,6 +77,10 @@ function AppContent() {
     return saved !== null ? JSON.parse(saved) : false;
   });
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  
+  // Add loading timeout state
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const loadingStartTime = useRef(Date.now());
 
   // Save current dashboard path when navigating (for refresh restore)
   useEffect(() => {
@@ -98,29 +98,23 @@ function AppContent() {
     }
   }, [location.pathname, user, isRestoring]);
 
-  const [loadingTimeout, setLoadingTimeout] = useState(false);
-const loadingStartTime = useRef(Date.now());
-
-useEffect(() => {
-  // Check loading duration
-  const checkLoading = setInterval(() => {
-    if (loading && (Date.now() - loadingStartTime.current) > 8000) {
-      console.log('Loading taking too long - forcing render');
-      setLoadingTimeout(true);
-    }
-  }, 1000);
-  
-  return () => clearInterval(checkLoading);
-}, [loading]);
-
-// Update loading condition
-if ((loading || verifyingRole) && !loadingTimeout) {
-  return <LoadingScreen />;
-}
+  // Check loading duration - FIXED
+  useEffect(() => {
+    const checkLoading = setInterval(() => {
+      const isLoading = loading || verifyingRole || isRestoring;
+      if (isLoading && (Date.now() - loadingStartTime.current) > 8000) {
+        console.log('Loading taking too long - forcing render');
+        setLoadingTimeout(true);
+        setIsRestoring(false); // Force exit restoring state
+      }
+    }, 1000);
+    
+    return () => clearInterval(checkLoading);
+  }, [loading, verifyingRole, isRestoring]);
 
   // Restore dashboard after refresh
   useEffect(() => {
-    if (!loading && user && isRestoring) {
+    if (!loading && user && isRestoring && !loadingTimeout) {
       const lastDashboard = sessionStorage.getItem('roamsmart_last_dashboard');
       const currentPath = location.pathname;
       
@@ -155,7 +149,7 @@ if ((loading || verifyingRole) && !loadingTimeout) {
       
       setIsRestoring(false);
     }
-  }, [loading, user, location.pathname, navigate, isRestoring]);
+  }, [loading, user, location.pathname, navigate, isRestoring, loadingTimeout]);
 
   // Save sidebar state to localStorage
   useEffect(() => {
@@ -195,9 +189,25 @@ if ((loading || verifyingRole) && !loadingTimeout) {
     }
   }, [location.pathname, isMobile]);
 
-  // Show loading while restoring or loading
-  if (loading || isRestoring) {
+  // Show loading while restoring or loading - FIXED CONDITION
+  if ((loading || verifyingRole || isRestoring) && !loadingTimeout) {
     return <LoadingScreen />;
+  }
+
+  // If timeout occurred, show retry option
+  if (loadingTimeout) {
+    return (
+      <div className="loading-screen">
+        <div className="spinner"></div>
+        <p>Connection issue detected</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          style={{ marginTop: '20px', padding: '10px 20px', background: '#8B0000', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}
+        >
+          Tap to Retry
+        </button>
+      </div>
+    );
   }
 
   // Determine user role
