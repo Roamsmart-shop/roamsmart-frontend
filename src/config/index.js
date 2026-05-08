@@ -14,10 +14,12 @@ const COMPANY = {
   year: new Date().getFullYear()
 };
 
-// API Configuration
+// API Configuration - FIXED: Use Railway backend
 const API_CONFIG = {
-  baseUrl: process.env.REACT_APP_API_URL || 'https://api.roamsmart.shop/api',
-  wsUrl: process.env.REACT_APP_WS_URL || 'wss://api.roamsmart.shop',
+  // CHANGE THIS - use Railway URL, not api.roamsmart.shop
+  baseUrl: process.env.REACT_APP_API_URL || 'https://roamsmart-backend-production.up.railway.app/api',
+  wsUrl: process.env.REACT_APP_WS_URL || 'https://roamsmart-backend-production.up.railway.app',
+  socketUrl: process.env.REACT_APP_SOCKET_URL || 'https://roamsmart-backend-production.up.railway.app',
   timeout: 30000,
   withCredentials: true
 };
