@@ -98,6 +98,26 @@ function AppContent() {
     }
   }, [location.pathname, user, isRestoring]);
 
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+const loadingStartTime = useRef(Date.now());
+
+useEffect(() => {
+  // Check loading duration
+  const checkLoading = setInterval(() => {
+    if (loading && (Date.now() - loadingStartTime.current) > 8000) {
+      console.log('Loading taking too long - forcing render');
+      setLoadingTimeout(true);
+    }
+  }, 1000);
+  
+  return () => clearInterval(checkLoading);
+}, [loading]);
+
+// Update loading condition
+if ((loading || verifyingRole) && !loadingTimeout) {
+  return <LoadingScreen />;
+}
+
   // Restore dashboard after refresh
   useEffect(() => {
     if (!loading && user && isRestoring) {
