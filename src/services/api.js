@@ -1,9 +1,7 @@
 
 import axios from 'axios';
 
-
-const API_URL = process.env.REACT_APP_API_URL || 'https://roamsmart-backend-production.up.railway.app/api';
-
+const API_URL = 'https://roamsmart-backend-production.up.railway.app/api';
 // Company Configuration
 export const COMPANY_CONFIG = {
   name: 'Roamsmart Digital Service',

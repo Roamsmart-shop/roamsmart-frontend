@@ -28,64 +28,89 @@ export default function AgentOrders() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [liveUpdates, setLiveUpdates] = useState([]);
+  const [liveStats, setLiveStats] = useState({}); // ADD THIS
+  const [adminRole] = useState('agent'); // ADD THIS - set to 'agent' since this is agent orders
   const socketRef = useRef(null);
 
   // Connect to WebSocket for real-time updates
   useEffect(() => {
-  // Use the production backend URL for Socket.IO
-  const socketUrl = process.env.REACT_APP_SOCKET_URL || 'https://roamsmart-backend-production.up.railway.app';
-  
-  // Only initialize socket if we have a token
-  const token = localStorage.getItem('roamsmart_token');
-  if (!token) return;
-  
-  socketRef.current = io(socketUrl, {
-    path: '/socket.io',
-    transports: ['polling'], // Use polling instead of websocket for better reliability
-    reconnection: false, // Don't auto-reconnect to prevent errors
-    autoConnect: true,
-    timeout: 10000
-  });
-  
-  socketRef.current.on('connect', () => {
-    console.log('Admin socket connected to:', socketUrl);
-    socketRef.current.emit('admin_join', { role: adminRole });
-  });
-  
-  socketRef.current.on('connect_error', (error) => {
-    console.warn('Admin socket connection error (non-critical):', error.message);
-    // Don't show error to user - just log silently
-  });
-  
-  socketRef.current.on('live_stats', (data) => {
-    if (data) setLiveStats(data);
-  });
-  
-  socketRef.current.on('new_order', (order) => {
-    if (order) {
-      showOrderNotification(order);
-      fetchAllData();
+    // Use the production backend URL for Socket.IO
+    const socketUrl = process.env.REACT_APP_SOCKET_URL || 'https://roamsmart-backend-production.up.railway.app';
+    
+    // Only initialize socket if we have a token
+    const token = localStorage.getItem('roamsmart_token');
+    if (!token) return;
+    
+    socketRef.current = io(socketUrl, {
+      path: '/socket.io',
+      transports: ['polling'], // Use polling instead of websocket for better reliability
+      reconnection: false, // Don't auto-reconnect to prevent errors
+      autoConnect: true,
+      timeout: 10000
+    });
+    
+    socketRef.current.on('connect', () => {
+      console.log('Agent socket connected to:', socketUrl);
+      socketRef.current.emit('agent_join', { role: adminRole });
+    });
+    
+    socketRef.current.on('connect_error', (error) => {
+      console.warn('Agent socket connection error (non-critical):', error.message);
+    });
+    
+    socketRef.current.on('live_stats', (data) => {
+      if (data) setLiveStats(data);
+    });
+    
+    socketRef.current.on('new_order', (order) => {
+      if (order) {
+        showOrderNotification(order);
+        fetchOrders();
+      }
+    });
+    
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, [adminRole]);
+
+  // Fetch orders function
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/agent/orders');
+      setOrders(res.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch orders:', error);
+      toast.error('Failed to load orders from Roamsmart');
+    } finally {
+      setLoading(false);
     }
-  });
-  
-  socketRef.current.on('new_agent_request', (request) => {
-    if (request) {
-      showAgentRequestNotification(request);
-      fetchAllData();
-    }
-  });
-  
-  socketRef.current.on('admin_alert', (alert) => {
-    if (alert) addNotification(alert);
-  });
-  
-  return () => {
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current = null;
-    }
+  }, []);
+
+  // Show order notification
+  const showOrderNotification = (order) => {
+    setLiveUpdates(prev => [{
+      order_id: order.order_id,
+      status: order.status,
+      timestamp: new Date()
+    }, ...prev].slice(0, 10));
+    
+    toast.success(`🛒 New order #${order.order_id} from ${order.customer_phone} on Roamsmart`, {
+      duration: 5000
+    });
   };
-}, [adminRole]);
+
+  // Add notification
+  const addNotification = (notification) => {
+    setLiveUpdates(prev => [{
+      ...notification,
+      timestamp: new Date()
+    }, ...prev].slice(0, 10));
+  };
 
   useEffect(() => {
     fetchOrders();
@@ -322,7 +347,7 @@ export default function AgentOrders() {
                        order.status === 'failed' ? 'Failed - Contact Support' : 'Pending'}
                     </span>
                   </div>
-                 </td>
+                </td>
                 <td>{new Date(order.created_at).toLocaleString()}</td>
                 <td className="actions">
                   <button 
