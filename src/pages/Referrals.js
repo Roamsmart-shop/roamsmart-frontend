@@ -197,8 +197,8 @@ export default function Referrals() {
       <div className="referral-terms">
         <h4>Referral Program Terms</h4>
         <ul>
-          <li>✅ Bonus is credited when referred user makes first purchase of ₵10 or more</li>
-          <li>✅ Maximum bonus per referral: ₵5</li>
+          <li>✅ Bonus is credited when referred user makes first purchase of ₵20 or more</li>
+          <li>✅ Maximum bonus per referral: ₵0.5</li>
           <li>✅ No limit on number of referrals</li>
           <li>✅ Bonuses are added to your Roamsmart wallet</li>
           <li>✅ Cannot refer yourself or create fake accounts</li>

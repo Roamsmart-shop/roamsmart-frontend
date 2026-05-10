@@ -1,9 +1,10 @@
 // src/pages/BecomeAgent.js
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FaCheckCircle, FaMoneyBillWave, FaUsers, FaRocket, FaWhatsapp, FaEnvelope, FaClock, FaTimesCircle, FaSpinner, FaStore, FaCrown, FaShieldAlt } from 'react-icons/fa';
+import { FaCheckCircle, FaMoneyBillWave, FaUsers, FaRocket, FaWhatsapp, FaEnvelope, FaClock, FaTimesCircle, FaSpinner, FaStore, FaCrown, FaShieldAlt, FaCreditCard, FaMobileAlt, FaUniversity } from 'react-icons/fa';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -27,8 +28,34 @@ export default function BecomeAgent() {
   const [applicationStatus, setApplicationStatus] = useState(null);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
 
   const agentFee = COMPANY.agentFee;
+
+  // Payment methods configuration - ALL ACTIVATED
+  const paymentOptions = [
+    { 
+      id: 'mobile_money', 
+      name: 'MTN MoMo', 
+      icon: <FaMobileAlt />, 
+      color: '#FFC107',
+      description: 'Instant payment via mobile money'
+    },
+    { 
+      id: 'paystack', 
+      name: 'Paystack', 
+      icon: <FaCreditCard />, 
+      color: '#00B3E6',
+      description: 'Pay with card or bank transfer'
+    },
+    { 
+      id: 'manual', 
+      name: 'Manual Transfer', 
+      icon: <FaUniversity />, 
+      color: '#28a745',
+      description: 'Bank transfer or mobile money'
+    }
+  ];
 
   useEffect(() => {
     checkApplicationStatus();
@@ -59,6 +86,208 @@ export default function BecomeAgent() {
     return phoneRegex.test(phone);
   };
 
+  // Paystack Payment Handler
+  const handlePaystackPayment = async () => {
+    setProcessingPayment(true);
+    try {
+      const amount = agentFee;
+      const email = user?.email;
+      const phone = phoneNumber;
+
+      if (!email) {
+        toast.error('Email is required. Please update your profile.');
+        setProcessingPayment(false);
+        return;
+      }
+
+      // Initialize Paystack transaction
+      const response = await api.post('/payment/paystack/initialize', {
+        amount: amount,
+        email: email,
+        phone: phone,
+        metadata: {
+          type: 'agent_registration',
+          username: user?.username
+        }
+      });
+
+      const { authorization_url, reference } = response.data.data;
+
+      // Open Paystack popup
+      const paystackPopup = window.open(authorization_url, '_blank', 'width=600,height=700');
+
+      // Poll for payment verification
+      const checkPaymentInterval = setInterval(async () => {
+        try {
+          const verifyResponse = await api.get(`/payment/paystack/verify/${reference}`);
+          if (verifyResponse.data.data.status === 'success') {
+            clearInterval(checkPaymentInterval);
+            paystackPopup?.close();
+            
+            // Submit agent application after successful payment
+            await submitAgentApplication(reference);
+          }
+        } catch (error) {
+          console.error('Verification error:', error);
+        }
+      }, 5000);
+
+      // Stop checking after 5 minutes
+      setTimeout(() => {
+        clearInterval(checkPaymentInterval);
+        if (processingPayment) {
+          setProcessingPayment(false);
+        }
+      }, 300000);
+
+    } catch (error) {
+      console.error('Paystack payment error:', error);
+      toast.error(error.response?.data?.error || 'Payment initialization failed');
+      setProcessingPayment(false);
+    }
+  };
+
+  // MTN MoMo Payment Handler
+  const handleMomoPayment = async () => {
+    setProcessingPayment(true);
+    try {
+      if (!phoneNumber || !validatePhoneNumber(phoneNumber)) {
+        toast.error('Please enter a valid phone number for MTN MoMo');
+        setProcessingPayment(false);
+        return;
+      }
+
+      // Initialize MoMo payment
+      const response = await api.post('/payment/momo/initialize', {
+        amount: agentFee,
+        phone: phoneNumber,
+        name: user?.username || 'Agent Applicant',
+        metadata: {
+          type: 'agent_registration',
+          username: user?.username
+        }
+      });
+
+      const { reference, paymentReference } = response.data.data;
+
+      // Show pending dialog
+      Swal.fire({
+        title: 'Payment Initiated',
+        text: 'Please check your phone and authorize the payment.',
+        icon: 'info',
+        confirmButtonColor: '#FFC107',
+        allowOutsideClick: false,
+        willClose: () => {
+          // Verify payment after dialog closes
+          verifyMomoPayment(reference);
+        }
+      });
+
+    } catch (error) {
+      console.error('MoMo payment error:', error);
+      toast.error(error.response?.data?.error || 'Payment initialization failed');
+      setProcessingPayment(false);
+    }
+  };
+
+  const verifyMomoPayment = async (reference) => {
+    setProcessingPayment(true);
+    try {
+      let attempts = 0;
+      const maxAttempts = 60; // 60 seconds max wait
+      
+      const checkInterval = setInterval(async () => {
+        attempts++;
+        try {
+          const verifyResponse = await api.get(`/payment/momo/verify/${reference}`);
+          
+          if (verifyResponse.data.data.status === 'success') {
+            clearInterval(checkInterval);
+            // Submit agent application after successful payment
+            await submitAgentApplication(reference);
+          } else if (verifyResponse.data.data.status === 'failed') {
+            clearInterval(checkInterval);
+            toast.error('Payment failed. Please try again.');
+            setProcessingPayment(false);
+          }
+        } catch (error) {
+          console.error('Verification error:', error);
+        }
+        
+        if (attempts >= maxAttempts) {
+          clearInterval(checkInterval);
+          toast.warning('Payment verification timeout. Please contact support.');
+          setProcessingPayment(false);
+        }
+      }, 3000);
+      
+    } catch (error) {
+      console.error('MoMo verification error:', error);
+      toast.error('Payment verification failed. Please contact support.');
+      setProcessingPayment(false);
+    }
+  };
+
+  // Manual Payment Handler
+  const handleManualPayment = async () => {
+    setProcessingPayment(true);
+    try {
+      if (!uploadedProof) {
+        toast.error('Please upload your payment proof/screenshot');
+        setProcessingPayment(false);
+        return;
+      }
+
+      // Submit application with manual payment
+      await submitAgentApplication(null, true);
+      
+    } catch (error) {
+      console.error('Manual payment error:', error);
+      toast.error(error.response?.data?.error || 'Failed to submit application');
+      setProcessingPayment(false);
+    }
+  };
+
+  const submitAgentApplication = async (paymentReference = null, isManual = false) => {
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('amount', agentFee);
+      formData.append('phone', phoneNumber);
+      formData.append('payment_method', paymentMethod);
+      formData.append('payment_reference', paymentReference || '');
+      
+      if (uploadedProof) {
+        formData.append('proof', uploadedProof);
+      }
+
+      const res = await api.post('/agent/apply', formData);
+      
+      if (res.data.success) {
+        toast.success(`Application submitted to ${COMPANY.name}! Admin will review within 24 hours.`);
+        await checkApplicationStatus();
+        if (refreshUser) await refreshUser();
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Application Submitted!',
+          html: `
+            <p>Your Roamsmart agent application has been submitted successfully.</p>
+            <p>We will review your application and get back to you within 24 hours.</p>
+            <p><strong>Reference:</strong> ${res.data.data?.reference || paymentReference}</p>
+          `,
+          confirmButtonColor: '#8B0000'
+        });
+      }
+    } catch (error) {
+      const errorMsg = error.response?.data?.error || 'Application failed. Please try again.';
+      toast.error(errorMsg);
+    } finally {
+      setLoading(false);
+      setProcessingPayment(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!phoneNumber) {
       toast.error('Please enter your phone number');
@@ -75,28 +304,13 @@ export default function BecomeAgent() {
       return;
     }
 
-    setLoading(true);
-    try {
-      const formData = new FormData();
-      formData.append('amount', agentFee);
-      formData.append('phone', phoneNumber);
-      formData.append('payment_method', paymentMethod);
-      if (uploadedProof) {
-        formData.append('proof', uploadedProof);
-      }
-
-      const res = await api.post('/agent/apply', formData);
-      
-      if (res.data.success) {
-        toast.success(`Application submitted to ${COMPANY.name}! Admin will review within 24 hours.`);
-        await checkApplicationStatus();
-        if (refreshUser) await refreshUser();
-      }
-    } catch (error) {
-      const errorMsg = error.response?.data?.error || 'Application failed. Please try again.';
-      toast.error(errorMsg);
-    } finally {
-      setLoading(false);
+    // Process based on selected payment method
+    if (paymentMethod === 'paystack') {
+      await handlePaystackPayment();
+    } else if (paymentMethod === 'mobile_money') {
+      await handleMomoPayment();
+    } else if (paymentMethod === 'manual') {
+      await handleManualPayment();
     }
   };
 
@@ -246,19 +460,21 @@ export default function BecomeAgent() {
               <div className="form-group">
                 <label>Payment Method</label>
                 <div className="payment-methods">
-                  <button 
-                    className={`payment-method ${paymentMethod === 'mobile_money' ? 'active' : ''}`}
-                    onClick={() => setPaymentMethod('mobile_money')}
-                  >
-                    <FaWhatsapp /> Mobile Money
-                  </button>
-                  <button 
-                    className={`payment-method ${paymentMethod === 'card' ? 'active' : ''}`}
-                    onClick={() => setPaymentMethod('card')}
-                    disabled
-                  >
-                    <FaEnvelope /> Card (Coming Soon)
-                  </button>
+                  {paymentOptions.map(method => (
+                    <button 
+                      key={method.id}
+                      className={`payment-method ${paymentMethod === method.id ? 'active' : ''}`}
+                      onClick={() => setPaymentMethod(method.id)}
+                      style={{ 
+                        borderColor: paymentMethod === method.id ? method.color : '#ddd',
+                        background: paymentMethod === method.id ? `${method.color}10` : 'white'
+                      }}
+                    >
+                      <span style={{ color: method.color }}>{method.icon}</span>
+                      {method.name}
+                      <small>{method.description}</small>
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -274,25 +490,29 @@ export default function BecomeAgent() {
                 <small>We'll use this for your agent account and withdrawals</small>
               </div>
 
-              <div className="form-group">
-                <label>Payment Proof (Screenshot)</label>
-                <input 
-                  type="file" 
-                  className="form-control"
-                  accept="image/*"
-                  onChange={(e) => setUploadedProof(e.target.files[0])}
-                />
-                <small>Upload screenshot of your mobile money payment</small>
-              </div>
-
-              <div className="payment-info">
-                <p>Send <strong>₵{agentFee}</strong> to:</p>
-                <div className="payment-details">
-                  <strong>Mobile Money: {COMPANY.phone}</strong>
-                  <small>Reference: AGENT_{user?.username?.toUpperCase() || 'YOURNAME'}</small>
-                  <small>Network: MTN, Telecel, or AirtelTigo</small>
+              {paymentMethod === 'manual' && (
+                <div className="form-group">
+                  <label>Payment Proof (Screenshot)</label>
+                  <input 
+                    type="file" 
+                    className="form-control"
+                    accept="image/*"
+                    onChange={(e) => setUploadedProof(e.target.files[0])}
+                  />
+                  <small>Upload screenshot of your payment</small>
                 </div>
-              </div>
+              )}
+
+              {paymentMethod === 'manual' && (
+                <div className="payment-info">
+                  <p>Send <strong>₵{agentFee}</strong> to:</p>
+                  <div className="payment-details">
+                    <strong>Mobile Money: {COMPANY.phone}</strong>
+                    <small>Reference: AGENT_{user?.username?.toUpperCase() || 'YOURNAME'}</small>
+                    <small>Network: MTN, Telecel, or AirtelTigo</small>
+                  </div>
+                </div>
+              )}
 
               <div className="terms-checkbox">
                 <label className="checkbox">
@@ -311,10 +531,10 @@ export default function BecomeAgent() {
               <button 
                 className="btn-primary btn-block"
                 onClick={handleSubmit}
-                disabled={loading}
+                disabled={loading || processingPayment}
               >
-                {loading ? <FaSpinner className="spinning" /> : null}
-                {loading ? ' Submitting to Roamsmart...' : ` Pay ₵${agentFee} & Apply Now`}
+                {(loading || processingPayment) ? <FaSpinner className="spinning" /> : null}
+                {(loading || processingPayment) ? ' Processing...' : ` Pay ₵${agentFee} & Apply Now`}
               </button>
 
               <p className="info-text">

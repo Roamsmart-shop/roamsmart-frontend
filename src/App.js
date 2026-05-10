@@ -1,4 +1,4 @@
-// src/App.js
+// src/App.js - Fixed with Navbar visible on all pages (both public and authenticated)
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -20,14 +20,14 @@ import ResetPassword from './pages/ResetPassword';
 import WAECVouchersPage from './pages/WAECVouchersPage';
 import AdminPriceManagement from './pages/AdminPriceManagement';
 import AdminDashboard from './pages/AdminDashboard';
-
+import BecomeAgent from './pages/BecomeAgent';
 // Lazy load pages for better performance
 const Landing = lazy(() => import('./pages/Landingpages'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const UserDashboard = lazy(() => import('./pages/UserDashboard'));
 const AgentDashboard = lazy(() => import('./pages/AgentDashboard'));
-const BecomeAgent = lazy(() => import('./pages/BecomeAgent'));
+
 const Transactions = lazy(() => import('./pages/Transactions'));
 const Support = lazy(() => import('./pages/Support'));
 const Profile = lazy(() => import('./pages/Profile'));
@@ -63,13 +63,13 @@ function AppContent() {
   const { user, loading } = useAuth();
   const location = useLocation();
   
-  // ========== ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS ==========
-  
-  // Load saved state from localStorage
+  // ========== SIDEBAR STATE WITH IMPROVED PERSISTENCE ==========
   const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const isMobileDevice = window.innerWidth <= 768;
+    if (isMobileDevice) return false;
     const saved = localStorage.getItem('sidebar_open');
     if (saved !== null) return JSON.parse(saved);
-    return window.innerWidth > 768;
+    return true;
   });
   
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
@@ -79,36 +79,53 @@ function AppContent() {
   });
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
-  // Save sidebar state to localStorage
+  // ========== IMPROVED RESIZE HANDLING ==========
   useEffect(() => {
-    localStorage.setItem('sidebar_open', JSON.stringify(sidebarOpen));
+    let resizeTimer;
+    
+    const handleResize = () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        const mobile = window.innerWidth <= 768;
+        setIsMobile(mobile);
+        
+        if (mobile) {
+          setSidebarOpen(false);
+          setIsMobileSidebarOpen(false);
+        } else {
+          const saved = localStorage.getItem('sidebar_open');
+          if (saved === null && sidebarOpen === false) {
+            setSidebarOpen(true);
+          }
+        }
+      }, 150);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => {
+      clearTimeout(resizeTimer);
+      window.removeEventListener('resize', handleResize);
+    };
   }, [sidebarOpen]);
   
+  // Save sidebar state to localStorage
   useEffect(() => {
-    localStorage.setItem('sidebar_collapsed', JSON.stringify(isCollapsed));
-  }, [isCollapsed]);
+    if (!isMobile) {
+      localStorage.setItem('sidebar_open', JSON.stringify(sidebarOpen));
+    }
+  }, [sidebarOpen, isMobile]);
   
-  // Handle window resize
   useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth <= 768;
-      setIsMobile(mobile);
-      if (mobile) {
-        setSidebarOpen(false);
-        setIsMobileSidebarOpen(false);
-      } else {
-        const saved = localStorage.getItem('sidebar_open');
-        if (saved === null) setSidebarOpen(true);
-      }
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+    if (!isMobile) {
+      localStorage.setItem('sidebar_collapsed', JSON.stringify(isCollapsed));
+    }
+  }, [isCollapsed, isMobile]);
   
-  // Close sidebar on mobile when route changes
+  // Close mobile sidebar when route changes
   useEffect(() => {
-    if (isMobile) setIsMobileSidebarOpen(false);
+    if (isMobile && isMobileSidebarOpen) {
+      setIsMobileSidebarOpen(false);
+    }
   }, [location.pathname, isMobile]);
   
   // Store the last dashboard in sessionStorage when user navigates
@@ -140,21 +157,16 @@ function AppContent() {
     actualIsAdmin = user?.role === 'super_admin' || user?.role === 'admin';
     actualIsAgent = user?.is_agent || false;
     
-    // Get saved dashboard from sessionStorage
     const savedDashboard = sessionStorage.getItem('last_dashboard');
     const currentPath = location.pathname;
-    
-    // Check if we're on a dashboard page
     const isOnDashboard = currentPath.startsWith('/admin') || 
                          currentPath.startsWith('/agent') || 
                          currentPath.startsWith('/dashboard');
     
-    // Determine correct dashboard based on role
     let correctDashboard = '/dashboard';
     if (actualIsAdmin) correctDashboard = '/admin';
     else if (actualIsAgent) correctDashboard = '/agent';
     
-    // If we have a saved dashboard and it's valid for this user's role, use it
     if (savedDashboard && !isOnDashboard) {
       const isValidForRole = 
         (actualIsAdmin && savedDashboard.startsWith('/admin')) ||
@@ -171,111 +183,337 @@ function AppContent() {
     }
   }
   
-  // Redirect if needed
-  if (user && dashboardPath !== '/' && location.pathname !== dashboardPath && !location.pathname.startsWith('/admin') && !location.pathname.startsWith('/agent') && !location.pathname.startsWith('/dashboard')) {
-    return <Navigate to={dashboardPath} replace />;
+  // Handle public routes - redirect logged-in users away from auth pages
+  const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password'];
+  const isAuthRoute = publicRoutes.includes(location.pathname);
+  
+  if (user && isAuthRoute) {
+    const redirectPath = actualIsAdmin ? '/admin' : (actualIsAgent ? '/agent' : '/dashboard');
+    return <Navigate to={redirectPath} replace />;
   }
   
-  const showSidebar = user && (actualIsAdmin || actualIsAgent || user.role === 'user');
+  // ========== DETERMINE IF SIDEBAR SHOULD BE SHOWN ==========
+  // Sidebar only shows on dashboard routes when user is authenticated
+  const isDashboardRoute = location.pathname.startsWith('/admin') || 
+                          location.pathname.startsWith('/agent') || 
+                          location.pathname.startsWith('/dashboard') ||
+                          location.pathname.startsWith('/store') ||
+                          location.pathname.startsWith('/inventory') ||
+                          location.pathname.startsWith('/profile') ||
+                          location.pathname.startsWith('/transactions') ||
+                          location.pathname.startsWith('/wallet') ||
+                          location.pathname.startsWith('/earnings') ||
+                          location.pathname.startsWith('/referrals') ||
+                          location.pathname.startsWith('/waec-vouchers') ||
+                          location.pathname.startsWith('/afa-registration') ||
+                          location.pathname.startsWith('/2fa') ||
+                          location.pathname.startsWith('/sessions') ||
+                          location.pathname.startsWith('/become-agent');
+  
+  // Navbar shows on ALL pages (both public and authenticated)
+  const showNavbar = true; // Always show navbar
+  const showSidebar = user && isDashboardRoute;
+  
+  // Sidebar visibility logic
   const isSidebarVisible = isMobile ? isMobileSidebarOpen : sidebarOpen;
   
   const toggleSidebar = () => {
-    if (isMobile) setIsMobileSidebarOpen(!isMobileSidebarOpen);
-    else setSidebarOpen(!sidebarOpen);
+    if (isMobile) {
+      setIsMobileSidebarOpen(!isMobileSidebarOpen);
+    } else {
+      setSidebarOpen(!sidebarOpen);
+    }
   };
   
   const toggleCollapse = () => {
-    if (!isMobile) setIsCollapsed(!isCollapsed);
+    if (!isMobile) {
+      setIsCollapsed(!isCollapsed);
+    }
   };
   
   const closeSidebar = () => {
-    if (isMobile) setIsMobileSidebarOpen(false);
-    else setSidebarOpen(false);
+    if (isMobile) {
+      setIsMobileSidebarOpen(false);
+    } else {
+      setSidebarOpen(false);
+    }
   };
   
+  // ========== RENDER APP WITH NAVBAR ALWAYS VISIBLE ==========
   return (
     <>
       {user && <AnnouncementBanner />}
       
-      <div className="app">
-        {showSidebar && isSidebarVisible && isMobile && (
-          <div className="sidebar-overlay show" onClick={closeSidebar} />
-        )}
+      <div className="app" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        {/* Navbar - Always visible on all pages */}
+        <Navbar 
+          onMenuClick={toggleSidebar} 
+          showMenu={showSidebar}
+          isMobile={isMobile}
+          onCollapse={toggleCollapse}
+          isCollapsed={isCollapsed}
+          sidebarOpen={isSidebarVisible}
+          user={user}
+        />
         
-        {showSidebar && (
-          <div className={`sidebar-container ${isCollapsed ? 'collapsed' : ''} ${isSidebarVisible ? 'open' : 'closed'}`}>
-            <Sidebar 
-              isOpen={isSidebarVisible} 
-              onClose={closeSidebar} 
-              user={user}
-              isCollapsed={isCollapsed}
-              onToggleCollapse={toggleCollapse}
+        {/* Main Content Area with Sidebar and Page Content */}
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
+          {/* Sidebar Overlay for Mobile */}
+          {showSidebar && isMobileSidebarOpen && isMobile && (
+            <div 
+              className="sidebar-overlay show" 
+              onClick={closeSidebar}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                zIndex: 999,
+                transition: 'all 0.3s ease'
+              }}
             />
-          </div>
-        )}
-        
-        <div className={`main-content ${showSidebar && isSidebarVisible ? 'with-sidebar' : ''} ${isCollapsed ? 'sidebar-collapsed' : ''}`}>
-          <Navbar 
-            onMenuClick={toggleSidebar} 
-            showMenu={showSidebar}
-            isMobile={isMobile}
-            onCollapse={toggleCollapse}
-            isCollapsed={isCollapsed}
-            sidebarOpen={isSidebarVisible}
-          />
+          )}
           
-          <Suspense fallback={<LoadingScreen />}>
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Landing />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/support" element={<Support />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/faq" element={<FAQ />} />
-              <Route path="/privacy" element={<PrivacyPolicy />} />
-              <Route path="/terms" element={<TermsOfService />} />
-              <Route path="/refund" element={<RefundPolicy />} />
-              
-              {/* User Routes */}
-              <Route path="/dashboard" element={<PrivateRoute><UserDashboard /></PrivateRoute>} />
-              <Route path="/waec-vouchers" element={<PrivateRoute><WAECVouchersPage /></PrivateRoute>} />
-              <Route path="/admin/prices" element={<PrivateRoute allowedRoles={['admin', 'super_admin']}><AdminPriceManagement /></PrivateRoute>} />
-              <Route path="/afa-registration" element={<PrivateRoute><AFARegistration /></PrivateRoute>} />
-              <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
-              <Route path="/transactions" element={<PrivateRoute><Transactions /></PrivateRoute>} />
-              <Route path="/wallet/transactions" element={<PrivateRoute><WalletTransactions /></PrivateRoute>} />
-              <Route path="/earnings" element={<PrivateRoute><Earnings /></PrivateRoute>} />
-              <Route path="/become-agent" element={<PrivateRoute><BecomeAgent /></PrivateRoute>} />
-              <Route path="/referrals" element={<PrivateRoute><Referrals /></PrivateRoute>} />
-              <Route path="/2fa/setup" element={<PrivateRoute><TwoFactorSetup /></PrivateRoute>} />
-              <Route path="/sessions" element={<PrivateRoute><Sessions /></PrivateRoute>} />
-              
-              {/* Agent Inventory & Store Routes */}
-              <Route path="/inventory" element={<PrivateRoute allowedRoles={['agent']}><AgentInventory /></PrivateRoute>} />
-              <Route path="/agent/store" element={<PrivateRoute allowedRoles={['agent']}><AgentStoreDashboard /></PrivateRoute>} />
-              <Route path="/agent/orders" element={<PrivateRoute allowedRoles={['agent']}><AgentOrders /></PrivateRoute>} />
-              <Route path="/agent" element={<PrivateRoute allowedRoles={['agent', 'admin']}><AgentDashboard /></PrivateRoute>} />
-              <Route path="/agent/cart" element={<PrivateRoute allowedRoles={['agent']}><AgentCart /></PrivateRoute>} />
-              <Route path="/agent/customers" element={<PrivateRoute allowedRoles={['agent']}><AgentCustomers /></PrivateRoute>} />
-              <Route path="/store/setup" element={<PrivateRoute allowedRoles={['agent']}><StoreSetup /></PrivateRoute>} />
-              <Route path="/store/products" element={<PrivateRoute allowedRoles={['agent']}><ProductsPricing /></PrivateRoute>} />
-              <Route path="/store/orders" element={<PrivateRoute allowedRoles={['agent']}><StoreOrders /></PrivateRoute>} />
-              <Route path="/store/clients" element={<PrivateRoute allowedRoles={['agent']}><StoreClients /></PrivateRoute>} />
+          {/* Sidebar Container */}
+          {showSidebar && (
+            <div 
+              className={`sidebar-container ${isCollapsed ? 'collapsed' : ''}`}
+              style={{
+                position: isMobile ? 'fixed' : 'relative',
+                top: 0,
+                left: 0,
+                height: '100%',
+                width: isCollapsed ? '80px' : '280px',
+                backgroundColor: '#fff',
+                boxShadow: '2px 0 5px rgba(0,0,0,0.1)',
+                transition: 'all 0.3s ease',
+                transform: isMobile ? (isMobileSidebarOpen ? 'translateX(0)' : 'translateX(-100%)') : 'translateX(0)',
+                zIndex: 1000,
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              <Sidebar 
+                isOpen={isSidebarVisible} 
+                onClose={closeSidebar} 
+                user={user}
+                isCollapsed={isCollapsed}
+                onToggleCollapse={toggleCollapse}
+              />
+            </div>
+          )}
+          
+          {/* Page Content - Scrollable Area */}
+          <div 
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              transition: 'margin-left 0.3s ease',
+              marginLeft: !isMobile && showSidebar && isSidebarVisible ? (isCollapsed ? '80px' : '280px') : 0,
+              width: '100%'
+            }}
+          >
+            <Suspense fallback={<LoadingScreen />}>
+              <Routes>
+                {/* Public Routes - No Sidebar */}
+                <Route path="/" element={<Landing />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/support" element={<Support />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/faq" element={<FAQ />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/refund" element={<RefundPolicy />} />
+                
+                {/* User Routes - With Sidebar */}
+                <Route path="/dashboard" element={
+                  <PrivateRoute>
+                    <UserDashboard />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/waec-vouchers" element={
+                  <PrivateRoute>
+                    <WAECVouchersPage />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/admin/prices" element={
+                  <PrivateRoute allowedRoles={['admin', 'super_admin']}>
+                    <AdminPriceManagement />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/afa-registration" element={
+                  <PrivateRoute>
+                    <AFARegistration />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/profile" element={
+                  <PrivateRoute>
+                    <Profile />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/transactions" element={
+                  <PrivateRoute>
+                    <Transactions />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/wallet/transactions" element={
+                  <PrivateRoute>
+                    <WalletTransactions />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/earnings" element={
+                  <PrivateRoute>
+                    <Earnings />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/become-agent" element={
+                  <PrivateRoute>
+                    <BecomeAgent />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/referrals" element={
+                  <PrivateRoute>
+                    <Referrals />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/2fa/setup" element={
+                  <PrivateRoute>
+                    <TwoFactorSetup />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/sessions" element={
+                  <PrivateRoute>
+                    <Sessions />
+                  </PrivateRoute>
+                } />
+                
+                {/* Agent Inventory & Store Routes */}
+                <Route path="/inventory" element={
+                  <PrivateRoute allowedRoles={['agent']}>
+                    <AgentInventory />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/agent/store" element={
+                  <PrivateRoute allowedRoles={['agent']}>
+                    <AgentStoreDashboard />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/agent/orders" element={
+                  <PrivateRoute allowedRoles={['agent']}>
+                    <AgentOrders />
+                  </PrivateRoute>
+                } />
 
-              {/* Admin Routes */}
-              <Route path="/admin" element={<PrivateRoute allowedRoles={['admin', 'super_admin']}><AdminDashboard /></PrivateRoute>} />
-              <Route path="/admin/kyc" element={<PrivateRoute allowedRoles={['admin', 'super_admin']}><KYCVerification /></PrivateRoute>} />
-              <Route path="/admin/webhooks" element={<PrivateRoute allowedRoles={['admin', 'super_admin']}><Webhooks /></PrivateRoute>} />
-              <Route path="/admin/backup" element={<PrivateRoute allowedRoles={['admin', 'super_admin']}><BackupManager /></PrivateRoute>} />
-              <Route path="/admin/audit" element={<PrivateRoute allowedRoles={['super_admin']}><AuditLogs /></PrivateRoute>} />
-              <Route path="/admin/health" element={<PrivateRoute allowedRoles={['admin', 'super_admin']}><SystemHealth /></PrivateRoute>} />
-              <Route path="/admin/roles" element={<PrivateRoute allowedRoles={['super_admin']}><AdminRoles /></PrivateRoute>} />
-              
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
+                <Route path="/agent" element={
+                  <PrivateRoute allowedRoles={['agent', 'admin']}>
+                    <AgentDashboard />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/agent/cart" element={
+                  <PrivateRoute allowedRoles={['agent']}>
+                    <AgentCart />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/agent/customers" element={
+                  <PrivateRoute allowedRoles={['agent']}>
+                    <AgentCustomers />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/store/setup" element={
+                  <PrivateRoute allowedRoles={['agent']}>
+                    <StoreSetup />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/store/products" element={
+                  <PrivateRoute allowedRoles={['agent']}>
+                    <ProductsPricing />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/store/orders" element={
+                  <PrivateRoute allowedRoles={['agent']}>
+                    <StoreOrders />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/store/clients" element={
+                  <PrivateRoute allowedRoles={['agent']}>
+                    <StoreClients />
+                  </PrivateRoute>
+                } />
+
+                {/* Admin Routes */}
+                <Route path="/admin" element={
+                  <PrivateRoute allowedRoles={['admin', 'super_admin']}>
+                    <AdminDashboard />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/admin/kyc" element={
+                  <PrivateRoute allowedRoles={['admin', 'super_admin']}>
+                    <KYCVerification />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/admin/webhooks" element={
+                  <PrivateRoute allowedRoles={['admin', 'super_admin']}>
+                    <Webhooks />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/admin/backup" element={
+                  <PrivateRoute allowedRoles={['admin', 'super_admin']}>
+                    <BackupManager />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/admin/audit" element={
+                  <PrivateRoute allowedRoles={['super_admin']}>
+                    <AuditLogs />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/admin/health" element={
+                  <PrivateRoute allowedRoles={['admin', 'super_admin']}>
+                    <SystemHealth />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/admin/roles" element={
+                  <PrivateRoute allowedRoles={['super_admin']}>
+                    <AdminRoles />
+                  </PrivateRoute>
+                } />
+                
+                {/* Redirect any unknown routes to dashboard */}
+                <Route path="*" element={<Navigate to={user ? (actualIsAdmin ? '/admin' : (actualIsAgent ? '/agent' : '/dashboard')) : '/'} replace />} />
+              </Routes>
+            </Suspense>
+          </div>
         </div>
         
         <Toaster 

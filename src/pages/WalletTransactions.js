@@ -1,7 +1,7 @@
 // src/pages/WalletTransactions.js
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaSearch, FaEye, FaDownload, FaWallet, FaSpinner, FaCheckCircle, FaTimesCircle, FaArrowUp, FaArrowDown } from 'react-icons/fa';
+import { FaSearch, FaEye, FaDownload, FaWallet, FaSpinner, FaCheckCircle, FaTimesCircle, FaArrowUp, FaArrowDown, FaCreditCard, FaMobileAlt, FaUniversity } from 'react-icons/fa';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import FundWallet from '../components/FundWallet';
@@ -14,11 +14,23 @@ const COMPANY = {
   email: 'support@roamsmart.shop'
 };
 
+const getPaymentMethodIcon = (method) => {
+  const methods = {
+    wallet: { icon: <FaWallet />, name: 'Roamsmart Wallet', color: '#8B0000' },
+    paystack: { icon: <FaCreditCard />, name: 'Paystack', color: '#00B3E6' },
+    momo: { icon: <FaMobileAlt />, name: 'MTN MoMo', color: '#FFC107' },
+    manual: { icon: <FaUniversity />, name: 'Manual Transfer', color: '#28a745' },
+    default: { icon: <FaWallet />, name: 'Wallet', color: '#666' }
+  };
+  return methods[method] || methods.default;
+};
+
 export default function WalletTransactions() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
+  const [filterMethod, setFilterMethod] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [showFundModal, setShowFundModal] = useState(false);
@@ -73,6 +85,7 @@ export default function WalletTransactions() {
       const exportData = transactions.map(t => ({
         'Date': new Date(t.created_at).toLocaleString(),
         'Type': t.type,
+        'Payment Method': t.payment_method || 'wallet',
         'Amount (GHS)': t.type === 'credit' ? t.amount : -t.amount,
         'Balance Before': t.balance_before,
         'Balance After': t.balance_after,
@@ -93,11 +106,16 @@ export default function WalletTransactions() {
     }
   };
 
-  const filteredTransactions = transactions.filter(t => 
-    t.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.type?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredTransactions = transactions.filter(t => {
+    const matchesSearch = t.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.type?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesType = filterType === 'all' || t.type === filterType;
+    const matchesMethod = filterMethod === 'all' || (t.payment_method || 'wallet') === filterMethod;
+    
+    return matchesSearch && matchesType && matchesMethod;
+  });
 
   const stats = {
     totalCredits: transactions.filter(t => t.type === 'credit' || t.type === 'fund' || t.type === 'commission').reduce((sum, t) => sum + (t.amount || 0), 0),
@@ -184,6 +202,16 @@ export default function WalletTransactions() {
             <option value="refund">Refund</option>
           </select>
         </div>
+
+        <div className="filter-group">
+          <select value={filterMethod} onChange={(e) => setFilterMethod(e.target.value)}>
+            <option value="all">All Payment Methods</option>
+            <option value="wallet">Roamsmart Wallet</option>
+            <option value="paystack">Paystack</option>
+            <option value="momo">MTN MoMo</option>
+            <option value="manual">Manual Transfer</option>
+          </select>
+        </div>
       </div>
 
       {/* Transactions Table */}
@@ -194,6 +222,7 @@ export default function WalletTransactions() {
               <tr>
                 <th>TYPE</th>
                 <th>AMOUNT</th>
+                <th>PAYMENT METHOD</th>
                 <th>BALANCE BEFORE</th>
                 <th>BALANCE AFTER</th>
                 <th>REFERENCE</th>
@@ -205,17 +234,18 @@ export default function WalletTransactions() {
             <tbody>
               {filteredTransactions.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="empty-state">
+                  <td colSpan="9" className="empty-state">
                     <div className="empty-icon">💰</div>
                     <p>No Roamsmart wallet transactions found</p>
                     <button onClick={() => setShowFundModal(true)} className="btn-primary btn-sm">
                       Fund Your Roamsmart Wallet
                     </button>
-                  </td>
-                </tr>
+                   </td>
+                 </tr>
               ) : (
                 filteredTransactions.map((transaction) => {
                   const typeInfo = getTypeBadge(transaction.type);
+                  const paymentInfo = getPaymentMethodIcon(transaction.payment_method);
                   return (
                     <tr key={transaction.id}>
                       <td>
@@ -225,6 +255,11 @@ export default function WalletTransactions() {
                       </td>
                       <td className={`amount ${typeInfo.class === 'type-credit' ? 'text-success' : 'text-danger'}`}>
                         {formatAmount(transaction.amount, transaction.type)}
+                      </td>
+                      <td>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: paymentInfo.color }}>
+                          {paymentInfo.icon} {paymentInfo.name}
+                        </span>
                       </td>
                       <td>₵{transaction.balance_before?.toFixed(2) || '0.00'}</td>
                       <td>₵{transaction.balance_after?.toFixed(2) || '0.00'}</td>
@@ -302,6 +337,13 @@ export default function WalletTransactions() {
                   <label>Amount:</label>
                   <span className={selectedTransaction.type === 'credit' ? 'text-success' : 'text-danger'}>
                     {formatAmount(selectedTransaction.amount, selectedTransaction.type)}
+                  </span>
+                </div>
+                <div className="detail-item">
+                  <label>Payment Method:</label>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: getPaymentMethodIcon(selectedTransaction.payment_method).color }}>
+                    {getPaymentMethodIcon(selectedTransaction.payment_method).icon} 
+                    {getPaymentMethodIcon(selectedTransaction.payment_method).name}
                   </span>
                 </div>
                 <div className="detail-item">

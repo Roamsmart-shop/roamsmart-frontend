@@ -1,7 +1,7 @@
 // src/pages/Transactions.js
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaSearch, FaFilter, FaDownload, FaEye, FaSpinner, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import { FaSearch, FaFilter, FaDownload, FaEye, FaSpinner, FaCheckCircle, FaTimesCircle, FaWallet, FaCreditCard, FaMobileAlt, FaUniversity } from 'react-icons/fa';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
@@ -18,7 +18,6 @@ const formatDate = (dateString) => {
   try {
     let date;
     if (typeof dateString === 'string') {
-      // Handle different date formats
       const normalized = dateString.replace(' ', 'T');
       date = new Date(normalized);
     } else {
@@ -26,12 +25,10 @@ const formatDate = (dateString) => {
     }
     
     if (isNaN(date.getTime())) {
-      // Try parsing as timestamp
       const timestamp = Date.parse(dateString);
       if (!isNaN(timestamp)) {
         date = new Date(timestamp);
       } else {
-        // Return the string as-is if it's a simple date format
         if (dateString.includes('-')) {
           const parts = dateString.split(' ');
           return parts[0] || 'Invalid Date';
@@ -77,11 +74,23 @@ const formatDateTime = (dateString) => {
   }
 };
 
+const getPaymentMethodIcon = (method) => {
+  const methods = {
+    wallet: { icon: <FaWallet />, name: 'Roamsmart Wallet', color: '#8B0000' },
+    paystack: { icon: <FaCreditCard />, name: 'Paystack', color: '#00B3E6' },
+    momo: { icon: <FaMobileAlt />, name: 'MTN MoMo', color: '#FFC107' },
+    manual: { icon: <FaUniversity />, name: 'Manual Transfer', color: '#28a745' },
+    default: { icon: <FaWallet />, name: 'Wallet', color: '#666' }
+  };
+  return methods[method] || methods.default;
+};
+
 export default function Transactions() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterMethod, setFilterMethod] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -126,6 +135,7 @@ export default function Transactions() {
         'Network': order.network?.toUpperCase(),
         'Size (GB)': order.size_gb,
         'Amount (GHS)': order.amount,
+        'Payment Method': order.payment_method || 'Wallet',
         'Status': order.status,
         'Date': formatDateTime(order.created_at)
       }));
@@ -143,11 +153,16 @@ export default function Transactions() {
     }
   };
 
-  const filteredTransactions = transactions.filter(t => 
-    t.order_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.phone?.includes(searchTerm) ||
-    t.network?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredTransactions = transactions.filter(t => {
+    const matchesSearch = t.order_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.phone?.includes(searchTerm) ||
+      t.network?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = filterStatus === 'all' || t.status === filterStatus;
+    const matchesMethod = filterMethod === 'all' || (t.payment_method || 'wallet') === filterMethod;
+    
+    return matchesSearch && matchesStatus && matchesMethod;
+  });
 
   const stats = {
     total: transactions.length,
@@ -220,6 +235,16 @@ export default function Transactions() {
             <option value="failed">Failed</option>
           </select>
         </div>
+        <div className="filter-box">
+          <FaFilter />
+          <select value={filterMethod} onChange={(e) => setFilterMethod(e.target.value)} className="filter-select">
+            <option value="all">All Payment Methods</option>
+            <option value="wallet">Roamsmart Wallet</option>
+            <option value="paystack">Paystack</option>
+            <option value="momo">MTN MoMo</option>
+            <option value="manual">Manual Transfer</option>
+          </select>
+        </div>
       </div>
 
       {/* Transactions Table */}
@@ -232,37 +257,46 @@ export default function Transactions() {
                 <th>Phone</th>
                 <th>Product</th>
                 <th>Amount</th>
+                <th>Payment Method</th>
                 <th>Status</th>
                 <th>Date</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {filteredTransactions.map(order => (
-                <tr key={order.order_id}>
-                  <td className="order-id">#{order.order_id} on Roamsmart</td>
-                  <td>{order.phone}</td>
-                  <td>{order.network?.toUpperCase()} {order.size_gb}GB</td>
-                  <td className="amount">₵{order.amount}</td>
-                  <td>{getStatusBadge(order.status)}</td>
-                  <td className="date">{formatDateTime(order.created_at)}</td>
-                  <td>
-                    <button 
-                      className="view-btn" 
-                      onClick={() => {
-                        setSelectedOrder(order);
-                        setShowDetailsModal(true);
-                      }}
-                      title="View Details"
-                    >
-                      <FaEye />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {filteredTransactions.map(order => {
+                const paymentInfo = getPaymentMethodIcon(order.payment_method || 'wallet');
+                return (
+                  <tr key={order.order_id}>
+                    <td className="order-id">#{order.order_id} on Roamsmart</td>
+                    <td>{order.phone}</td>
+                    <td>{order.network?.toUpperCase()} {order.size_gb}GB</td>
+                    <td className="amount">₵{order.amount}</td>
+                    <td>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: paymentInfo.color }}>
+                        {paymentInfo.icon} {paymentInfo.name}
+                      </span>
+                    </td>
+                    <td>{getStatusBadge(order.status)}</td>
+                    <td className="date">{formatDateTime(order.created_at)}</td>
+                    <td>
+                      <button 
+                        className="view-btn" 
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setShowDetailsModal(true);
+                        }}
+                        title="View Details"
+                      >
+                        <FaEye />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
               {filteredTransactions.length === 0 && (
                 <tr>
-                  <td colSpan="7" className="text-center">
+                  <td colSpan="8" className="text-center">
                     {searchTerm ? 'No transactions match your search on Roamsmart' : 'No transactions found. Start shopping!'}
                   </td>
                 </tr>
@@ -309,7 +343,12 @@ export default function Transactions() {
                 <div className="detail-item"><label>Amount:</label><span className="amount">₵{selectedOrder.amount}</span></div>
                 <div className="detail-item"><label>Status:</label><span>{getStatusBadge(selectedOrder.status)}</span></div>
                 <div className="detail-item"><label>Date:</label><span>{formatDateTime(selectedOrder.created_at)}</span></div>
-                <div className="detail-item"><label>Payment Method:</label><span>{selectedOrder.payment_method || 'Wallet'}</span></div>
+                <div className="detail-item"><label>Payment Method:</label>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: getPaymentMethodIcon(selectedOrder.payment_method || 'wallet').color }}>
+                    {getPaymentMethodIcon(selectedOrder.payment_method || 'wallet').icon} 
+                    {getPaymentMethodIcon(selectedOrder.payment_method || 'wallet').name}
+                  </span>
+                </div>
               </div>
               
               <div className="modal-actions">
