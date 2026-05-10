@@ -15,7 +15,7 @@ import {
   FaDownload, FaPrint, FaEye, FaEdit, FaTrash, FaPlus,
   FaMinus, FaArrowUp, FaArrowDown, FaChartBar, FaPieChart,
   FaLineChart, FaBarChart, FaCalendarAlt, FaClock, FaFilter,
-  FaArrowRight, FaArrowLeft, FaDollarSign  // Added FaDollarSign
+  FaArrowRight, FaArrowLeft, FaDollarSign
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import { FaUserGraduate, FaGraduationCap } from 'react-icons/fa';
@@ -165,11 +165,11 @@ export default function Sidebar({ isOpen, onClose, user: propUser, isCollapsed, 
     { to: '/profile', icon: <FaCog />, label: 'Settings', description: 'Account settings on Roamsmart' }
   ];
 
-  // ========== ADMIN LINKS (UPDATED with Price Management) ==========
+  // ========== ADMIN LINKS ==========
   const adminLinks = [
     { to: '/admin', icon: <FaTachometerAlt />, label: 'Dashboard', description: 'Roamsmart Overview & KPIs' },
     { to: '/admin#analytics', icon: <FaChartLine />, label: 'Analytics', description: 'Roamsmart Advanced analytics' },
-    { to: '/admin/prices', icon: <FaDollarSign />, label: 'Price Management', description: 'Update user and agent prices on Roamsmart' }, // ADDED THIS
+    { to: '/admin/prices', icon: <FaDollarSign />, label: 'Price Management', description: 'Update user and agent prices on Roamsmart' },
     { to: '/admin#users', icon: <FaUsers />, label: 'Users', description: 'Manage Roamsmart users' },
     { to: '/admin#agents', icon: <FaUserPlus />, label: 'Agents', description: 'Manage Roamsmart agents' },
     { to: '/admin#payments', icon: <FaWallet />, label: 'Payments', description: 'Manual payments on Roamsmart' },
@@ -180,7 +180,7 @@ export default function Sidebar({ isOpen, onClose, user: propUser, isCollapsed, 
     { to: '/admin#settings', icon: <FaCog />, label: 'Settings', description: 'Roamsmart system settings' }
   ];
 
-  // ========== SUPER ADMIN LINKS (Additional) ==========
+  // ========== SUPER ADMIN LINKS ==========
   const superAdminLinks = [
     { to: '/admin/roles', icon: <FaUserCheck />, label: 'Admin Roles', description: 'Manage Roamsmart admins' },
     { to: '/admin/audit', icon: <FaHistory />, label: 'Audit Logs', description: 'Admin actions on Roamsmart' },
@@ -240,127 +240,133 @@ export default function Sidebar({ isOpen, onClose, user: propUser, isCollapsed, 
 
   const userTier = getUserTier();
 
-  // DEBUG: Log links being rendered
   console.log('Sidebar: Rendering with links count:', links.length);
   console.log('Sidebar: Links:', links.map(l => l.label));
 
+  // FIXED: The container now has the correct class name to match your CSS
   return (
     <>
+      {/* Collapse toggle button (desktop only) */}
       <button className="sidebar-collapse-toggle" onClick={onToggleCollapse}>
         {isCollapsed ? <FaArrowRight /> : <FaArrowLeft />}
       </button>
       
+      {/* Mobile overlay */}
       {isOpen && <div className="sidebar-overlay" onClick={onClose}></div>}
-      <aside className={`sidebar ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
-        {/* Sidebar Header with User Info */}
-        <div className="sidebar-header">
-          <div className="user-avatar-wrapper">
-            <img 
-              src={getAvatarUrl()} 
-              alt={user?.username || 'User'} 
-              className="user-avatar-large"
-              onError={(e) => {
-                console.error('Sidebar: Avatar failed to load, using fallback');
-                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.username || 'User')}&background=8B0000&color=fff&size=100&bold=true`;
-              }}
-            />
-            {isAgent && (
-              <div className="tier-badge-sidebar" style={{ background: userTier.color }}>
+      
+      {/* FIXED: Changed from 'sidebar' to 'sidebar-container' to match CSS */}
+      <div className={`sidebar-container ${isOpen ? 'open' : ''} ${isCollapsed ? 'collapsed' : ''}`}>
+        <aside className="sidebar">
+          {/* Sidebar Header with User Info */}
+          <div className="sidebar-header">
+            <div className="user-avatar-wrapper">
+              <img 
+                src={getAvatarUrl()} 
+                alt={user?.username || 'User'} 
+                className="user-avatar-large"
+                onError={(e) => {
+                  console.error('Sidebar: Avatar failed to load, using fallback');
+                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.username || 'User')}&background=8B0000&color=fff&size=100&bold=true`;
+                }}
+              />
+              {isAgent && (
+                <div className="tier-badge-sidebar" style={{ background: userTier.color }}>
+                  {userTier.icon} {userTier.name}
+                </div>
+              )}
+            </div>
+            
+            <div className="user-info-sidebar">
+              <h3>{user?.username || 'Guest'}</h3>
+              <p className="user-role">
                 {userTier.icon} {userTier.name}
+              </p>
+            </div>
+
+            {/* Wallet Balance for Non-Admins */}
+            {!isAdmin && (
+              <div className="sidebar-wallet">
+                <FaWallet />
+                <span>₵{user?.wallet_balance?.toFixed(2) || '0.00'}</span>
+              </div>
+            )}
+
+            {/* Agent Commission Preview */}
+            {isAgent && (
+              <div className="sidebar-commission">
+                <FaMoneyBillWave />
+                <span>Roamsmart Commission: {user?.commission_rate || 10}%</span>
               </div>
             )}
           </div>
-          
-          <div className="user-info-sidebar">
-            <h3>{user?.username || 'Guest'}</h3>
-            <p className="user-role">
-              {userTier.icon} {userTier.name}
-            </p>
-          </div>
 
-          {/* Wallet Balance for Non-Admins */}
-          {!isAdmin && (
-            <div className="sidebar-wallet">
-              <FaWallet />
-              <span>₵{user?.wallet_balance?.toFixed(2) || '0.00'}</span>
-            </div>
-          )}
+          {/* Navigation Links */}
+          <nav className="sidebar-nav">
+            {links && links.length > 0 ? (
+              links.map((link, index) => (
+                <NavLink 
+                  key={index} 
+                  to={link.to} 
+                  className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} 
+                  onClick={onClose}
+                  title={link.description}
+                >
+                  <span className="nav-icon">{link.icon}</span>
+                  <span className="nav-label">{link.label}</span>
+                  {link.badge && <span className="nav-badge">{link.badge}</span>}
+                </NavLink>
+              ))
+            ) : (
+              <div className="no-links-message">Loading menu...</div>
+            )}
+          </nav>
 
-          {/* Agent Commission Preview */}
+          {/* Quick Actions for Agents */}
           {isAgent && (
-            <div className="sidebar-commission">
-              <FaMoneyBillWave />
-              <span>Roamsmart Commission: {user?.commission_rate || 10}%</span>
+            <div className="sidebar-quick-actions">
+              <div className="quick-actions-title">
+                <FaFire /> Roamsmart Quick Actions
+              </div>
+              <div className="quick-actions-grid">
+                <button onClick={() => { navigate('/agent#sell'); onClose(); }} className="quick-action-btn">
+                  <FaDatabase /> Sell on Roamsmart
+                </button>
+                <button onClick={() => { navigate('/store/setup'); onClose(); }} className="quick-action-btn">
+                  <FaStore /> Store Setup
+                </button>
+                <button onClick={() => { navigate('/earnings'); onClose(); }} className="quick-action-btn">
+                  <FaMoneyBillWave /> Withdraw
+                </button>
+              </div>
             </div>
           )}
-        </div>
 
-        {/* Navigation Links */}
-        <nav className="sidebar-nav">
-          {links && links.length > 0 ? (
-            links.map((link, index) => (
-              <NavLink 
-                key={index} 
-                to={link.to} 
-                className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} 
-                onClick={onClose}
-                title={link.description}
-              >
-                <span className="nav-icon">{link.icon}</span>
-                <span className="nav-label">{link.label}</span>
-                {link.badge && <span className="nav-badge">{link.badge}</span>}
-              </NavLink>
-            ))
-          ) : (
-            <div className="no-links-message">Loading menu...</div>
-          )}
-        </nav>
-
-        {/* Quick Actions for Agents */}
-        {isAgent && (
-          <div className="sidebar-quick-actions">
-            <div className="quick-actions-title">
-              <FaFire /> Roamsmart Quick Actions
-            </div>
-            <div className="quick-actions-grid">
-              <button onClick={() => { navigate('/agent#sell'); onClose(); }} className="quick-action-btn">
-                <FaDatabase /> Sell on Roamsmart
-              </button>
-              <button onClick={() => { navigate('/store/setup'); onClose(); }} className="quick-action-btn">
-                <FaStore /> Store Setup
-              </button>
-              <button onClick={() => { navigate('/earnings'); onClose(); }} className="quick-action-btn">
-                <FaMoneyBillWave /> Withdraw
-              </button>
+          {/* Support & Help Section */}
+          <div className="sidebar-support">
+            <div className="support-links">
+              <a href={`https://wa.me/233${COMPANY.phone}`} target="_blank" rel="noopener noreferrer" className="support-link">
+                <FaWhatsapp /> Roamsmart WhatsApp
+              </a>
+              <a href={`tel:${COMPANY.phone}`} className="support-link">
+                <FaPhoneAlt /> Call Roamsmart
+              </a>
+              <a href={`mailto:${COMPANY.email}`} className="support-link">
+                <FaEnvelope /> Email Roamsmart
+              </a>
             </div>
           </div>
-        )}
 
-        {/* Support & Help Section */}
-        <div className="sidebar-support">
-          <div className="support-links">
-            <a href={`https://wa.me/233${COMPANY.phone}`} target="_blank" rel="noopener noreferrer" className="support-link">
-              <FaWhatsapp /> Roamsmart WhatsApp
-            </a>
-            <a href={`tel:${COMPANY.phone}`} className="support-link">
-              <FaPhoneAlt /> Call Roamsmart
-            </a>
-            <a href={`mailto:${COMPANY.email}`} className="support-link">
-              <FaEnvelope /> Email Roamsmart
-            </a>
+          {/* Sidebar Footer with Logout */}
+          <div className="sidebar-footer">
+            <button className="logout-btn" onClick={handleLogout}>
+              <FaSignOutAlt /> Logout from Roamsmart
+            </button>
+            <div className="sidebar-version">
+              <small>{COMPANY.name} v2.0.0</small>
+            </div>
           </div>
-        </div>
-
-        {/* Sidebar Footer with Logout */}
-        <div className="sidebar-footer">
-          <button className="logout-btn" onClick={handleLogout}>
-            <FaSignOutAlt /> Logout from Roamsmart
-          </button>
-          <div className="sidebar-version">
-            <small>{COMPANY.name} v2.0.0</small>
-          </div>
-        </div>
-      </aside>
+        </aside>
+      </div>
     </>
   );
 }

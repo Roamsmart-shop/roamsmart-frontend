@@ -288,86 +288,94 @@ export default function BecomeAgent() {
     }
   };
 
-  const handleSubmit = async () => {
-    if (!phoneNumber) {
-      toast.error('Please enter your phone number');
-      return;
-    }
+  // src/pages/BecomeAgent.js - Updated handleSubmit to use JSON
+const handleSubmit = async () => {
+  if (!agreeTerms) {
+    toast.error('Please agree to the terms and conditions');
+    return;
+  }
+
+  setLoading(true);
+  try {
+    // Use JSON instead of FormData
+    const payload = {
+      payment_method: paymentMethod,
+      phone: phoneNumber
+    };
     
-    if (!validatePhoneNumber(phoneNumber)) {
-      toast.error('Please enter a valid Ghana phone number (e.g., 024XXXXXXX)');
-      return;
+    // If there's a proof file, convert to base64
+    let proofBase64 = null;
+    if (uploadedProof) {
+      proofBase64 = await convertFileToBase64(uploadedProof);
+      payload.proof_base64 = proofBase64;
+      payload.proof_filename = uploadedProof.name;
     }
 
-    if (!agreeTerms) {
-      toast.error('Please agree to the terms and conditions');
-      return;
-    }
+    console.log('Submitting with payload:', payload);
 
-    // Process based on selected payment method
-    if (paymentMethod === 'paystack') {
-      await handlePaystackPayment();
-    } else if (paymentMethod === 'mobile_money') {
-      await handleMomoPayment();
-    } else if (paymentMethod === 'manual') {
-      await handleManualPayment();
-    }
-  };
-
-  // If user is already an agent, show message
-  if (user?.is_agent && user?.agent_approved) {
-    return (
-      <motion.div 
-        className="become-agent-page"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-      >
-        <div className="container">
-          <div className="already-agent-card">
-            <FaCheckCircle size={64} color="#28a745" />
-            <h2>You are already a {COMPANY.shortName} Agent!</h2>
-            <p>You have access to wholesale prices, your own store, and commission earnings.</p>
-            <div className="agent-actions">
-              <button className="btn-primary" onClick={() => navigate('/agent')}>
-                Go to Agent Dashboard
-              </button>
-              <button className="btn-outline" onClick={() => navigate('/store/setup')}>
-                Set Up Your Store
-              </button>
+    const res = await api.post('/agent/apply', payload, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (res.data.success) {
+      toast.success(res.data.message || `Application submitted to ${COMPANY.name}!`);
+      
+      // Show payment instructions
+      const instructions = res.data.data?.instructions;
+      if (instructions) {
+        Swal.fire({
+          icon: 'info',
+          title: 'Payment Instructions',
+          html: `
+            <div style="text-align: left;">
+              <p><strong>Amount to Pay:</strong> GHS ${instructions.amount}</p>
+              <p><strong>Send Money To:</strong> ${instructions.phone}</p>
+              <p><strong>Reference:</strong> <code>${instructions.reference}</code></p>
+              <hr/>
+              <p><strong>Steps to complete payment:</strong></p>
+              <ol style="text-align: left;">
+                <li>Go to your mobile money wallet</li>
+                <li>Select "Send Money"</li>
+                <li>Enter number: <strong>${instructions.phone}</strong></li>
+                <li>Enter amount: <strong>GHS ${instructions.amount}</strong></li>
+                <li>Enter reference: <strong>${instructions.reference}</strong></li>
+                <li>Complete the transaction</li>
+                <li>Keep the transaction ID for reference</li>
+              </ol>
             </div>
-          </div>
-        </div>
-      </motion.div>
-    );
+          `,
+          confirmButtonColor: '#8B0000',
+          confirmButtonText: 'I Understand'
+        });
+      }
+      
+      await checkApplicationStatus();
+      if (refreshUser) await refreshUser();
+      
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 3000);
+    }
+  } catch (error) {
+    const errorMsg = error.response?.data?.error || 'Application failed. Please try again.';
+    toast.error(errorMsg);
+    console.error('Application error:', error.response?.data);
+  } finally {
+    setLoading(false);
   }
+};
 
-  // Show application status if pending
-  if (applicationStatus?.has_applied && applicationStatus?.status === 'pending') {
-    return (
-      <motion.div 
-        className="become-agent-page"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-      >
-        <div className="container">
-          <div className="application-status-card pending">
-            <FaClock size={64} color="#ffc107" />
-            <h2>Application Pending Review</h2>
-            <p>Your {COMPANY.shortName} agent application is being reviewed by our admin team.</p>
-            <div className="status-details">
-              <p><strong>Reference:</strong> {applicationStatus.payment_reference}</p>
-              <p><strong>Submitted:</strong> {new Date(applicationStatus.submitted_at).toLocaleDateString()}</p>
-              <p><strong>Status:</strong> <span className="badge-pending">Pending Approval on Roamsmart</span></p>
-            </div>
-            <p className="info-text">You will receive an SMS and email once your application is approved.</p>
-            <button className="btn-outline" onClick={() => navigate('/dashboard')}>
-              Return to Dashboard
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    );
-  }
+// Helper function to convert file to base64
+const convertFileToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = (error) => reject(error);
+  });
+};
 
   // Show rejection message if rejected
   if (applicationStatus?.has_applied && applicationStatus?.status === 'rejected') {

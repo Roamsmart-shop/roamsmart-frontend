@@ -1,4 +1,18 @@
 /* src/styles/layouts/navbar.css */
+/* ========== COMPLETE MOBILE-FRIENDLY FIXED VERSION ========== */
+
+/* ========== BASE RESET ========== */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+  position: relative;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* ========== NAVBAR ========== */
 .navbar {
   background: var(--white);
   padding: 12px 24px;
@@ -6,18 +20,73 @@
   justify-content: space-between;
   align-items: center;
   box-shadow: var(--shadow-sm);
-  position: sticky;
-  top: 0;
+  width: 100%;
   z-index: var(--z-sticky);
+  box-sizing: border-box;
 }
 
+/* Desktop - sticky */
+@media (min-width: 769px) {
+  .navbar {
+    position: sticky;
+    top: 0;
+  }
+}
+
+/* Mobile - NOT sticky (scrolls with page) */
+@media (max-width: 768px) {
+  .navbar {
+    position: relative;
+    padding: 10px 16px;
+  }
+}
+
+/* ========== FLEX CONTAINERS ========== */
 .navbar-left {
   display: flex;
   align-items: center;
   gap: 20px;
-  min-width: 200px; /* Ensures left section has enough space */
+  flex-shrink: 1;
+  min-width: 0; /* Prevents overflow */
 }
 
+@media (max-width: 768px) {
+  .navbar-left {
+    gap: 10px;
+  }
+}
+
+.navbar-center {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .navbar-center {
+    justify-content: flex-end;
+    gap: 10px;
+  }
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .navbar-right {
+    gap: 10px;
+  }
+}
+
+/* ========== MENU BUTTON ========== */
 .menu-btn {
   background: none;
   border: none;
@@ -30,72 +99,34 @@
   transition: background 0.2s;
 }
 
-.menu-btn:hover {
+.menu-btn:active {
   background: rgba(0,0,0,0.05);
 }
 
-/* Mobile menu button - only visible on mobile */
 @media (max-width: 768px) {
   .menu-btn {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 
-/* Desktop only elements */
-@media (min-width: 769px) {
-  .desktop-only {
-    display: flex !important;
-  }
-}
-
-/* ========== FIXED: LOGO STYLES ========== */
+/* ========== LOGO ========== */
 .logo {
   font-size: 1.3rem;
   font-weight: 800;
   text-decoration: none;
   display: flex;
   align-items: center;
-  gap: 12px;
-  color: #8B0000; /* Fallback color */
-}
-
-/* Logo image styling */
-.logo img {
-  height: 40px;
-  width: auto;
-  max-width: 120px;
-  object-fit: contain;
-}
-
-/* Logo text container */
-.logo-text-container {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
-}
-
-/* Main brand name */
-.logo-brand {
-  font-size: 18px;
-  font-weight: bold;
-  color: #8B0000;
-  background: none;
-  -webkit-background-clip: unset;
-  background-clip: unset;
-}
-
-/* Subtitle/brand tagline */
-.logo-subtitle {
-  font-size: 10px;
-  color: #666;
-  letter-spacing: 0.5px;
+  gap: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .logo-icon {
   font-size: 1.5rem;
 }
 
-/* Keep gradient for icon if needed */
 .logo-text {
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   -webkit-background-clip: text;
@@ -109,18 +140,25 @@
   -webkit-background-clip: unset;
 }
 
-/* Navbar center section */
-.navbar-center {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex: 1;
-  justify-content: center;
+@media (max-width: 768px) {
+  .logo-text {
+    font-size: 14px;
+  }
+  
+  .logo-icon {
+    font-size: 18px;
+  }
 }
 
-/* Wallet chip styles */
+@media (max-width: 480px) {
+  .logo-text {
+    font-size: 12px;
+  }
+}
+
+/* ========== WALLET CHIP ========== */
 .wallet-chip {
-  background: linear-gradient(135deg, #8B0000, #a52a2a);
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
   color: var(--white);
   padding: 8px 16px;
   border-radius: 30px;
@@ -132,7 +170,23 @@
   white-space: nowrap;
 }
 
-/* Search Container */
+@media (max-width: 768px) {
+  .wallet-chip {
+    padding: 6px 10px;
+  }
+  
+  .wallet-amount {
+    display: none;
+  }
+}
+
+@media (min-width: 769px) {
+  .wallet-amount {
+    display: inline-block !important;
+  }
+}
+
+/* ========== SEARCH ========== */
 .search-container {
   margin-left: 20px;
 }
@@ -151,7 +205,7 @@
   justify-content: center;
 }
 
-.search-btn:hover {
+.search-btn:active {
   background: rgba(0,0,0,0.05);
 }
 
@@ -180,86 +234,26 @@
   color: var(--gray-500);
   padding: 4px;
   border-radius: 50%;
-  transition: color 0.2s;
 }
 
-.search-form button:hover {
-  color: var(--primary);
+@media (max-width: 768px) {
+  .search-container {
+    margin-left: 0;
+  }
+  
+  .search-form input {
+    width: 120px;
+    font-size: 12px;
+  }
 }
 
-.navbar-right {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  min-width: 150px; /* Ensures right section has enough space */
-  justify-content: flex-end;
+@media (max-width: 480px) {
+  .search-container {
+    display: none;
+  }
 }
 
-/* ========== FIXED: USER DROPDOWN - Make it work on click instead of hover ========== */
-.user-menu {
-  position: relative;
-  cursor: pointer;
-}
-
-.user-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid #8B0000;
-  transition: transform 0.2s, border-color 0.2s;
-  cursor: pointer;
-}
-
-.user-avatar:hover {
-  transform: scale(1.05);
-  border-color: #a52a2a;
-}
-
-/* Dropdown - will be controlled by React state, not just hover */
-.user-dropdown {
-  position: absolute;
-  top: 50px;
-  right: 0;
-  background: var(--white);
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  min-width: 200px;
-  z-index: 1000;
-  overflow: hidden;
-}
-
-/* Remove hover-based visibility, use React state instead */
-.user-dropdown a,
-.user-dropdown button {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  text-decoration: none;
-  color: #333;
-  width: 100%;
-  border: none;
-  background: none;
-  cursor: pointer;
-  transition: background 0.2s;
-  font-size: 0.9rem;
-}
-
-.user-dropdown a:hover,
-.user-dropdown button:hover {
-  background: #f5f5f5;
-}
-
-.user-dropdown button:last-child {
-  color: #dc3545;
-}
-
-.user-dropdown button:last-child:hover {
-  background: rgba(220,53,69,0.1);
-}
-
-/* Notification Bell */
+/* ========== NOTIFICATION ========== */
 .notification-btn {
   background: none;
   border: none;
@@ -275,7 +269,7 @@
   justify-content: center;
 }
 
-.notification-btn:hover {
+.notification-btn:active {
   background: rgba(0,0,0,0.05);
 }
 
@@ -283,7 +277,7 @@
   position: absolute;
   top: 0px;
   right: 0px;
-  background: #dc3545;
+  background: var(--danger);
   color: var(--white);
   font-size: 0.65rem;
   padding: 2px 5px;
@@ -292,9 +286,13 @@
   text-align: center;
 }
 
-/* Notification Dropdown */
-.notification-dropdown {
-  position: relative;
+@media (max-width: 768px) {
+  .notification-badge {
+    top: 2px;
+    right: 2px;
+    font-size: 0.6rem;
+    padding: 2px 4px;
+  }
 }
 
 .notification-panel {
@@ -304,18 +302,30 @@
   width: 350px;
   max-width: calc(100vw - 20px);
   background: var(--white);
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  z-index: 1000;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  z-index: var(--z-dropdown);
   overflow: hidden;
+  animation: slideDown 0.2s ease;
+}
+
+@media (max-width: 768px) {
+  .notification-panel {
+    position: fixed;
+    top: 60px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+    max-width: none;
+  }
 }
 
 .notification-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid #eee;
+  padding: var(--spacing-md);
+  border-bottom: 1px solid var(--gray-300);
 }
 
 .notification-header h4 {
@@ -326,7 +336,7 @@
 .mark-read-btn {
   background: none;
   border: none;
-  color: #8B0000;
+  color: var(--primary);
   cursor: pointer;
   font-size: 0.8rem;
 }
@@ -337,8 +347,8 @@
 }
 
 .notification-item {
-  padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: var(--spacing-lg) var(--spacing-md);
+  border-bottom: 1px solid var(--gray-200);
   cursor: pointer;
   transition: background 0.2s;
 }
@@ -358,17 +368,17 @@
 
 .notification-item small {
   font-size: 0.7rem;
-  color: #999;
+  color: var(--gray-500);
 }
 
 .notification-footer {
-  padding: 12px 16px;
+  padding: var(--spacing-lg);
   text-align: center;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--gray-300);
 }
 
 .notification-footer a {
-  color: #8B0000;
+  color: var(--primary);
   text-decoration: none;
   font-size: 0.85rem;
 }
@@ -376,13 +386,98 @@
 .no-notifications {
   text-align: center;
   padding: 30px;
-  color: #999;
+  color: var(--gray-500);
 }
 
-/* Auth Buttons */
+/* ========== USER MENU (FIXED FOR MOBILE) ========== */
+.user-menu {
+  position: relative;
+  cursor: pointer;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-round);
+  object-fit: cover;
+  border: 2px solid var(--primary);
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.user-avatar:active {
+  transform: scale(0.98);
+}
+
+@media (max-width: 768px) {
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* IMPORTANT: Dropdown controlled by JavaScript, not hover */
+.user-dropdown {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  min-width: 200px;
+  z-index: var(--z-dropdown);
+  overflow: hidden;
+  display: none;
+  animation: slideDown 0.2s ease;
+}
+
+.user-dropdown.open {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .user-dropdown {
+    position: fixed;
+    top: 60px;
+    right: 10px;
+    left: 10px;
+    width: auto;
+    min-width: auto;
+  }
+}
+
+.user-dropdown a,
+.user-dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: var(--spacing-lg) var(--spacing-md);
+  text-decoration: none;
+  color: var(--gray-800);
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  font-size: 0.9rem;
+}
+
+.user-dropdown a:hover,
+.user-dropdown button:hover {
+  background: var(--gray-100);
+}
+
+.user-dropdown button:last-child {
+  color: var(--danger);
+}
+
+.user-dropdown button:last-child:hover {
+  background: rgba(220,53,69,0.1);
+}
+
+/* ========== AUTH BUTTONS ========== */
 .auth-buttons {
   display: flex;
-  gap: 12px;
+  gap: var(--spacing-lg);
 }
 
 .btn-login,
@@ -391,33 +486,49 @@
   border-radius: 30px;
   text-decoration: none;
   font-weight: 600;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
   font-size: 0.9rem;
 }
 
 .btn-login {
-  background: #8B0000;
-  color: #fff;
+  background: var(--primary);
+  color: var(--white);
 }
 
-.btn-login:hover {
-  background: #a52a2a;
-  transform: translateY(-2px);
+.btn-login:active {
+  transform: translateY(1px);
 }
 
 .btn-register {
-  border: 2px solid #8B0000;
-  color: #8B0000;
+  border: 2px solid var(--primary);
+  color: var(--primary);
   background: transparent;
 }
 
-.btn-register:hover {
-  background: #8B0000;
-  color: #fff;
-  transform: translateY(-2px);
+.btn-register:active {
+  transform: translateY(1px);
 }
 
-/* Navbar Collapse Button */
+@media (max-width: 768px) {
+  .auth-buttons {
+    gap: 8px;
+  }
+  
+  .btn-login,
+  .btn-register {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+/* ========== DESKTOP ONLY ========== */
+@media (min-width: 769px) {
+  .desktop-only {
+    display: flex !important;
+  }
+}
+
+/* ========== COLLAPSE BUTTON ========== */
 .collapse-btn {
   background: none;
   border: none;
@@ -432,162 +543,13 @@
   transition: all 0.2s;
 }
 
-.collapse-btn:hover {
-  background: #f0f0f0;
-  color: #8B0000;
-}
-
-/* For collapsed state, show angle right icon */
-.navbar.collapsed .collapse-btn {
-  transform: rotate(180deg);
-}
-
-/* Hide collapse button on mobile */
 @media (max-width: 768px) {
   .collapse-btn {
     display: none;
   }
 }
 
-/* ========== MOBILE RESPONSIVE STYLES ========== */
-@media (max-width: 768px) {
-  .navbar {
-    padding: 10px 15px;
-  }
-  
-  .navbar-left {
-    gap: 10px;
-    min-width: auto;
-  }
-  
-  /* Logo adjustments on mobile */
-  .logo img {
-    height: 32px;
-    max-width: 80px;
-  }
-  
-  .logo-brand {
-    font-size: 14px;
-  }
-  
-  .logo-subtitle {
-    display: none; /* Hide subtitle on mobile */
-  }
-  
-  .logo-icon {
-    font-size: 18px;
-  }
-  
-  /* Wallet chip - show only icon on mobile */
-  .wallet-chip .wallet-amount {
-    display: none;
-  }
-  
-  .wallet-chip {
-    padding: 6px 10px;
-  }
-  
-  /* Center search on mobile */
-  .navbar-center {
-    justify-content: flex-end;
-  }
-  
-  .search-container {
-    margin-left: 0;
-  }
-  
-  .search-form input {
-    width: 150px;
-  }
-  
-  /* Notification panel full width on mobile */
-  .notification-panel {
-    position: fixed;
-    top: 60px;
-    right: 10px;
-    left: 10px;
-    width: auto;
-    max-width: none;
-  }
-  
-  /* User dropdown full width on mobile */
-  .user-dropdown {
-    position: fixed;
-    top: 60px;
-    right: 10px;
-    left: 10px;
-    width: auto;
-    min-width: auto;
-  }
-  
-  /* Auth buttons on mobile */
-  .auth-buttons {
-    gap: 8px;
-  }
-  
-  .btn-login,
-  .btn-register {
-    padding: 6px 12px;
-    font-size: 12px;
-  }
-  
-  /* Notification badge position */
-  .notification-badge {
-    top: 2px;
-    right: 2px;
-    font-size: 0.6rem;
-    padding: 2px 4px;
-  }
-  
-  /* Navbar right section on mobile */
-  .navbar-right {
-    min-width: auto;
-    gap: 10px;
-  }
-}
-
-/* ========== EXTRA SMALL PHONES (max-width: 480px) ========== */
-@media (max-width: 480px) {
-  .navbar {
-    padding: 8px 12px;
-  }
-  
-  .logo-brand {
-    font-size: 12px;
-  }
-  
-  .wallet-chip {
-    padding: 4px 8px;
-  }
-  
-  .search-form input {
-    width: 120px;
-    font-size: 12px;
-  }
-  
-  .search-form {
-    padding: 3px 10px;
-  }
-  
-  .btn-login,
-  .btn-register {
-    padding: 5px 10px;
-    font-size: 11px;
-  }
-  
-  .user-avatar {
-    width: 32px;
-    height: 32px;
-  }
-  
-  .notification-btn,
-  .search-btn {
-    padding: 6px;
-    font-size: 1rem;
-  }
-}
-
-/* ========== TABLET LANDSCAPE (768px - 1024px) ========== */
+/* ========== TABLET (769px - 1024px) ========== */
 @media (min-width: 769px) and (max-width: 1024px) {
   .search-form input {
     width: 150px;
@@ -595,10 +557,6 @@
   
   .wallet-chip .wallet-amount {
     display: inline;
-  }
-  
-  .logo-brand {
-    font-size: 16px;
   }
 }
 
@@ -614,38 +572,6 @@
   }
 }
 
-.notification-panel,
-.user-dropdown {
+.notification-panel {
   animation: slideDown 0.2s ease;
-}
-
-/* ========== ADDITIONAL FIXES ========== */
-
-/* Ensure brand is always visible */
-.navbar-left .logo {
-  flex-shrink: 0;
-}
-
-/* Fix for wallet balance on desktop */
-@media (min-width: 769px) {
-  .wallet-chip .wallet-amount {
-    display: inline-block !important;
-  }
-}
-
-/* Ensure proper spacing */
-.navbar-left, 
-.navbar-center, 
-.navbar-right {
-  flex-shrink: 0;
-}
-
-.navbar-center {
-  flex-shrink: 1;
-}
-
-/* Fix for button backgrounds */
-button {
-  background: none;
-  border: none;
 }
