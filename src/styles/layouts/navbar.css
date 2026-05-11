@@ -47,7 +47,7 @@ html, body {
   align-items: center;
   gap: 20px;
   flex-shrink: 1;
-  min-width: 0; /* Prevents overflow */
+  min-width: 0;
 }
 
 @media (max-width: 768px) {
@@ -389,7 +389,7 @@ html, body {
   color: var(--gray-500);
 }
 
-/* ========== USER MENU (FIXED FOR MOBILE) ========== */
+/* ========== USER MENU (FIXED FOR MOBILE & CLICK) ========== */
 .user-menu {
   position: relative;
   cursor: pointer;
@@ -402,6 +402,11 @@ html, body {
   object-fit: cover;
   border: 2px solid var(--primary);
   transition: transform 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+
+.user-avatar:hover {
+  transform: scale(1.05);
 }
 
 .user-avatar:active {
@@ -415,7 +420,7 @@ html, body {
   }
 }
 
-/* IMPORTANT: Dropdown controlled by JavaScript, not hover */
+/* Dropdown - JavaScript controls visibility via inline styles */
 .user-dropdown {
   position: absolute;
   top: 50px;
@@ -426,12 +431,7 @@ html, body {
   min-width: 200px;
   z-index: var(--z-dropdown);
   overflow: hidden;
-  display: none;
   animation: slideDown 0.2s ease;
-}
-
-.user-dropdown.open {
-  display: block;
 }
 
 @media (max-width: 768px) {

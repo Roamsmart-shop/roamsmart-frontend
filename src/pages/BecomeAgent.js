@@ -1,4 +1,4 @@
-// src/pages/BecomeAgent.js - Updated to match backend (JSON + base64)
+// src/pages/BecomeAgent.js - Complete working version
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FaCheckCircle, FaMoneyBillWave, FaUsers, FaRocket, FaClock, FaTimesCircle, FaSpinner, FaStore, FaCrown, FaShieldAlt, FaMobileAlt, FaUniversity, FaArrowRight, FaUpload, FaCopy, FaCheck } from 'react-icons/fa';
@@ -70,91 +70,57 @@ export default function BecomeAgent() {
   };
 
   const handleSubmit = async () => {
-    if (!agreeTerms) {
-      toast.error('Please agree to the terms and conditions');
-      return;
+  if (!agreeTerms) {
+    toast.error('Please agree to the terms and conditions');
+    return;
+  }
+
+  setLoading(true);
+  try {
+    // Prepare JSON payload
+    const payload = {
+      payment_method: 'manual',
+      phone: user?.phone || ''
+    };
+    
+    console.log('📤 Sending payload:', payload);
+    
+    // Convert file to base64 if uploaded
+    if (uploadedProof) {
+      const base64 = await convertFileToBase64(uploadedProof);
+      payload.proof_base64 = base64;
+      payload.proof_filename = uploadedProof.name;
+      console.log('📎 File attached:', uploadedProof.name);
     }
 
-    setLoading(true);
-    try {
-      // Prepare JSON payload (not FormData)
-      const payload = {
-        payment_method: 'manual',
-        phone: user?.phone || ''
-      };
-      
-      // Convert file to base64 if uploaded
-      if (uploadedProof) {
-        const base64 = await convertFileToBase64(uploadedProof);
-        payload.proof_base64 = base64;
-        payload.proof_filename = uploadedProof.name;
+    // Make sure we're sending JSON
+    const res = await api.post('/agent/apply', payload, {
+      headers: {
+        'Content-Type': 'application/json'
       }
-
-      const res = await api.post('/agent/apply', payload);
-      
-      if (res.data.success) {
-        const instructions = res.data.data?.instructions;
-        const reference = instructions?.reference || res.data.data?.reference;
-        
-        Swal.fire({
-          icon: 'info',
-          title: 'Application Submitted!',
-          html: `
-            <div style="text-align: left;">
-              <p style="margin-bottom: 15px;">Your application has been received. Please complete payment to activate your agent account.</p>
-              
-              <div style="background: #f5f5f5; padding: 15px; border-radius: 10px; margin: 15px 0;">
-                <p style="margin-bottom: 10px;"><strong>📋 Payment Details:</strong></p>
-                <p><strong>Amount:</strong> GHS ${instructions?.amount || COMPANY.agentFee}</p>
-                <p><strong>Mobile Money Number:</strong> ${instructions?.phone || COMPANY.phone}</p>
-                <p><strong>Reference:</strong> <code style="background: #fff; padding: 4px 8px; border-radius: 4px;">${reference}</code></p>
-                <button id="copyRefBtn" style="margin-top: 10px; background: #8B0000; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
-                  📋 Copy Reference
-                </button>
-              </div>
-              
-              <p><strong>📝 Steps to complete payment:</strong></p>
-              <ol style="margin-left: 20px; margin-top: 10px;">
-                <li>Go to your mobile money wallet (MTN MoMo, Telecel Cash, or AirtelTigo Money)</li>
-                <li>Select "Send Money"</li>
-                <li>Enter number: <strong>${instructions?.phone || COMPANY.phone}</strong></li>
-                <li>Enter amount: <strong>GHS ${instructions?.amount || COMPANY.agentFee}</strong></li>
-                <li>Enter reference: <strong>${reference}</strong></li>
-                <li>Complete the transaction</li>
-                <li>Keep the transaction ID for reference</li>
-              </ol>
-              
-              <div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin-top: 15px;">
-                <p style="margin: 0; font-size: 13px;">⚠️ <strong>Note:</strong> Your application will be reviewed within 24 hours after payment confirmation.</p>
-              </div>
-            </div>
-          `,
-          confirmButtonColor: '#8B0000',
-          confirmButtonText: 'I Understand',
-          didOpen: () => {
-            const copyBtn = document.getElementById('copyRefBtn');
-            if (copyBtn) {
-              copyBtn.onclick = () => copyReference(reference);
-            }
-          }
-        });
-        
-        await checkApplicationStatus();
-        if (refreshUser) await refreshUser();
-        
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 3000);
-      }
-    } catch (error) {
-      const errorMsg = error.response?.data?.error || 'Application failed. Please try again.';
-      toast.error(errorMsg);
-      console.error('Application error:', error.response?.data);
-    } finally {
-      setLoading(false);
+    });
+    
+    console.log('✅ Response:', res.data);
+    
+    // ... rest of success handling
+  } catch (error) {
+    console.error('❌ Full error:', error);
+    console.error('❌ Error response:', error.response);
+    console.error('❌ Error data:', error.response?.data);
+    console.error('❌ Error message:', error.response?.data?.error);
+    
+    // Show the actual error message from backend
+    const errorMsg = error.response?.data?.error || 'Application failed. Please try again.';
+    toast.error(errorMsg);
+    
+    // Show detailed error in console
+    if (error.response?.data) {
+      console.log('Backend error details:', JSON.stringify(error.response.data, null, 2));
     }
-  };
-
+  } finally {
+    setLoading(false);
+  }
+};
   // If user is already an agent
   if (user?.is_agent && user?.agent_approved) {
     return (

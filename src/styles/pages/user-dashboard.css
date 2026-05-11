@@ -461,6 +461,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: center;
 }
 
 .size-chip {
@@ -484,40 +485,40 @@
   color: #ffffff;
 }
 
-/* ========== MOBILE RESPONSIVE STYLES ========== */
-@media (max-width: 1024px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 15px;
-  }
-  
-  .services-grid {
-    gap: 20px;
-  }
-}
-
+/* ========== MOBILE RESPONSIVE STYLES - CENTERED ========== */
 @media (max-width: 768px) {
   .dashboard {
-    padding: 15px;
+    padding: 12px;
   }
   
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
     gap: 12px;
+    text-align: center;
+  }
+  
+  .stat-card {
+    padding: 16px;
+    justify-content: center;
+    text-align: center;
+    flex-direction: column;
   }
   
   .stat-value {
-    font-size: 1.3rem;
+    font-size: 1.5rem;
+    text-align: center;
   }
   
   .stat-label {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
+    text-align: center;
   }
   
   .stat-icon {
-    width: 40px;
-    height: 40px;
-    font-size: 1.2rem;
+    width: 45px;
+    height: 45px;
+    font-size: 1.3rem;
+    margin: 0 auto;
   }
   
   .charts-row {
@@ -527,21 +528,25 @@
   
   .section-header {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .section-header h2 {
+    font-size: 1.2rem;
+    justify-content: center;
   }
   
   .network-tabs {
     width: 100%;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 5px;
+    justify-content: center;
+    flex-wrap: wrap;
   }
   
   .tab-btn {
-    white-space: nowrap;
-    padding: 6px 15px;
-    font-size: 0.8rem;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    min-width: 80px;
   }
   
   .bundles-grid {
@@ -550,7 +555,8 @@
   }
   
   .bundle-card {
-    padding: 12px;
+    padding: 15px 10px;
+    text-align: center;
   }
   
   .bundle-size {
@@ -563,36 +569,108 @@
   
   .services-grid {
     grid-template-columns: 1fr;
-    gap: 15px;
+    gap: 20px;
   }
   
   .quick-tips-section {
     padding: 15px;
+    text-align: center;
+  }
+  
+  .quick-tips-section h3 {
+    justify-content: center;
   }
   
   .tips-grid {
     grid-template-columns: 1fr;
   }
   
-  .size-chips {
+  .tip-card {
+    text-align: center;
+    flex-direction: column;
+    padding: 15px;
+  }
+  
+  .voucher-types {
     justify-content: center;
+  }
+  
+  .voucher-type-btn {
+    font-size: 13px;
+    padding: 10px 8px;
+    text-align: center;
+  }
+  
+  .billers-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  
+  .biller-card {
+    padding: 12px 8px;
+    text-align: center;
+  }
+  
+  .biller-name {
+    font-size: 11px;
   }
   
   .orders-table {
     overflow-x: auto;
+    border-radius: 16px;
   }
   
   .orders-table table {
     min-width: 600px;
   }
   
-  .voucher-type-btn {
-    font-size: 12px;
-    padding: 8px;
+  .size-chips {
+    justify-content: center;
   }
   
-  .billers-grid {
-    grid-template-columns: repeat(3, 1fr);
+  .size-chip {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+  
+  .size-input-group {
+    flex-direction: column;
+  }
+  
+  .size-input-group .form-control {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .price-display {
+    text-align: center;
+  }
+  
+  .price-display p {
+    font-size: 14px;
+  }
+  
+  .price-display strong {
+    font-size: 20px;
+  }
+  
+  /* Center modal content */
+  .modal-content {
+    width: 95%;
+    margin: 0 auto;
+    text-align: center;
+  }
+  
+  .form-group {
+    text-align: left;
+  }
+  
+  .btn-primary,
+  .btn-outline,
+  .btn-secondary {
+    display: block;
+    width: 100%;
+    text-align: center;
   }
 }
 
@@ -602,43 +680,38 @@
   }
   
   .stats-grid {
-    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  .stat-card {
+    padding: 12px;
   }
   
   .bundles-grid {
     grid-template-columns: 1fr;
   }
   
-  .stat-card {
-    padding: 15px;
+  .bundle-card {
+    padding: 14px;
   }
   
   .section-header h2 {
     font-size: 1.1rem;
   }
   
-  .bundle-card {
-    padding: 15px;
+  .tab-btn {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    min-width: 70px;
   }
   
   .billers-grid {
     grid-template-columns: repeat(2, 1fr);
   }
   
-  .size-input-group {
-    flex-wrap: wrap;
-  }
-  
-  .size-input-group .form-control {
-    width: 100%;
-  }
-  
-  .price-display p {
-    font-size: 14px;
-  }
-  
-  .price-display strong {
-    font-size: 20px;
+  .voucher-type-btn {
+    font-size: 11px;
+    padding: 8px 6px;
   }
   
   .tip-card {
@@ -656,6 +729,11 @@
   .tip-content p {
     font-size: 0.7rem;
   }
+  
+  .size-chip {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
 }
 
 /* ========== TABLET LANDSCAPE ========== */
@@ -667,6 +745,10 @@
   .services-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* ========== TOUCH FRIENDLY ========== */
@@ -676,7 +758,10 @@
   .bundle-card,
   .voucher-type-btn,
   .biller-card,
-  .size-chip {
+  .size-chip,
+  .btn-primary,
+  .btn-outline,
+  .btn-secondary {
     min-height: 44px;
   }
   
@@ -685,6 +770,15 @@
   textarea,
   .form-control {
     font-size: 16px !important;
+  }
+  
+  /* Improve tap targets */
+  a, 
+  button,
+  [role="button"],
+  .clickable {
+    min-height: 44px;
+    min-width: 44px;
   }
 }
 
@@ -715,6 +809,11 @@
   .modal-content {
     width: 95%;
     margin: 10px;
+    text-align: center;
+  }
+  
+  .modal-content .form-group {
+    text-align: left;
   }
 }
 
