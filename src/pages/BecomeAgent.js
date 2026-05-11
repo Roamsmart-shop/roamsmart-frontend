@@ -1,7 +1,7 @@
-// src/pages/BecomeAgent.js - Complete working version
+// src/pages/BecomeAgent.js - Manual payment only
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FaCheckCircle, FaMoneyBillWave, FaUsers, FaRocket, FaClock, FaTimesCircle, FaSpinner, FaStore, FaCrown, FaShieldAlt, FaMobileAlt, FaUniversity, FaArrowRight, FaUpload, FaCopy, FaCheck } from 'react-icons/fa';
+import { FaCheckCircle, FaMoneyBillWave, FaUsers, FaRocket, FaClock, FaTimesCircle, FaSpinner, FaStore, FaCrown, FaShieldAlt, FaMobileAlt, FaArrowRight, FaUpload, FaCheck } from 'react-icons/fa';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
@@ -52,7 +52,6 @@ export default function BecomeAgent() {
     { icon: <FaShieldAlt />, title: '24/7 Support', desc: 'Dedicated support for all Roamsmart agents' }
   ];
 
-  // Convert file to base64
   const convertFileToBase64 = (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -70,57 +69,79 @@ export default function BecomeAgent() {
   };
 
   const handleSubmit = async () => {
-  if (!agreeTerms) {
-    toast.error('Please agree to the terms and conditions');
-    return;
-  }
-
-  setLoading(true);
-  try {
-    // Prepare JSON payload
-    const payload = {
-      payment_method: 'manual',
-      phone: user?.phone || ''
-    };
-    
-    console.log('📤 Sending payload:', payload);
-    
-    // Convert file to base64 if uploaded
-    if (uploadedProof) {
-      const base64 = await convertFileToBase64(uploadedProof);
-      payload.proof_base64 = base64;
-      payload.proof_filename = uploadedProof.name;
-      console.log('📎 File attached:', uploadedProof.name);
+    if (!agreeTerms) {
+      toast.error('Please agree to the terms and conditions');
+      return;
     }
 
-    // Make sure we're sending JSON
-    const res = await api.post('/agent/apply', payload, {
-      headers: {
-        'Content-Type': 'application/json'
+    setLoading(true);
+    try {
+      // Simple payload - only what's needed
+      const payload = {
+        phone: user?.phone || ''
+      };
+      
+      // Convert file to base64 if uploaded
+      if (uploadedProof) {
+        const base64 = await convertFileToBase64(uploadedProof);
+        payload.proof_base64 = base64;
+        payload.proof_filename = uploadedProof.name;
       }
-    });
-    
-    console.log('✅ Response:', res.data);
-    
-    // ... rest of success handling
-  } catch (error) {
-    console.error('❌ Full error:', error);
-    console.error('❌ Error response:', error.response);
-    console.error('❌ Error data:', error.response?.data);
-    console.error('❌ Error message:', error.response?.data?.error);
-    
-    // Show the actual error message from backend
-    const errorMsg = error.response?.data?.error || 'Application failed. Please try again.';
-    toast.error(errorMsg);
-    
-    // Show detailed error in console
-    if (error.response?.data) {
-      console.log('Backend error details:', JSON.stringify(error.response.data, null, 2));
+
+      console.log('📤 Submitting application...');
+      
+      const res = await api.post('/agent/apply', payload);
+      
+      if (res.data.success) {
+        const instructions = res.data.data?.instructions;
+        const reference = instructions?.reference || res.data.data?.reference;
+        
+        Swal.fire({
+          icon: 'info',
+          title: 'Application Submitted!',
+          html: `
+            <div style="text-align: left;">
+              <p>Your application has been received. Please complete payment to activate your agent account.</p>
+              
+              <div style="background: #f5f5f5; padding: 15px; border-radius: 10px; margin: 15px 0;">
+                <p><strong>Amount:</strong> GHS ${instructions?.amount || COMPANY.agentFee}</p>
+                <p><strong>Mobile Money:</strong> ${instructions?.phone || COMPANY.phone}</p>
+                <p><strong>Reference:</strong> <code>${reference}</code></p>
+                <button id="copyRefBtn" style="margin-top: 10px; background: #8B0000; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+                  Copy Reference
+                </button>
+              </div>
+              
+              <p><strong>Steps:</strong></p>
+              <ol>
+                <li>Go to your mobile money wallet</li>
+                <li>Send GHS ${instructions?.amount || COMPANY.agentFee} to ${instructions?.phone || COMPANY.phone}</li>
+                <li>Use reference: <strong>${reference}</strong></li>
+                <li>Your application will be reviewed within 24 hours</li>
+              </ol>
+            </div>
+          `,
+          confirmButtonColor: '#8B0000',
+          confirmButtonText: 'OK',
+          didOpen: () => {
+            const copyBtn = document.getElementById('copyRefBtn');
+            if (copyBtn) {
+              copyBtn.onclick = () => copyReference(reference);
+            }
+          }
+        });
+        
+        await checkApplicationStatus();
+        if (refreshUser) await refreshUser();
+      }
+    } catch (error) {
+      console.error('Error:', error.response?.data);
+      toast.error(error.response?.data?.error || 'Application failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
   // If user is already an agent
   if (user?.is_agent && user?.agent_approved) {
     return (
@@ -131,12 +152,8 @@ export default function BecomeAgent() {
             <h2>You are already a {COMPANY.shortName} Agent!</h2>
             <p>You have access to wholesale prices, your own store, and commission earnings.</p>
             <div className="agent-actions">
-              <button className="btn-primary" onClick={() => navigate('/agent')}>
-                Go to Agent Dashboard
-              </button>
-              <button className="btn-outline" onClick={() => navigate('/store/setup')}>
-                Set Up Your Store
-              </button>
+              <button className="btn-primary" onClick={() => navigate('/agent')}>Go to Agent Dashboard</button>
+              <button className="btn-outline" onClick={() => navigate('/store/setup')}>Set Up Your Store</button>
             </div>
           </div>
         </div>
@@ -152,16 +169,13 @@ export default function BecomeAgent() {
           <div className="application-status-card pending">
             <FaClock size={64} color="#ffc107" />
             <h2>Application Pending Review</h2>
-            <p>Your {COMPANY.shortName} agent application is being reviewed by our admin team.</p>
+            <p>Your agent application is being reviewed by our admin team.</p>
             <div className="status-details">
               <p><strong>Reference:</strong> {applicationStatus.payment_reference}</p>
               <p><strong>Submitted:</strong> {new Date(applicationStatus.submitted_at).toLocaleDateString()}</p>
               <p><strong>Status:</strong> <span className="badge-pending">Pending Approval</span></p>
             </div>
-            <p className="info-text">You will receive an email once your application is approved.</p>
-            <button className="btn-outline" onClick={() => navigate('/dashboard')}>
-              Return to Dashboard
-            </button>
+            <button className="btn-outline" onClick={() => navigate('/dashboard')}>Return to Dashboard</button>
           </div>
         </div>
       </motion.div>
@@ -177,10 +191,7 @@ export default function BecomeAgent() {
             <FaTimesCircle size={64} color="#dc3545" />
             <h2>Application Not Approved</h2>
             <p>{applicationStatus.rejection_reason || 'Your application was not approved at this time.'}</p>
-            <p className="info-text">You can reapply after 30 days. Contact {COMPANY.email} for more information.</p>
-            <button className="btn-outline" onClick={() => navigate('/dashboard')}>
-              Return to Dashboard
-            </button>
+            <button className="btn-outline" onClick={() => navigate('/dashboard')}>Return to Dashboard</button>
           </div>
         </div>
       </motion.div>
@@ -193,7 +204,7 @@ export default function BecomeAgent() {
       <div className="container">
         <div className="agent-header">
           <h1>Become a {COMPANY.shortName} Agent</h1>
-          <p>Start earning up to 25% commission on every sale - Join Ghana's fastest-growing digital service platform</p>
+          <p>Start earning up to 25% commission - Join Ghana's fastest-growing digital service platform</p>
         </div>
 
         <div className="agent-grid">
@@ -201,117 +212,54 @@ export default function BecomeAgent() {
             <h2>Why Become a Roamsmart Agent?</h2>
             <div className="benefits-grid">
               {benefits.map((benefit, index) => (
-                <motion.div 
-                  key={index}
-                  className="benefit-card"
-                  initial={{ opacity: 0, x: -30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                >
+                <motion.div key={index} className="benefit-card" initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.1 }}>
                   <div className="benefit-icon">{benefit.icon}</div>
                   <h3>{benefit.title}</h3>
                   <p>{benefit.desc}</p>
                 </motion.div>
               ))}
             </div>
-
-            <div className="testimonial">
-              <div className="testimonial-content">
-                <p>"I've made over GHS 5,000 in my first month as a Roamsmart agent! The platform is reliable and support is excellent."</p>
-                <div className="testimonial-author">
-                  <strong>Kwame Asare</strong>
-                  <span>Gold Agent - Roamsmart</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="commission-info">
-              <h3>Commission Tiers on Roamsmart</h3>
-              <div className="tiers-list">
-                <div className="tier bronze"><span>Bronze</span><span>0 - ₵500</span><span>10%</span></div>
-                <div className="tier silver"><span>Silver</span><span>₵500 - ₵2,000</span><span>15%</span></div>
-                <div className="tier gold"><span>Gold</span><span>₵2,000 - ₵10,000</span><span>20%</span></div>
-                <div className="tier platinum"><span>Platinum</span><span>₵10,000+</span><span>25%</span></div>
-              </div>
-            </div>
           </div>
 
           <div className="application-section">
             <motion.div className="application-card" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }}>
-              <h2>Apply to Become a Roamsmart Agent</h2>
+              <h2>Apply to Become an Agent</h2>
               
               <div className="fee-display">
-                <span>One-Time Registration Fee</span>
+                <span>Registration Fee</span>
                 <strong>₵{COMPANY.agentFee}</strong>
               </div>
 
               <div className="payment-info">
-                <h4 style={{ marginBottom: '10px' }}>📱 Payment Instructions:</h4>
-                <p style={{ marginBottom: '10px' }}>Send <strong>₵{COMPANY.agentFee}</strong> to:</p>
+                <h4>📱 Payment Instructions:</h4>
+                <p>Send <strong>₵{COMPANY.agentFee}</strong> to:</p>
                 <div className="payment-details-box">
-                  <div className="detail-row">
-                    <span>Mobile Money:</span>
-                    <strong>{COMPANY.phone}</strong>
-                  </div>
-                  <div className="detail-row">
-                    <span>Reference:</span>
-                    <strong>AGENT_{user?.username?.toUpperCase() || 'YOURNAME'}</strong>
-                  </div>
+                  <div className="detail-row"><span>Mobile Money:</span><strong>{COMPANY.phone}</strong></div>
+                  <div className="detail-row"><span>Reference:</span><strong>AGENT_{user?.username?.toUpperCase() || 'YOURNAME'}</strong></div>
                 </div>
-                <p className="info-text" style={{ marginTop: '10px', fontSize: '12px' }}>
-                  ⚠️ After payment, upload your transaction screenshot below
-                </p>
               </div>
 
               <div className="form-group">
-                <label>Upload Payment Proof (Screenshot)</label>
+                <label>Upload Payment Proof</label>
                 <div className="file-upload-area">
-                  <input 
-                    type="file" 
-                    id="proof-upload"
-                    accept="image/*,.pdf"
-                    onChange={(e) => setUploadedProof(e.target.files[0])}
-                    style={{ display: 'none' }}
-                  />
+                  <input type="file" id="proof-upload" accept="image/*,.pdf" onChange={(e) => setUploadedProof(e.target.files[0])} style={{ display: 'none' }} />
                   <label htmlFor="proof-upload" className="upload-label">
-                    {uploadedProof ? (
-                      <><FaCheck color="#28a745" /> {uploadedProof.name}</>
-                    ) : (
-                      <><FaUpload /> Click to upload payment screenshot</>
-                    )}
+                    {uploadedProof ? <><FaCheck color="#28a745" /> {uploadedProof.name}</> : <><FaUpload /> Click to upload screenshot</>}
                   </label>
                 </div>
-                <small>Upload screenshot of your mobile money payment (PNG, JPG, or PDF)</small>
               </div>
 
               <div className="terms-checkbox">
                 <label className="checkbox">
-                  <input 
-                    type="checkbox" 
-                    checked={agreeTerms}
-                    onChange={(e) => setAgreeTerms(e.target.checked)}
-                  />
-                  <span>
-                    I agree to the <a href="/terms" target="_blank">Terms of Service</a> and 
-                    <a href="/privacy" target="_blank"> Privacy Policy</a> of {COMPANY.name}
-                  </span>
+                  <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} />
+                  <span>I agree to the <a href="/terms">Terms of Service</a> and <a href="/privacy">Privacy Policy</a></span>
                 </label>
               </div>
 
-              <button 
-                className="btn-primary btn-block"
-                onClick={handleSubmit}
-                disabled={loading}
-              >
+              <button className="btn-primary btn-block" onClick={handleSubmit} disabled={loading}>
                 {loading ? <FaSpinner className="spinning" /> : <FaArrowRight />}
-                {loading ? ' Submitting Application...' : ' Submit Application'}
+                {loading ? ' Submitting...' : ' Submit Application'}
               </button>
-
-              <p className="info-text">
-                ✅ Application reviewed within 24 hours<br/>
-                ✅ Start earning commission after approval<br/>
-                ✅ Dedicated support for all agents
-              </p>
             </motion.div>
           </div>
         </div>
