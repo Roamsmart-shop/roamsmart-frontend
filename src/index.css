@@ -1,0 +1,572 @@
+/* src/index.css - Complete mobile responsive fixes */
+
+/* Reset and Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+  position: relative;
+  background: #f5f5f5;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+/* Root App Container */
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Main App Layout */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* ========== MOBILE FIRST RESPONSIVE STYLES ========== */
+
+/* Small devices (phones, 320px and up) */
+@media (max-width: 767px) {
+  html {
+    font-size: 14px;
+  }
+  
+  body {
+    overflow-x: hidden;
+  }
+  
+  /* Prevent horizontal scroll on all containers */
+  #root,
+  .app,
+  .dashboard,
+  .transactions-page,
+  .become-agent-page,
+  .wallet-transactions-page,
+  .landing-page,
+  .container {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  /* Container padding */
+  .container {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  
+  /* Typography */
+  h1 {
+    font-size: 1.5rem !important;
+    line-height: 1.3 !important;
+    word-break: break-word !important;
+  }
+  
+  h2 {
+    font-size: 1.3rem !important;
+    line-height: 1.3 !important;
+    word-break: break-word !important;
+  }
+  
+  h3 {
+    font-size: 1.1rem !important;
+    line-height: 1.4 !important;
+    word-break: break-word !important;
+  }
+  
+  h4, h5, h6 {
+    word-break: break-word !important;
+  }
+  
+  p, span, a, li {
+    font-size: 0.9rem !important;
+    line-height: 1.5 !important;
+  }
+  
+  /* Images */
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+  
+  /* Tables - make scrollable horizontally */
+  .table-responsive {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    display: block !important;
+    width: 100% !important;
+    margin-bottom: 16px;
+  }
+  
+  .data-table {
+    min-width: 600px !important;
+    width: 100% !important;
+  }
+  
+  /* Forms - prevent zoom on iOS */
+  input, 
+  select, 
+  textarea, 
+  button {
+    font-size: 16px !important;
+  }
+  
+  /* Grid layouts */
+  .stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+    margin-bottom: 20px !important;
+  }
+  
+  .tips-grid,
+  .benefits-grid,
+  .services-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  
+  .bundles-grid-container {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+  
+  /* Buttons */
+  .btn-primary, 
+  .btn-outline, 
+  .btn-secondary,
+  button[class*="btn"] {
+    padding: 10px 16px !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    width: auto !important;
+    min-width: auto !important;
+  }
+  
+  /* Navigation */
+  .navbar {
+    padding: 8px 12px !important;
+  }
+  
+  .navbar-left .logo-text {
+    font-size: 0.9rem !important;
+  }
+  
+  .navbar-right {
+    gap: 8px !important;
+  }
+  
+  /* Wallet chip */
+  .wallet-chip span:not(.wallet-icon) {
+    display: none !important;
+  }
+  
+  .wallet-chip {
+    padding: 6px 10px !important;
+  }
+  
+  /* Welcome banner */
+  .welcome-banner {
+    flex-direction: column !important;
+    text-align: center !important;
+    padding: 16px !important;
+  }
+  
+  .banner-stats {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+  }
+  
+  .banner-actions {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 10px !important;
+  }
+  
+  .banner-actions button {
+    width: 100% !important;
+  }
+  
+  /* Stats cards */
+  .stat-card {
+    padding: 12px !important;
+  }
+  
+  .stat-value {
+    font-size: 1.3rem !important;
+  }
+  
+  .stat-label {
+    font-size: 0.75rem !important;
+  }
+  
+  /* Network tabs */
+  .network-tabs {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  
+  .tab-btn {
+    flex: 1 !important;
+    min-width: 80px !important;
+    padding: 8px 12px !important;
+    font-size: 0.8rem !important;
+  }
+  
+  /* Size chips */
+  .size-chips {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  
+  .size-chip {
+    padding: 6px 12px !important;
+    font-size: 0.8rem !important;
+  }
+  
+  /* Bundle cards */
+  .bundle-card {
+    padding: 12px !important;
+  }
+  
+  .bundle-size {
+    font-size: 1rem !important;
+  }
+  
+  .bundle-price {
+    font-size: 0.9rem !important;
+  }
+  
+  /* Payment methods */
+  .methods-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  
+  /* Filters bar */
+  .filters-bar {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  
+  .search-box,
+  .filter-box {
+    width: 100% !important;
+  }
+  
+  .search-box input,
+  .filter-select {
+    width: 100% !important;
+  }
+  
+  /* Modals */
+  .modal-overlay {
+    padding: 10px !important;
+  }
+  
+  .modal-content {
+    width: calc(100% - 20px) !important;
+    max-width: calc(100% - 20px) !important;
+    margin: 0 auto !important;
+    max-height: calc(100vh - 20px) !important;
+    overflow-y: auto !important;
+    border-radius: 12px !important;
+  }
+  
+  .modal-content h3 {
+    font-size: 1.2rem !important;
+  }
+  
+  /* Details grid in modals */
+  .details-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  
+  /* Sidebar */
+  .sidebar-container {
+    width: 280px !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 100vh !important;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 1000 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  .sidebar-container.open {
+    transform: translateX(0) !important;
+  }
+  
+  .sidebar-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    z-index: 999 !important;
+  }
+  
+  /* Main content area */
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding: 12px !important;
+  }
+  
+  /* Pagination */
+  .pagination {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+  
+  .pagination button {
+    padding: 6px 12px !important;
+    font-size: 0.8rem !important;
+  }
+  
+  /* Quick tips */
+  .tip-card {
+    flex-direction: column !important;
+    text-align: center !important;
+  }
+  
+  /* Commission tiers */
+  .tiers-list {
+    flex-direction: column !important;
+  }
+  
+  .tier {
+    width: 100% !important;
+  }
+  
+  /* Testimonial */
+  .testimonial {
+    padding: 16px !important;
+  }
+  
+  /* Payment info */
+  .payment-info {
+    padding: 12px !important;
+  }
+  
+  /* Agent application */
+  .agent-grid {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+  
+  .application-card {
+    padding: 20px !important;
+  }
+  
+  /* Notifications */
+  .notification-panel {
+    position: fixed !important;
+    top: 60px !important;
+    left: 10px !important;
+    right: 10px !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+  
+  /* User dropdown */
+  .user-dropdown {
+    position: fixed !important;
+    top: 60px !important;
+    left: 10px !important;
+    right: 10px !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+  
+  /* Custom size input */
+  .custom-size-section {
+    padding: 16px !important;
+  }
+  
+  .size-input-group {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  
+  .price-display {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  
+  /* Need help section */
+  .need-help-section .help-content {
+    flex-direction: column !important;
+    text-align: center !important;
+    gap: 12px !important;
+  }
+}
+
+/* Extra small devices (phones, 375px and down) */
+@media (max-width: 480px) {
+  html {
+    font-size: 12px;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .bundles-grid-container {
+    grid-template-columns: 1fr !important;
+  }
+  
+  h1 {
+    font-size: 1.3rem !important;
+  }
+  
+  h2 {
+    font-size: 1.1rem !important;
+  }
+  
+  .stat-value {
+    font-size: 1.1rem !important;
+  }
+  
+  .btn-primary, 
+  .btn-outline, 
+  .btn-secondary {
+    padding: 8px 12px !important;
+  }
+  
+  .modal-content {
+    max-height: calc(100vh - 20px) !important;
+  }
+}
+
+/* Tablets (768px to 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  
+  .bundles-grid-container {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+  
+  .container {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
+}
+
+/* Desktop (1024px and up) */
+@media (min-width: 1025px) {
+  .container {
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
+}
+
+/* Fix for 100vh on mobile browsers */
+@supports (-webkit-touch-callout: none) {
+  .app,
+  .sidebar-container,
+  .main-content,
+  .modal-content {
+    height: -webkit-fill-available !important;
+  }
+}
+
+/* Prevent content clipping */
+.overflow-hidden {
+  overflow: hidden !important;
+}
+
+/* Ensure text wraps properly */
+.text-wrap {
+  word-wrap: break-word !important;
+  white-space: normal !important;
+}
+
+/* Fix for sticky elements on mobile */
+.sticky-top {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* Improve touch targets */
+button,
+a,
+[role="button"],
+.clickable {
+  min-height: 44px !important;
+  min-width: 44px !important;
+}
+
+@media (max-width: 768px) {
+  button,
+  a,
+  [role="button"],
+  .clickable {
+    min-height: 40px !important;
+    min-width: 40px !important;
+  }
+}
+
+/* Scrollbar styling for better mobile experience */
+::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #8B0000;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a52a2a;
+}

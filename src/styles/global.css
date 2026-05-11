@@ -602,3 +602,592 @@ body {
 .btn-secondary:hover {
   background: #eee;
 }
+
+/* ========== ADD THESE MISSING MOBILE FIXES TO YOUR GLOBAL.CSS ========== */
+
+/* Ensure no horizontal scroll on any element */
+html, body, #root, .app {
+  overflow-x: hidden !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  position: relative !important;
+}
+
+/* Main content area fixes */
+.main-content {
+  overflow-x: hidden !important;
+  width: 100% !important;
+  padding: 20px !important;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 12px !important;
+  }
+}
+
+/* Fix all page containers */
+.dashboard,
+.transactions-page,
+.wallet-transactions-page,
+.become-agent-page,
+.landing-page,
+.profile-page,
+.support-page,
+.agent-dashboard-page,
+.admin-dashboard-page {
+  overflow-x: hidden !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Fix stats grid - fully responsive */
+@media (max-width: 768px) {
+  .stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Fix bundles grid */
+@media (max-width: 768px) {
+  .bundles-grid,
+  .bundles-grid-container {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .bundles-grid,
+  .bundles-grid-container {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Fix tips, benefits, services grid */
+@media (max-width: 768px) {
+  .tips-grid,
+  .benefits-grid,
+  .services-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+}
+
+/* Fix tables - make scrollable */
+.table-responsive,
+.orders-table,
+.transactions-table-container,
+.customers-table,
+.withdrawals-table {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  display: block !important;
+  width: 100% !important;
+  margin-bottom: 16px !important;
+}
+
+.data-table {
+  min-width: 600px !important;
+  width: 100% !important;
+}
+
+@media (max-width: 768px) {
+  .data-table th,
+  .data-table td {
+    padding: 10px 12px !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* Fix welcome banner */
+@media (max-width: 768px) {
+  .welcome-banner {
+    flex-direction: column !important;
+    text-align: center !important;
+    padding: 20px !important;
+  }
+  
+  .banner-content h1 {
+    font-size: 1.3rem !important;
+  }
+  
+  .banner-stats {
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+  }
+  
+  .banner-actions {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 10px !important;
+  }
+  
+  .banner-actions button {
+    width: 100% !important;
+  }
+}
+
+/* Fix network tabs */
+@media (max-width: 768px) {
+  .network-tabs {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    justify-content: center !important;
+  }
+  
+  .tab-btn {
+    flex: 1 !important;
+    min-width: 80px !important;
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* Fix size chips */
+@media (max-width: 768px) {
+  .size-chips {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    justify-content: center !important;
+  }
+  
+  .size-chip {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* Fix filter bar */
+@media (max-width: 768px) {
+  .filters-bar {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  
+  .search-box,
+  .filter-box {
+    width: 100% !important;
+  }
+  
+  .search-box input,
+  .filter-select {
+    width: 100% !important;
+  }
+}
+
+/* Fix payment methods */
+@media (max-width: 768px) {
+  .payment-methods,
+  .methods-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  
+  .payment-method {
+    width: 100% !important;
+  }
+}
+
+/* Fix modals */
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding: 10px !important;
+    align-items: flex-start !important;
+    padding-top: 60px !important;
+  }
+  
+  .modal-content {
+    width: calc(100% - 20px) !important;
+    max-width: calc(100% - 20px) !important;
+    margin: 0 auto !important;
+    border-radius: 16px !important;
+    max-height: calc(100vh - 80px) !important;
+    overflow-y: auto !important;
+  }
+  
+  .modal-content h3 {
+    font-size: 1.1rem !important;
+  }
+  
+  .details-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  
+  .purchase-confirm-modal {
+    width: calc(100% - 20px) !important;
+  }
+}
+
+/* Fix buttons */
+@media (max-width: 768px) {
+  .btn-primary,
+  .btn-outline,
+  .btn-secondary,
+  button[class*="btn"] {
+    padding: 10px 16px !important;
+    font-size: 14px !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    min-height: 44px !important;
+  }
+  
+  .btn-block {
+    width: 100% !important;
+  }
+}
+
+/* Fix wallet chip on mobile */
+@media (max-width: 768px) {
+  .wallet-chip .wallet-amount,
+  .wallet-chip span:not(.wallet-icon) {
+    display: none !important;
+  }
+  
+  .wallet-chip {
+    padding: 6px 10px !important;
+  }
+  
+  .wallet-chip .wallet-icon {
+    margin: 0 !important;
+  }
+}
+
+/* Fix navbar */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 8px 12px !important;
+  }
+  
+  .navbar-left .logo-text {
+    font-size: 14px !important;
+  }
+  
+  .navbar-right {
+    gap: 8px !important;
+  }
+  
+  .user-avatar {
+    width: 32px !important;
+    height: 32px !important;
+  }
+  
+  .notification-btn {
+    font-size: 16px !important;
+    padding: 8px !important;
+  }
+}
+
+/* Fix sidebar */
+@media (max-width: 768px) {
+  .sidebar-container {
+    width: 280px !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 100vh !important;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 1000 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  .sidebar-container.open {
+    transform: translateX(0) !important;
+  }
+  
+  .sidebar-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    z-index: 999 !important;
+  }
+}
+
+/* Fix pagination */
+@media (max-width: 768px) {
+  .pagination {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    margin-top: 20px !important;
+  }
+  
+  .pagination button {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+  }
+  
+  .pagination span {
+    font-size: 12px !important;
+  }
+}
+
+/* Fix stat cards */
+@media (max-width: 768px) {
+  .stat-card {
+    padding: 12px !important;
+  }
+  
+  .stat-icon {
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 1.2rem !important;
+  }
+  
+  .stat-value {
+    font-size: 1.1rem !important;
+  }
+  
+  .stat-label {
+    font-size: 0.7rem !important;
+  }
+}
+
+/* Fix bundle cards */
+@media (max-width: 768px) {
+  .bundle-card {
+    padding: 12px !important;
+  }
+  
+  .bundle-size {
+    font-size: 1.1rem !important;
+  }
+  
+  .bundle-price {
+    font-size: 1rem !important;
+  }
+}
+
+/* Fix custom size input */
+@media (max-width: 768px) {
+  .custom-size-section {
+    padding: 16px !important;
+  }
+  
+  .size-input-group {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  
+  .price-display {
+    flex-direction: column !important;
+    gap: 10px !important;
+    text-align: center !important;
+  }
+}
+
+/* Fix help section */
+@media (max-width: 768px) {
+  .need-help-section .help-content {
+    flex-direction: column !important;
+    text-align: center !important;
+    gap: 12px !important;
+  }
+}
+
+/* Fix dropdowns */
+@media (max-width: 768px) {
+  .notification-panel,
+  .user-dropdown {
+    position: fixed !important;
+    top: 60px !important;
+    left: 10px !important;
+    right: 10px !important;
+    width: auto !important;
+    max-width: none !important;
+  }
+}
+
+/* Fix billers grid */
+@media (max-width: 768px) {
+  .billers-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 10px !important;
+  }
+  
+  .biller-card {
+    padding: 10px !important;
+  }
+  
+  .biller-icon {
+    font-size: 20px !important;
+  }
+  
+  .biller-name {
+    font-size: 10px !important;
+  }
+}
+
+/* Fix voucher types */
+@media (max-width: 768px) {
+  .voucher-types {
+    flex-direction: column !important;
+  }
+  
+  .voucher-type-btn {
+    width: 100% !important;
+  }
+}
+
+/* Fix quantity selector */
+@media (max-width: 768px) {
+  .quantity-selector {
+    justify-content: center !important;
+  }
+  
+  .total-amount {
+    margin-left: 0 !important;
+    width: 100% !important;
+    text-align: center !important;
+    margin-top: 10px !important;
+  }
+}
+
+/* Fix input with button */
+@media (max-width: 768px) {
+  .input-with-button {
+    flex-direction: column !important;
+  }
+  
+  .input-with-button .btn-outline {
+    width: 100% !important;
+  }
+}
+
+/* Fix form row */
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr !important;
+    gap: 15px !important;
+  }
+}
+
+/* Fix container padding */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 12px !important;
+  }
+}
+
+/* Fix for 100vh on mobile browsers */
+@supports (-webkit-touch-callout: none) {
+  .app,
+  .sidebar-container,
+  .main-content,
+  .modal-content,
+  .verification-page,
+  .loading-screen {
+    height: -webkit-fill-available !important;
+  }
+}
+
+/* Prevent zoom on input focus for iOS */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  select,
+  textarea,
+  input {
+    font-size: 16px !important;
+  }
+}
+
+/* Ensure text wraps properly */
+.word-break,
+.text-wrap {
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  white-space: normal !important;
+}
+
+/* Fix image overflow */
+img {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+/* Improve touch targets */
+@media (max-width: 768px) {
+  button,
+  a,
+  .nav-link,
+  .tab-btn,
+  .size-chip,
+  .action-btn,
+  .biller-card,
+  .voucher-type-btn,
+  [role="button"],
+  .clickable {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+}
+
+/* Smooth scrolling for mobile */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fix chart containers on mobile */
+@media (max-width: 768px) {
+  .charts-row {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 15px !important;
+  }
+  
+  .chart-card {
+    overflow-x: auto !important;
+  }
+}
+
+/* Fix admin tabs on mobile */
+@media (max-width: 768px) {
+  .admin-tabs {
+    display: flex !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 8px !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 15px !important;
+  }
+  
+  .admin-tabs .tab-btn {
+    flex: 0 0 auto !important;
+  }
+}
+
+/* Fix agent tabs on mobile */
+@media (max-width: 768px) {
+  .agent-tabs {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  .agent-tabs .tab {
+    display: inline-block !important;
+  }
+}

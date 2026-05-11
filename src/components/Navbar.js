@@ -20,19 +20,14 @@ const COMPANY = {
 
 // Logo Configuration - Updated with reliable paths
 const LOGO_CONFIG = {
-  // Try multiple possible logo locations
   primaryLogo: '/logo192.png',
   primaryLogoAlt: '/logo.png',
   primaryLogoFallback: '/assets/logo.png',
-  // Mobile logo options
   mobileLogo: '/favicon-32x32.png',
   mobileLogoAlt: '/favicon.ico',
-  // Fallback text when logo fails to load
   fallbackText: 'Roamsmart',
-  // Logo dimensions
   width: 120,
   height: 40,
-  // Logo alt text
   alt: 'Roamsmart Digital Service'
 };
 
@@ -41,11 +36,10 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Use propUser if provided, otherwise use authUser
   const user = propUser || authUser;
   
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showUserDropdown, setShowUserDropdown] = useState(false); // NEW: State for user dropdown
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [avatarTimestamp, setAvatarTimestamp] = useState(Date.now());
@@ -54,11 +48,10 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
   const [currentLogoIndex, setCurrentLogoIndex] = useState(0);
   const [isMobileScreen, setIsMobileScreen] = useState(window.innerWidth <= 768);
 
-  // NEW: Refs for dropdowns
   const userMenuRef = useRef(null);
   const userDropdownRef = useRef(null);
+  const avatarRef = useRef(null);
 
-  // List of logo URLs to try
   const logoUrls = [
     process.env.PUBLIC_URL + '/logo192.png',
     process.env.PUBLIC_URL + '/logo.png',
@@ -69,21 +62,38 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
     'https://ui-avatars.com/api/?name=Roamsmart&background=8B0000&color=fff&size=120&bold=true'
   ];
 
-  // NEW: Close dropdown when clicking outside
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (userDropdownRef.current && !userMenuRef.current?.contains(event.target)) {
         setShowUserDropdown(false);
       }
     };
+    
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Monitor screen size for responsive logo
+  // Prevent body scroll when dropdown is open
+  useEffect(() => {
+    if (showUserDropdown || showNotifications) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showUserDropdown, showNotifications]);
+
+  // Monitor screen size
   useEffect(() => {
     const handleResize = () => {
       setIsMobileScreen(window.innerWidth <= 768);
+      if (window.innerWidth > 768) {
+        setShowUserDropdown(false);
+        setShowNotifications(false);
+      }
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -91,30 +101,23 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
 
   // Listen for avatar updates    
   useEffect(() => {
-    const handleAvatarUpdate = (event) => {
-      console.log('Navbar: Avatar update received', event.detail);
-      setAvatarTimestamp(Date.now());
-      setAvatarError(false);
-    };
-    
-    const handleUserUpdate = (event) => {
-      console.log('Navbar: User update received', event.detail);
+    const handleAvatarUpdate = () => {
       setAvatarTimestamp(Date.now());
       setAvatarError(false);
     };
     
     window.addEventListener('avatar-updated', handleAvatarUpdate);
-    window.addEventListener('user-context-updated', handleUserUpdate);
+    window.addEventListener('user-context-updated', handleAvatarUpdate);
     
     return () => {
       window.removeEventListener('avatar-updated', handleAvatarUpdate);
-      window.removeEventListener('user-context-updated', handleUserUpdate);
+      window.removeEventListener('user-context-updated', handleAvatarUpdate);
     };
   }, []);
 
-  const handleLogout = () => {
-    setShowUserDropdown(false); // Close dropdown before logout
-    logout();
+  const handleLogout = async () => {
+    setShowUserDropdown(false);
+    await logout();
     navigate('/login');
   };
 
@@ -133,12 +136,17 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
     }
   };
 
-  // NEW: Toggle user dropdown
-  const toggleUserDropdown = () => {
+  const toggleUserDropdown = (e) => {
+    e.stopPropagation();
     setShowUserDropdown(!showUserDropdown);
+    if (showNotifications) setShowNotifications(false);
   };
 
-  // Get avatar URL - handles both 'avatar_url' and 'avatar' field names
+  const toggleNotifications = () => {
+    setShowNotifications(!showNotifications);
+    if (showUserDropdown) setShowUserDropdown(false);
+  };
+
   const getAvatarUrl = () => {
     const avatarField = user?.avatar_url || user?.avatar;
     
@@ -153,7 +161,6 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=8B0000&color=fff&size=40&bold=true`;
   };
 
-  // Try next logo URL if current fails
   const handleLogoError = () => {
     if (currentLogoIndex < logoUrls.length - 1) {
       setCurrentLogoIndex(currentLogoIndex + 1);
@@ -162,10 +169,7 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
     }
   };
 
-  // Get current logo URL
-  const getCurrentLogoUrl = () => {
-    return logoUrls[currentLogoIndex];
-  };
+  const getCurrentLogoUrl = () => logoUrls[currentLogoIndex];
 
   return (
     <nav className={`navbar ${isCollapsed ? 'collapsed' : ''}`} style={{ 
@@ -182,7 +186,6 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
       <div className="navbar-left" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         {showMenu && (
           <>
-            {/* Mobile menu button */}
             <button 
               className="menu-btn mobile-menu-btn" 
               onClick={onMenuClick}
@@ -199,7 +202,6 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
               <FaBars />
             </button>
             
-            {/* Desktop collapse/expand button */}
             <button 
               className="collapse-btn desktop-only" 
               onClick={toggleCollapse} 
@@ -225,7 +227,6 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
           textDecoration: 'none',
           gap: '10px'
         }}>
-          {/* Logo Image - Always show company brand */}
           {!logoError && (
             <img 
               src={getCurrentLogoUrl()} 
@@ -240,7 +241,6 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
             />
           )}
           
-          {/* Brand Text - Always visible as backup */}
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ 
               fontSize: '18px', 
@@ -280,7 +280,6 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
           </div>
         )}
         
-        {/* Search Bar */}
         <div className={`search-container ${showSearch ? 'active' : ''}`} style={{ position: 'relative' }}>
           {showSearch ? (
             <form onSubmit={handleSearch} className="search-form" style={{ display: 'flex', gap: '5px' }}>
@@ -315,11 +314,10 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
       <div className="navbar-right" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
         {user ? (
           <>
-            {/* Notification Bell */}
             <div className="notification-dropdown" style={{ position: 'relative' }}>
               <button 
                 className="notification-btn" 
-                onClick={() => setShowNotifications(!showNotifications)}
+                onClick={toggleNotifications}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', position: 'relative', fontSize: '18px' }}
               >
                 <FaBell />
@@ -387,28 +385,31 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
               </AnimatePresence>
             </div>
             
-            {/* User Menu - WITH CLICK FUNCTIONALITY ADDED */}
             <div className="user-menu" style={{ position: 'relative' }} ref={userMenuRef}>
-              <img 
-                src={getAvatarUrl()} 
-                alt={user?.username || 'User'} 
-                className="user-avatar"
-                onClick={toggleUserDropdown}  // NEW: Added click handler
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  cursor: 'pointer',
-                  objectFit: 'cover'
-                }}
-                onError={(e) => {
-                  setAvatarError(true);
-                  const username = user?.username || 'User';
-                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=8B0000&color=fff&size=40&bold=true`;
-                }}
-              />
+              <div 
+                onClick={toggleUserDropdown}
+                style={{ cursor: 'pointer' }}
+              >
+                <img 
+                  ref={avatarRef}
+                  src={getAvatarUrl()} 
+                  alt={user?.username || 'User'} 
+                  className="user-avatar"
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    pointerEvents: 'none'
+                  }}
+                  onError={(e) => {
+                    setAvatarError(true);
+                    const username = user?.username || 'User';
+                    e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=8B0000&color=fff&size=40&bold=true`;
+                  }}
+                />
+              </div>
               
-              {/* CHANGED: Dropdown now shows based on state, not CSS hover */}
               <AnimatePresence>
                 {showUserDropdown && (
                   <motion.div 
@@ -429,7 +430,6 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
                       overflow: 'hidden'
                     }}
                   >
-                    {/* Added user info header */}
                     <div style={{ 
                       padding: '12px 16px', 
                       borderBottom: '1px solid #eee',

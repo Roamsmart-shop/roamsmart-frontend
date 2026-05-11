@@ -2,11 +2,19 @@
 .app {
   min-height: 100vh;
   display: flex;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  position: relative;
 }
 
 .main-content {
   flex: 1;
   transition: margin-left var(--transition-normal);
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  padding: 20px;
 }
 
 .main-content.with-sidebar {
@@ -14,6 +22,11 @@
 }
 
 @media (max-width: 768px) {
+  .main-content {
+    padding: 12px;
+    margin-left: 0 !important;
+  }
+  
   .main-content.with-sidebar {
     margin-left: 0;
   }
@@ -26,8 +39,15 @@
   align-items: center;
   justify-content: center;
   height: 100vh;
+  width: 100%;
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   color: var(--white);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
 }
 
 .spinner {
@@ -50,6 +70,13 @@
   margin: 0 auto;
   padding: 0 var(--spacing-lg);
   width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 12px;
+  }
 }
 
 /* Verification Page - Centered */
@@ -67,7 +94,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .verification-wrapper {
@@ -86,6 +114,12 @@
   padding: 40px 30px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
   text-align: center;
+}
+
+@media (max-width: 480px) {
+  .verification-card {
+    padding: 30px 20px;
+  }
 }
 
 .back-btn {
@@ -117,10 +151,24 @@
   color: white;
 }
 
+@media (max-width: 480px) {
+  .verification-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 28px;
+  }
+}
+
 .verification-card h2 {
   font-size: 1.5rem;
   margin-bottom: 10px;
   color: #333;
+}
+
+@media (max-width: 480px) {
+  .verification-card h2 {
+    font-size: 1.2rem;
+  }
 }
 
 .verification-card p {
@@ -137,6 +185,12 @@
   flex-wrap: wrap;
 }
 
+@media (max-width: 480px) {
+  .code-inputs {
+    gap: 8px;
+  }
+}
+
 .code-input {
   width: 50px;
   height: 60px;
@@ -147,6 +201,14 @@
   border-radius: 12px;
   background: white;
   transition: all 0.2s;
+}
+
+@media (max-width: 480px) {
+  .code-input {
+    width: 45px;
+    height: 55px;
+    font-size: 20px;
+  }
 }
 
 .code-input:focus {
@@ -186,6 +248,13 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .btn-primary {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -282,38 +351,250 @@
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
+/* ========== ADDITIONAL MOBILE FIXES ========== */
+
+/* Prevent horizontal scroll on all elements */
+* {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  position: relative;
+}
+
+/* Dashboard and page containers */
+.dashboard,
+.transactions-page,
+.wallet-transactions-page,
+.become-agent-page,
+.landing-page,
+.profile-page,
+.support-page {
+  overflow-x: hidden !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Responsive grid systems */
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
   }
-  to {
-    transform: rotate(360deg);
+  
+  .tips-grid,
+  .benefits-grid,
+  .services-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  
+  .bundles-grid-container {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
   }
 }
 
-/* Mobile Responsive */
 @media (max-width: 480px) {
-  .verification-card {
-    padding: 30px 20px;
+  .stats-grid {
+    grid-template-columns: 1fr !important;
   }
   
-  .code-input {
-    width: 45px;
-    height: 55px;
-    font-size: 20px;
+  .bundles-grid-container {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Make tables responsive */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
+/* Fix for 100vh on mobile browsers */
+@supports (-webkit-touch-callout: none) {
+  .app,
+  .verification-page,
+  .loading-screen {
+    height: -webkit-fill-available;
+  }
+}
+
+/* Improve touch targets on mobile */
+@media (max-width: 768px) {
+  button, 
+  a, 
+  [role="button"],
+  .clickable,
+  .menu-btn,
+  .collapse-btn,
+  .tab-btn,
+  .size-chip {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Fix modal positioning on mobile */
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding: 10px;
+    align-items: flex-start;
+    padding-top: 60px;
   }
   
-  .code-inputs {
+  .modal-content {
+    width: calc(100% - 20px);
+    max-width: calc(100% - 20px);
+    margin: 0 auto;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+  }
+}
+
+/* Fix sidebar on mobile */
+@media (max-width: 768px) {
+  .sidebar-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .sidebar-container.open {
+    transform: translateX(0);
+  }
+  
+  .sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+  }
+}
+
+/* Fix navbar on mobile */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 8px 12px;
+  }
+  
+  .navbar-left .logo-text {
+    font-size: 14px;
+  }
+  
+  .navbar-right {
     gap: 8px;
   }
   
-  .verification-icon {
-    width: 60px;
-    height: 60px;
-    font-size: 28px;
+  .wallet-chip span:not(.wallet-icon) {
+    display: none;
   }
   
-  .verification-card h2 {
-    font-size: 1.2rem;
+  .wallet-chip {
+    padding: 6px 10px;
   }
+}
+
+/* Fix filter bars on mobile */
+@media (max-width: 768px) {
+  .filters-bar {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .search-box,
+  .filter-box {
+    width: 100%;
+  }
+  
+  .search-box input,
+  .filter-select {
+    width: 100%;
+  }
+}
+
+/* Fix network tabs on mobile */
+@media (max-width: 768px) {
+  .network-tabs {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .tab-btn {
+    flex: 1;
+    min-width: 80px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Fix welcome banner on mobile */
+@media (max-width: 768px) {
+  .welcome-banner {
+    flex-direction: column;
+    text-align: center;
+    padding: 20px;
+  }
+  
+  .banner-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+  
+  .banner-actions button {
+    width: 100%;
+  }
+  
+  .banner-stats {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+/* Fix size chips on mobile */
+@media (max-width: 768px) {
+  .size-chips {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .size-chip {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Fix payment methods on mobile */
+@media (max-width: 768px) {
+  .methods-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+/* Ensure images don't overflow */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Fix for long words */
+.word-break {
+  word-break: break-word;
+  overflow-wrap: break-word;
 }

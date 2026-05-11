@@ -1,4 +1,4 @@
-// src/App.js - Fixed with Navbar visible on all pages (both public and authenticated)
+// src/App.js - Fixed to only show user data on authenticated pages
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -21,13 +21,13 @@ import WAECVouchersPage from './pages/WAECVouchersPage';
 import AdminPriceManagement from './pages/AdminPriceManagement';
 import AdminDashboard from './pages/AdminDashboard';
 import BecomeAgent from './pages/BecomeAgent';
+
 // Lazy load pages for better performance
 const Landing = lazy(() => import('./pages/Landingpages'));
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
 const UserDashboard = lazy(() => import('./pages/UserDashboard'));
 const AgentDashboard = lazy(() => import('./pages/AgentDashboard'));
-
 const Transactions = lazy(() => import('./pages/Transactions'));
 const Support = lazy(() => import('./pages/Support'));
 const Profile = lazy(() => import('./pages/Profile'));
@@ -210,8 +210,20 @@ function AppContent() {
                           location.pathname.startsWith('/sessions') ||
                           location.pathname.startsWith('/become-agent');
   
-  // Navbar shows on ALL pages (both public and authenticated)
-  const showNavbar = true; // Always show navbar
+  // ========== FIX: Determine if this is a public page ==========
+  const isPublicPage = location.pathname === '/' || 
+                       location.pathname === '/login' || 
+                       location.pathname === '/register' ||
+                       location.pathname === '/forgot-password' ||
+                       location.pathname === '/reset-password' ||
+                       location.pathname === '/support' ||
+                       location.pathname === '/faq' ||
+                       location.pathname === '/privacy' ||
+                       location.pathname === '/terms' ||
+                       location.pathname === '/refund';
+  
+  // Navbar shows on ALL pages
+  const showNavbar = true;
   const showSidebar = user && isDashboardRoute;
   
   // Sidebar visibility logic
@@ -245,7 +257,7 @@ function AppContent() {
       {user && <AnnouncementBanner />}
       
       <div className="app" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
-        {/* Navbar - Always visible on all pages */}
+        {/* Navbar - Always visible, but only show user data on non-public pages */}
         <Navbar 
           onMenuClick={toggleSidebar} 
           showMenu={showSidebar}
@@ -253,7 +265,7 @@ function AppContent() {
           onCollapse={toggleCollapse}
           isCollapsed={isCollapsed}
           sidebarOpen={isSidebarVisible}
-          user={user}
+          user={!isPublicPage && user ? user : null}  
         />
         
         {/* Main Content Area with Sidebar and Page Content */}

@@ -33,21 +33,22 @@ if (!document.querySelector('meta[name="viewport"]')) {
   document.head.appendChild(viewport);
 }
 
-// ========== SOCKET.IO INITIALIZATION ==========
-// Initialize socket after app loads (don't block rendering)
-// Add small delay to priority render the app first
-setTimeout(() => {
-  import('./services/socket').then(({ initializeSocket }) => {
-    try {
-      initializeSocket();
-      console.log('Socket.IO initialized after app load');
-    } catch (error) {
-      console.warn('Socket.IO initialization skipped:', error.message);
-    }
-  }).catch(err => {
-    console.warn('Socket module not loaded:', err.message);
-  });
-}, 3000); // Wait 3 seconds for app to render first
+// ========== SOCKET.IO INITIALIZATION - DISABLED ==========
+// Socket.IO temporarily disabled for debugging
+// setTimeout(() => {
+//   import('./services/socket').then(({ initializeSocket }) => {
+//     try {
+//       initializeSocket();
+//       console.log('Socket.IO initialized after app load');
+//     } catch (error) {
+//       console.warn('Socket.IO initialization skipped:', error.message);
+//     }
+//   }).catch(err => {
+//     console.warn('Socket module not loaded:', err.message);
+//   });
+// }, 3000);
+
+console.log('Socket.IO is DISABLED for debugging');
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
