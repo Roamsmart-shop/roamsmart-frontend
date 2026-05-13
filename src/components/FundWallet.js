@@ -1,11 +1,13 @@
-// src/components/FundWallet.js
+// src/components/FundWallet.js - Updated with Paystack ACTIVATED
+
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FaMobileAlt, FaCreditCard, FaUniversity, FaCopy, FaCheck, FaUpload, FaSpinner, FaDownload, FaWallet } from 'react-icons/fa';
+import { FaMobileAlt, FaCreditCard, FaUniversity, FaCopy, FaCheck, FaUpload, FaSpinner, FaDownload, FaWallet, FaArrowLeft, FaArrowRight } from 'react-icons/fa';
 import { paymentAPI } from '../services/api';
 import { useWallet } from '../hooks/useWallet';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
+import api from '../services/api';
 
 // Company Configuration
 const COMPANY = {
@@ -19,7 +21,7 @@ const COMPANY = {
 
 export default function FundWallet({ isOpen, onClose }) {
   const [step, setStep] = useState(1);
-  const [selectedMethod, setSelectedMethod] = useState('manual');
+  const [selectedMethod, setSelectedMethod] = useState('paystack');
   const [amount, setAmount] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [requestData, setRequestData] = useState(null);
@@ -27,9 +29,22 @@ export default function FundWallet({ isOpen, onClose }) {
   const [uploadingProof, setUploadingProof] = useState(false);
   const [proofFile, setProofFile] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
   const { refreshAll } = useWallet();
 
   const paymentMethods = [
+    { 
+      id: 'paystack', 
+      name: 'Paystack', 
+      fee: '2.5% + ₵0.50', 
+      min: 10, 
+      max: 100000, 
+      icon: <FaCreditCard />,
+      description: 'Card, Bank Transfer & Mobile Money',
+      time: 'Instant',
+      color: '#00B3E6',
+      comingSoon: false  // ACTIVATED - No longer coming soon
+    },
     { 
       id: 'manual', 
       name: 'Manual Top-up', 
@@ -39,7 +54,8 @@ export default function FundWallet({ isOpen, onClose }) {
       icon: <FaUniversity />,
       description: 'Admin approval required',
       time: '5-30 minutes',
-      color: '#8B0000'
+      color: '#8B0000',
+      comingSoon: false
     },
     { 
       id: 'momo', 
@@ -51,19 +67,7 @@ export default function FundWallet({ isOpen, onClose }) {
       description: 'Instant top-up',
       time: 'Coming Soon',
       color: '#25D366',
-      comingSoon: true
-    },
-    { 
-      id: 'paystack', 
-      name: 'Paystack', 
-      fee: '2.5% + ₵0.50', 
-      min: 1, 
-      max: 100000, 
-      icon: <FaCreditCard />,
-      description: 'Card & Mobile Money',
-      time: 'Coming Soon',
-      color: '#00B3E6',
-      comingSoon: true
+      comingSoon: true  // Still coming soon
     }
   ];
 
@@ -80,6 +84,60 @@ export default function FundWallet({ isOpen, onClose }) {
       return;
     }
     setSelectedMethod(methodId);
+  };
+
+  // ========== PAYSTACK PAYMENT HANDLER ==========
+  const initializePaystackPayment = async (amountValue, email) => {
+    setProcessingPayment(true);
+    try {
+      const response = await api.post('/payment/paystack/initialize', {
+        amount: amountValue,
+        email: email,
+        phone: phoneNumber,
+        metadata: { type: 'wallet_funding' }
+      });
+      
+      const { authorization_url, reference } = response.data.data;
+      
+      // Open Paystack popup
+      const paystackPopup = window.open(authorization_url, '_blank', 'width=600,height=700');
+      
+      // Poll for payment verification
+      const checkPaymentInterval = setInterval(async () => {
+        try {
+          const verifyResponse = await api.get(`/payment/paystack/verify/${reference}`);
+          if (verifyResponse.data.data.status === 'success') {
+            clearInterval(checkPaymentInterval);
+            paystackPopup?.close();
+            
+            await Swal.fire({
+              icon: 'success',
+              title: 'Payment Successful!',
+              html: `₵${amountValue} has been added to your Roamsmart wallet.`,
+              confirmButtonColor: '#8B0000'
+            });
+            
+            resetFundModal();
+            onClose();
+            refreshAll();
+            setProcessingPayment(false);
+          }
+        } catch (error) {
+          console.error('Verification error:', error);
+        }
+      }, 5000);
+      
+      // Stop checking after 5 minutes
+      setTimeout(() => {
+        clearInterval(checkPaymentInterval);
+        if (processingPayment) setProcessingPayment(false);
+      }, 300000);
+      
+    } catch (error) {
+      console.error('Paystack initialization error:', error);
+      toast.error(error.response?.data?.error || 'Payment initialization failed. Please try again.');
+      setProcessingPayment(false);
+    }
   };
 
   const handleAmountSubmit = async () => {
@@ -99,7 +157,27 @@ export default function FundWallet({ isOpen, onClose }) {
       return;
     }
 
-    if (selectedMethod === 'manual') {
+    if (selectedMethod === 'paystack') {
+      // Collect email and proceed with Paystack
+      const { value: email } = await Swal.fire({
+        title: 'Enter Your Email',
+        input: 'email',
+        inputPlaceholder: 'you@example.com',
+        showCancelButton: true,
+        confirmButtonColor: '#00B3E6',
+        confirmButtonText: 'Proceed to Paystack',
+        preConfirm: (emailValue) => {
+          if (!emailValue) {
+            Swal.showValidationMessage('Email is required');
+          }
+          return emailValue;
+        }
+      });
+      
+      if (email) {
+        await initializePaystackPayment(amountNum, email);
+      }
+    } else if (selectedMethod === 'manual') {
       setLoading(true);
       try {
         const res = await paymentAPI.createManualRequest(amountNum, phoneNumber);
@@ -113,8 +191,6 @@ export default function FundWallet({ isOpen, onClose }) {
       }
     } else if (selectedMethod === 'momo') {
       toast.info('MTN MoMo coming soon to Roamsmart!');
-    } else if (selectedMethod === 'paystack') {
-      toast.info('Paystack coming soon to Roamsmart!');
     }
   };
 
@@ -196,11 +272,12 @@ Need help? Contact: ${COMPANY.email} or ${COMPANY.phone}
   const resetFundModal = () => {
     setStep(1);
     setAmount('');
-    setSelectedMethod('manual');
+    setSelectedMethod('paystack');
     setRequestData(null);
     setProofFile(null);
     setCopied(false);
     setPhoneNumber('');
+    setProcessingPayment(false);
   };
 
   const handleClose = () => {
@@ -223,6 +300,7 @@ Need help? Contact: ${COMPANY.email} or ${COMPANY.phone}
         animate={{ scale: 1, y: 0 }} 
         className="modal-content fund-wallet-modal" 
         onClick={e => e.stopPropagation()}
+        style={{ maxWidth: '550px' }}
       >
         <button className="modal-close" onClick={handleClose}>×</button>
         
@@ -250,7 +328,7 @@ Need help? Contact: ${COMPANY.email} or ${COMPANY.phone}
             </div>
             
             <button className="btn-primary btn-block" onClick={() => setStep(2)}>
-              Continue on Roamsmart
+              Continue on Roamsmart <FaArrowRight />
             </button>
           </div>
         )}
@@ -258,7 +336,7 @@ Need help? Contact: ${COMPANY.email} or ${COMPANY.phone}
         {/* Step 2: Enter Amount */}
         {step === 2 && (
           <div className="fund-step">
-            <button className="back-btn" onClick={() => setStep(1)}>← Back</button>
+            <button className="back-btn" onClick={() => setStep(1)}><FaArrowLeft /> Back</button>
             <h3>Enter Amount to Fund</h3>
             
             <div className="form-group">
@@ -303,9 +381,9 @@ Need help? Contact: ${COMPANY.email} or ${COMPANY.phone}
             <button 
               className="btn-primary btn-block" 
               onClick={handleAmountSubmit}
-              disabled={loading}
+              disabled={loading || processingPayment}
             >
-              {loading ? <FaSpinner className="spinning" /> : 'Proceed to Payment'}
+              {(loading || processingPayment) ? <FaSpinner className="spinning" /> : 'Proceed to Payment'}
             </button>
           </div>
         )}
@@ -313,7 +391,7 @@ Need help? Contact: ${COMPANY.email} or ${COMPANY.phone}
         {/* Step 3: Manual Payment Instructions */}
         {step === 3 && requestData && (
           <div className="fund-step instructions-step">
-            <button className="back-btn" onClick={() => setStep(2)}>← Back</button>
+            <button className="back-btn" onClick={() => setStep(2)}><FaArrowLeft /> Back</button>
             <h3>Roamsmart Payment Instructions</h3>
             
             <div className="payment-details-card">

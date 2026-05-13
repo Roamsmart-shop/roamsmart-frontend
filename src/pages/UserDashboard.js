@@ -1,4 +1,4 @@
-// src/pages/UserDashboard.js - Fully activated payment methods (backend integration)
+// src/pages/UserDashboard.js - Fixed modal closing and payment details
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -361,6 +361,18 @@ export default function UserDashboard() {
 
   // ========== PAYMENT HANDLERS (ALL ACTIVATED) ==========
   
+  // NEW: Separate function to close fund modal
+  const closeFundModal = () => {
+    setShowFundModal(false);
+    resetFundModal();
+  };
+
+  // NEW: Separate function to close verify modal
+  const closeVerifyModal = () => {
+    setShowVerifyModal(false);
+    resetVerifyModal();
+  };
+  
   const handleMethodSelect = (methodId) => {
     setSelectedMethod(methodId);
   };
@@ -398,8 +410,7 @@ export default function UserDashboard() {
             });
             
             await fetchUserData();
-            setShowFundModal(false);
-            resetFundModal();
+            closeFundModal();
             setProcessingPayment(false);
           }
         } catch (error) {
@@ -484,8 +495,7 @@ export default function UserDashboard() {
               confirmButtonColor: '#8B0000'
             });
             await fetchUserData();
-            setShowFundModal(false);
-            resetFundModal();
+            closeFundModal();
             setProcessingPayment(false);
           } else if (verifyResponse.data.data.status === 'failed') {
             clearInterval(checkInterval);
@@ -630,8 +640,7 @@ export default function UserDashboard() {
     try {
       await paymentAPI.uploadProof(manualRequest.id, proofFile);
       toast.success('Payment proof uploaded to Roamsmart! Admin will verify shortly.');
-      setShowFundModal(false);
-      resetFundModal();
+      closeFundModal();
       await fetchUserData();
       
       Swal.fire({
@@ -648,6 +657,7 @@ export default function UserDashboard() {
     }
   };
 
+  // Update the manual payment instructions with correct company details
   const downloadInstructions = () => {
     if (!manualRequest) return;
     
@@ -659,15 +669,18 @@ Reference ID: ${manualRequest.reference}
 Date: ${new Date().toLocaleString()}
 
 PAYMENT DETAILS:
-Recipient: VENTURES/ADUSEI SAMUEL BROBBEY
-Phone: 0530499548
+Recipient: ${COMPANY.name}
+Phone: ${COMPANY.phone}
 
 INSTRUCTIONS:
 1. Go to your mobile money wallet
-2. Send exactly ₵${manualRequest.amount} to 0530499548
-3. Use "${manualRequest.reference}" as the reference
-4. Take a screenshot of the transaction
-5. Upload the screenshot using the upload button
+2. Select "Send Money" or "Transfer"
+3. Enter recipient: ${COMPANY.phone}
+4. Enter amount: ₵${manualRequest.amount}
+5. Enter Reference: ${manualRequest.reference}
+6. Complete the transaction
+7. Take a screenshot of the confirmation
+8. Upload the screenshot using the upload button
 
 Your Roamsmart wallet will be credited after admin verification.
     `;
@@ -680,41 +693,6 @@ Your Roamsmart wallet will be credited after admin verification.
     a.click();
     URL.revokeObjectURL(url);
     toast.success('Instructions downloaded');
-  };
-
-  const handleVerifyPayment = async () => {
-    if (!verifyReference || !verifyTransactionId) {
-      toast.error('Please enter reference ID and transaction ID');
-      return;
-    }
-
-    setVerifying(true);
-    try {
-      const res = await paymentAPI.verifyPayment(
-        verifyReference, 
-        verifyTransactionId, 
-        verifySenderName, 
-        verifySenderPhone
-      );
-      if (res.data.success) {
-        toast.success(`Payment verified on ${COMPANY.shortName}! Wallet credited.`);
-        setShowVerifyModal(false);
-        resetVerifyModal();
-        await fetchUserData();
-        
-        Swal.fire({
-          icon: 'success',
-          title: 'Wallet Credited!',
-          html: `₵${res.data.data.amount} has been added to your Roamsmart wallet.`,
-          confirmButtonColor: '#8B0000'
-        });
-      }
-    } catch (error) {
-      console.error('Verify payment error:', error);
-      toast.error(error.response?.data?.error || 'Verification failed. Contact Roamsmart support.');
-    } finally {
-      setVerifying(false);
-    }
   };
 
   const resetFundModal = () => {
@@ -738,15 +716,47 @@ Your Roamsmart wallet will be credited after admin verification.
       try {
         await paymentAPI.cancelRequest(manualRequest.id);
         toast.success('Request cancelled');
-        setShowFundModal(false);
-        resetFundModal();
+        closeFundModal();
       } catch (error) {
         console.error('Cancel request error:', error);
         toast.error('Failed to cancel');
       }
     } else {
-      setShowFundModal(false);
-      resetFundModal();
+      closeFundModal();
+    }
+  };
+
+  const handleVerifyPayment = async () => {
+    if (!verifyReference || !verifyTransactionId) {
+      toast.error('Please enter reference ID and transaction ID');
+      return;
+    }
+
+    setVerifying(true);
+    try {
+      const res = await paymentAPI.verifyPayment(
+        verifyReference, 
+        verifyTransactionId, 
+        verifySenderName, 
+        verifySenderPhone
+      );
+      if (res.data.success) {
+        toast.success(`Payment verified on ${COMPANY.shortName}! Wallet credited.`);
+        closeVerifyModal();
+        await fetchUserData();
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Wallet Credited!',
+          html: `₵${res.data.data.amount} has been added to your Roamsmart wallet.`,
+          confirmButtonColor: '#8B0000'
+        });
+      }
+    } catch (error) {
+      console.error('Verify payment error:', error);
+      toast.error(error.response?.data?.error || 'Verification failed. Contact Roamsmart support.');
+    } finally {
+      setVerifying(false);
     }
   };
 
@@ -1034,7 +1044,7 @@ Your Roamsmart wallet will be credited after admin verification.
         </div>
       </div>
 
-      {/* ========== FUND WALLET MODAL ========== */}
+      {/* ========== FUND WALLET MODAL - FIXED CLOSING ========== */}
       <AnimatePresence>
         {showFundModal && (
           <motion.div 
@@ -1042,7 +1052,7 @@ Your Roamsmart wallet will be credited after admin verification.
             animate={{ opacity: 1 }} 
             exit={{ opacity: 0 }} 
             className="modal-overlay" 
-            onClick={cancelManualRequest}
+            onClick={closeFundModal}
           >
             <motion.div 
               initial={{ scale: 0.9, y: 30 }} 
@@ -1050,7 +1060,7 @@ Your Roamsmart wallet will be credited after admin verification.
               className="modal-content fund-wallet-modal" 
               onClick={e => e.stopPropagation()}
             >
-              <button className="modal-close" onClick={cancelManualRequest}>×</button>
+              <button className="modal-close" onClick={closeFundModal}>×</button>
               
               {/* Step 1: Select Payment Method */}
               {fundStep === 1 && (
@@ -1131,7 +1141,7 @@ Your Roamsmart wallet will be credited after admin verification.
                 </div>
               )}
               
-              {/* Step 3: Manual Payment Instructions */}
+              {/* Step 3: Manual Payment Instructions - FIXED with correct company details */}
               {fundStep === 3 && manualRequest && (
                 <div className="fund-step instructions-step">
                   <button className="back-btn" onClick={() => setFundStep(2)}>← Back</button>
@@ -1144,11 +1154,11 @@ Your Roamsmart wallet will be credited after admin verification.
                     </div>
                     <div className="detail-row">
                       <span className="detail-label">Recipient Name:</span>
-                      <span className="detail-value">VENTURES/ADUSEI SAMUEL BROBBEY</span>
+                      <span className="detail-value">{COMPANY.name}</span>
                     </div>
                     <div className="detail-row">
                       <span className="detail-label">Phone Number:</span>
-                      <span className="detail-value">0530499548</span>
+                      <span className="detail-value">{COMPANY.phone}</span>
                     </div>
                     <div className="detail-row">
                       <span className="detail-label">Reference ID:</span>
@@ -1166,7 +1176,7 @@ Your Roamsmart wallet will be credited after admin verification.
                     <ol>
                       <li>Go to your mobile money wallet</li>
                       <li>Select "Send Money" or "Transfer"</li>
-                      <li>Enter recipient: <strong>0530499548</strong></li>
+                      <li>Enter recipient: <strong>{COMPANY.phone}</strong></li>
                       <li>Enter amount: <strong>₵{manualRequest.amount?.toFixed(2)}</strong></li>
                       <li>Enter Reference: <strong>{manualRequest.reference}</strong></li>
                       <li>Complete the transaction</li>
@@ -1214,7 +1224,7 @@ Your Roamsmart wallet will be credited after admin verification.
         )}
       </AnimatePresence>
 
-      {/* ========== VERIFY PAYMENT MODAL ========== */}
+      {/* ========== VERIFY PAYMENT MODAL - FIXED CLOSING ========== */}
       <AnimatePresence>
         {showVerifyModal && (
           <motion.div 
@@ -1222,7 +1232,7 @@ Your Roamsmart wallet will be credited after admin verification.
             animate={{ opacity: 1 }} 
             exit={{ opacity: 0 }} 
             className="modal-overlay" 
-            onClick={() => setShowVerifyModal(false)}
+            onClick={closeVerifyModal}
           >
             <motion.div 
               initial={{ scale: 0.9, y: 30 }} 
@@ -1230,7 +1240,7 @@ Your Roamsmart wallet will be credited after admin verification.
               className="modal-content verify-modal" 
               onClick={e => e.stopPropagation()}
             >
-              <button className="modal-close" onClick={() => setShowVerifyModal(false)}>×</button>
+              <button className="modal-close" onClick={closeVerifyModal}>×</button>
               
               <div className="verify-payment">
                 <h3>Verify Your Roamsmart Payment</h3>

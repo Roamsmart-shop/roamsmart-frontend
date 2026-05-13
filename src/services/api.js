@@ -13,6 +13,7 @@ export const COMPANY_CONFIG = {
   apiUrl: 'https://roamsmart-backend-production.up.railway.app'
 };
 
+
 const STORAGE_KEYS = {
   TOKEN: 'roamsmart_token',
   USER: 'roamsmart_user',

@@ -80,7 +80,7 @@ const getPaymentMethodIcon = (method) => {
     paystack: { icon: <FaCreditCard />, name: 'Paystack', color: '#00B3E6' },
     momo: { icon: <FaMobileAlt />, name: 'MTN MoMo', color: '#FFC107' },
     manual: { icon: <FaUniversity />, name: 'Manual Transfer', color: '#28a745' },
-    default: { icon: <FaWallet />, name: 'Wallet', color: '#666' }
+    default: { icon: <FaWallet />, name: 'Roamsmart Wallet', color: '#8B0000' }
   };
   return methods[method] || methods.default;
 };

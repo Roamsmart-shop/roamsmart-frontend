@@ -1,4 +1,4 @@
-// src/pages/AgentDashboard.js - With Dynamic Size Input
+// src/pages/AgentDashboard.js - With Enhanced Payment Verification
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,7 +13,7 @@ import {
   FaWhatsapp, FaTelegram, FaShareAlt, FaFileExcel, FaPlus,
   FaTrash, FaShoppingBag, FaStore, FaCrown, FaArrowUp,
   FaGraduationCap, FaBolt, FaTint, FaTv, FaGlobe, FaQrcode,
-  FaSearch
+  FaSearch, FaArrowRight, FaArrowLeft, FaInfoCircle
 } from 'react-icons/fa';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -47,6 +47,44 @@ const COMPANY = {
   supportWhatsapp: '233557388622'
 };
 
+// Payment Methods Configuration
+const paymentMethods = [
+  { 
+    id: 'paystack', 
+    name: 'Paystack', 
+    fee: '2.5% + ₵0.50', 
+    min: 10, 
+    max: 100000, 
+    icon: <FaCreditCard />,
+    description: 'Instant top-up via card or bank transfer',
+    time: 'Instant',
+    color: '#00B3E6'
+  },
+  { 
+    id: 'momo', 
+    name: 'MTN MoMo', 
+    fee: '1%', 
+    min: 10, 
+    max: 10000, 
+    icon: <FaMobileAlt />,
+    description: 'Instant payment via mobile money',
+    time: 'Instant',
+    color: '#FFC107',
+    comingSoon: true
+  },
+  { 
+    id: 'manual', 
+    name: 'Manual Transfer', 
+    fee: 'No fees', 
+    min: 10, 
+    max: 100000, 
+    icon: <FaUniversity />,
+    description: 'Admin approval required',
+    time: '5-30 minutes',
+    color: '#28a745'
+  }
+];
+
 export default function AgentDashboard() {
   const { user } = useAuth();
   
@@ -75,6 +113,27 @@ export default function AgentDashboard() {
   const [selectedNetwork, setSelectedNetwork] = useState('mtn');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerName, setCustomerName] = useState('');
+  
+  // Payment States
+  const [showFundModal, setShowFundModal] = useState(false);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [fundStep, setFundStep] = useState(1);
+  const [selectedMethod, setSelectedMethod] = useState('paystack');
+  const [fundAmount, setFundAmount] = useState('');
+  const [manualRequest, setManualRequest] = useState(null);
+  const [loadingRequest, setLoadingRequest] = useState(false);
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const [proofFile, setProofFile] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
+  
+  // Verification States
+  const [verifyReference, setVerifyReference] = useState('');
+  const [verifyTransactionId, setVerifyTransactionId] = useState('');
+  const [verifySenderName, setVerifySenderName] = useState('');
+  const [verifySenderPhone, setVerifySenderPhone] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [pendingTopups, setPendingTopups] = useState([]);
   
   // Dynamic size states
   const [selectedSize, setSelectedSize] = useState('');
@@ -114,9 +173,6 @@ export default function AgentDashboard() {
   const [confirmLoading, setConfirmLoading] = useState(false);
   const [sellingBundle, setSellingBundle] = useState(null);
   
-  // Fund Wallet
-  const [showFundModal, setShowFundModal] = useState(false);
-  
   // Store Management
   const [showStoreModal, setShowStoreModal] = useState(false);
   const [storeSettings, setStoreSettings] = useState({
@@ -138,7 +194,8 @@ export default function AgentDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [dateRange, setDateRange] = useState('week');
   const [searchTerm, setSearchTerm] = useState('');
-  const [copied, setCopied] = useState(false);
+
+  const quickAmounts = [50, 100, 200, 500, 1000];
 
   useEffect(() => {
     fetchData();
@@ -146,6 +203,7 @@ export default function AgentDashboard() {
     fetchCustomers();
     fetchStoreSettings();
     fetchPrices();
+    fetchPendingTopups();
   }, []);
 
   // Update available sizes when network changes
@@ -170,6 +228,16 @@ export default function AgentDashboard() {
       window.removeEventListener('prices-updated', handlePriceUpdate);
     };
   }, []);
+
+  // Fetch pending topups for verification
+  const fetchPendingTopups = async () => {
+    try {
+      const res = await api.get('/wallet/pending-topups');
+      setPendingTopups(res.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch pending topups');
+    }
+  };
 
   // Fetch prices function
   const fetchPrices = async () => {
@@ -202,7 +270,6 @@ export default function AgentDashboard() {
       };
       setAgentBundles(fallbackPrices);
       
-      // Calculate suggested retail for fallback
       const markup = storeSettings.markup || 15;
       const retailPrices = {};
       for (const [network, bundles] of Object.entries(fallbackPrices)) {
@@ -224,10 +291,6 @@ export default function AgentDashboard() {
         api.get('/agent/stats'),
         api.get('/agent/orders')
       ]);
-      
-      console.log('========== FETCH DATA DEBUG ==========');
-      console.log('Stats response:', statsRes.data);
-      console.log('Orders response:', ordersRes.data);
       
       setStats(prev => ({ 
         ...prev, 
@@ -289,6 +352,247 @@ export default function AgentDashboard() {
     return phoneRegex.test(phone);
   };
 
+  // ========== PAYMENT METHODS ==========
+  
+  const handleMethodSelect = (methodId) => {
+    if (paymentMethods.find(m => m.id === methodId)?.comingSoon) {
+      Swal.fire({
+        icon: 'info',
+        title: 'Coming Soon on Roamsmart!',
+        text: 'This payment method will be available soon.',
+        confirmButtonColor: '#8B0000'
+      });
+      return;
+    }
+    setSelectedMethod(methodId);
+  };
+
+  // Paystack Payment Handler
+  const initializePaystackPayment = async (amount, email) => {
+    setProcessingPayment(true);
+    try {
+      const response = await api.post('/payment/paystack/initialize', {
+        amount: amount,
+        email: email,
+        phone: stats.phone || user?.phone,
+        metadata: {
+          type: 'wallet_funding',
+          agent_id: user?.id,
+          agent_name: user?.username
+        }
+      });
+      
+      const { authorization_url, reference } = response.data.data;
+      
+      // Open Paystack popup
+      const paystackPopup = window.open(authorization_url, '_blank', 'width=600,height=700');
+      
+      // Poll for payment verification
+      const checkPaymentInterval = setInterval(async () => {
+        try {
+          const verifyResponse = await api.get(`/payment/paystack/verify/${reference}`);
+          if (verifyResponse.data.data.status === 'success') {
+            clearInterval(checkPaymentInterval);
+            paystackPopup?.close();
+            
+            await Swal.fire({
+              icon: 'success',
+              title: 'Payment Successful!',
+              html: `₵${amount} has been added to your Roamsmart wallet.`,
+              confirmButtonColor: '#8B0000'
+            });
+            
+            await fetchData();
+            setShowFundModal(false);
+            resetFundModal();
+            setProcessingPayment(false);
+            fetchPendingTopups();
+          }
+        } catch (error) {
+          console.error('Verification error:', error);
+        }
+      }, 5000);
+      
+      // Stop checking after 5 minutes
+      setTimeout(() => {
+        clearInterval(checkPaymentInterval);
+        if (processingPayment) {
+          setProcessingPayment(false);
+        }
+      }, 300000);
+      
+    } catch (error) {
+      console.error('Paystack initialization error:', error);
+      toast.error(error.response?.data?.error || 'Payment initialization failed');
+      setProcessingPayment(false);
+    }
+  };
+
+  // Manual Payment Handler
+  const handleManualPayment = async () => {
+    setLoadingRequest(true);
+    try {
+      const res = await api.post('/wallet/generate-reference', {
+        amount: parseFloat(fundAmount),
+        payment_method: 'manual'
+      });
+      
+      setManualRequest(res.data.data);
+      setFundStep(3);
+      toast.success('Payment reference generated!');
+    } catch (error) {
+      console.error('Create manual request error:', error);
+      toast.error(error.response?.data?.error || 'Failed to create request');
+    } finally {
+      setLoadingRequest(false);
+    }
+  };
+
+  const handleAmountSubmit = async () => {
+    const amountNum = parseFloat(fundAmount);
+    const method = paymentMethods.find(m => m.id === selectedMethod);
+    
+    if (!fundAmount || isNaN(amountNum)) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    if (amountNum < method.min) {
+      toast.error(`Minimum amount is ₵${method.min}`);
+      return;
+    }
+    if (amountNum > method.max) {
+      toast.error(`Maximum amount is ₵${method.max.toLocaleString()}`);
+      return;
+    }
+
+    if (selectedMethod === 'paystack') {
+      const { value: email } = await Swal.fire({
+        title: 'Enter Your Email',
+        input: 'email',
+        inputPlaceholder: 'you@example.com',
+        showCancelButton: true,
+        confirmButtonColor: '#00B3E6',
+        confirmButtonText: 'Proceed to Paystack',
+        preConfirm: (emailValue) => {
+          if (!emailValue) {
+            Swal.showValidationMessage('Email is required');
+          }
+          return emailValue;
+        }
+      });
+      
+      if (email) {
+        await initializePaystackPayment(amountNum, email);
+      }
+    } else if (selectedMethod === 'manual') {
+      await handleManualPayment();
+    } else if (selectedMethod === 'momo') {
+      toast.info('MTN MoMo coming soon to Roamsmart!');
+    }
+  };
+
+  const handleCopyReference = () => {
+    if (manualRequest?.reference) {
+      navigator.clipboard.writeText(manualRequest.reference);
+      setCopied(true);
+      toast.success('Reference copied!');
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleFileUpload = async () => {
+    if (!proofFile) {
+      toast.error('Please select a payment screenshot');
+      return;
+    }
+
+    setUploadingProof(true);
+    try {
+      const formData = new FormData();
+      formData.append('proof', proofFile);
+      formData.append('reference', manualRequest.reference);
+      
+      await api.post('/payment/upload-proof', formData);
+      toast.success('Payment proof uploaded! Admin will verify shortly.');
+      setShowFundModal(false);
+      resetFundModal();
+      await fetchData();
+      await fetchPendingTopups();
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Proof Uploaded!',
+        html: 'Your payment proof has been submitted. Admin will verify within 5-30 minutes.',
+        confirmButtonColor: '#8B0000'
+      });
+    } catch (error) {
+      console.error('Upload proof error:', error);
+      toast.error(error.response?.data?.error || 'Upload failed');
+    } finally {
+      setUploadingProof(false);
+    }
+  };
+
+  // Verify Payment by Reference
+  const handleVerifyPayment = async () => {
+    if (!verifyReference || !verifyTransactionId) {
+      toast.error('Please enter reference ID and transaction ID');
+      return;
+    }
+
+    setVerifying(true);
+    try {
+      const res = await api.post('/wallet/verify-payment', {
+        reference: verifyReference.toUpperCase(),
+        transaction_id: verifyTransactionId,
+        sender_name: verifySenderName,
+        sender_phone: verifySenderPhone
+      });
+      
+      if (res.data.success) {
+        toast.success(res.data.message);
+        setShowVerifyModal(false);
+        resetVerifyModal();
+        await fetchData();
+        await fetchPendingTopups();
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Wallet Credited!',
+          html: `₵${res.data.data?.amount} has been added to your Roamsmart wallet.`,
+          confirmButtonColor: '#8B0000'
+        });
+      }
+    } catch (error) {
+      console.error('Verify payment error:', error);
+      toast.error(error.response?.data?.error || 'Verification failed');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const copyReferenceToVerify = (ref) => {
+    navigator.clipboard.writeText(ref);
+    setVerifyReference(ref);
+    toast.success('Reference copied to verification field!');
+  };
+
+  const resetFundModal = () => {
+    setFundStep(1);
+    setFundAmount('');
+    setSelectedMethod('paystack');
+    setManualRequest(null);
+    setProofFile(null);
+    setCopied(false);
+  };
+
+  const resetVerifyModal = () => {
+    setVerifyReference('');
+    setVerifyTransactionId('');
+    setVerifySenderName('');
+    setVerifySenderPhone('');
+  };
+
   // Handle network change for dynamic sizes
   const handleNetworkChange = async (network) => {
     setSelectedNetwork(network);
@@ -314,7 +618,7 @@ export default function AgentDashboard() {
     }
   };
 
-  // Handle custom size input (checks if price exists)
+  // Handle custom size input
   const handleCustomSize = async (e) => {
     const size = parseInt(e.target.value);
     setSelectedSize(e.target.value);
@@ -322,7 +626,6 @@ export default function AgentDashboard() {
     if (size && !isNaN(size) && size > 0 && size <= 100) {
       setLoadingPrice(true);
       try {
-        // Check if price exists for this size
         const wholesalePrice = agentBundles[selectedNetwork]?.[size];
         if (wholesalePrice) {
           const markup = storeSettings.markup || 15;
@@ -332,13 +635,11 @@ export default function AgentDashboard() {
           setSelectedSellingPrice(sellingPrice);
           setSelectedProfit(profit);
           setShowCustomSize(false);
-          toast.success(`${size}GB package available for ${selectedNetwork.toUpperCase()}`);
         } else {
           setSelectedWholesalePrice(null);
           setSelectedSellingPrice(null);
           setSelectedProfit(null);
           setShowCustomSize(true);
-          toast.error(`No price configured for ${size}GB on ${selectedNetwork.toUpperCase()}. Contact admin to add this size.`);
         }
       } catch (error) {
         setSelectedWholesalePrice(null);
@@ -435,7 +736,7 @@ export default function AgentDashboard() {
         
         await fetchData();
         await fetchCustomers();
-        await fetchPrices(); // Refresh prices after sale
+        await fetchPrices();
         
         setCustomerPhone('');
         setCustomerName('');
@@ -444,8 +745,6 @@ export default function AgentDashboard() {
         setSelectedSellingPrice(null);
         setSelectedProfit(null);
         setPendingPurchase(null);
-        
-        toast.success(`Sale recorded on ${COMPANY.shortName}!`);
       }
     } catch (error) {
       console.error('Sale error:', error);
@@ -529,8 +828,6 @@ export default function AgentDashboard() {
         setCartPhone('');
         setShowCart(false);
         fetchData();
-      } else {
-        toast.error(res.data.error || 'Checkout failed');
       }
     } catch (error) {
       console.error('Checkout error:', error);
@@ -670,7 +967,6 @@ export default function AgentDashboard() {
         confirmButtonColor: '#8B0000'
       });
       
-      // Refresh prices with new markup
       fetchPrices();
     } catch (error) {
       console.error('Save store error:', error);
@@ -775,11 +1071,43 @@ export default function AgentDashboard() {
           <h1>{COMPANY.name} - Agent Dashboard</h1>
           <p>Welcome back, {stats.username || user?.username || 'Agent'}! You're earning {stats.commission_rate}% commission on Roamsmart</p>
         </div>
-        <div className="wallet-card">
+        <div className="wallet-card" style={{ cursor: 'pointer' }} onClick={() => setShowFundModal(true)}>
           <FaWallet />
           <span>₵{stats.wallet_balance?.toFixed(2) || '0.00'}</span>
         </div>
       </div>
+
+      {/* Quick Action Buttons - Payment Actions Prominently Displayed */}
+      <div className="quick-actions-bar" style={{ marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
+        <button className="action-btn btn-primary" onClick={() => setShowFundModal(true)} style={{ background: '#8B0000', color: 'white' }}>
+          <FaCreditCard /> Fund Wallet
+        </button>
+        <button className="action-btn btn-success" onClick={() => setShowVerifyModal(true)} style={{ background: '#28a745', color: 'white' }}>
+          <FaCheckCircle /> Verify Payment
+        </button>
+        <button className="action-btn" onClick={() => setShowWithdrawModal(true)}>
+          <FaMoneyBillWave /> Withdraw Earnings
+        </button>
+        <button className="action-btn" onClick={() => setShowStoreModal(true)}>
+          <FaStore /> My Store
+        </button>
+        <button className="action-btn" onClick={() => setShowCart(true)}>
+          <FaShoppingBag /> Cart ({cart.length})
+        </button>
+      </div>
+
+      {/* Pending Topups Notice */}
+      {pendingTopups.length > 0 && (
+        <div className="notice-box" style={{ background: '#fff3cd', borderLeft: '4px solid #ffc107', marginBottom: '20px', padding: '12px 15px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="notice-icon">⏳</div>
+          <div className="notice-content" style={{ flex: 1 }}>
+            <strong>Pending Payments:</strong> You have {pendingTopups.length} pending payment(s). 
+            <button onClick={() => setShowVerifyModal(true)} style={{ background: 'none', border: 'none', color: '#8B0000', cursor: 'pointer', fontWeight: 'bold', marginLeft: '5px' }}>
+              Click here to verify them →
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="agent-tabs">
         <button className={`tab ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
@@ -888,7 +1216,7 @@ export default function AgentDashboard() {
         </>
       )}
 
-      {/* Sell Tab with Dynamic Size Input */}
+      {/* Sell Tab */}
       {activeTab === 'sell' && (
         <>
           <div className="quick-actions-bar">
@@ -1015,7 +1343,7 @@ export default function AgentDashboard() {
             </div>
           </div>
 
-          {/* Predefined Bundles Grid (Fallback/Quick Buy) */}
+          {/* Predefined Bundles Grid */}
           <div className="bundles-grid-agent">
             <h3 className="bundles-subtitle-agent">Popular Bundles</h3>
             <div className="bundles-grid-container-agent">
@@ -1564,17 +1892,242 @@ export default function AgentDashboard() {
         loading={confirmLoading}
       />
 
-      {/* Fund Wallet Modal (Simplified) */}
+      {/* ========== FUND WALLET MODAL (Enhanced with Paystack) ========== */}
       <AnimatePresence>
         {showFundModal && (
-          <motion.div className="modal-overlay" onClick={() => setShowFundModal(false)}>
-            <motion.div className="modal-content" onClick={e => e.stopPropagation()}>
-              <button className="modal-close" onClick={() => setShowFundModal(false)}>×</button>
-              <h3>Fund Your Roamsmart Wallet</h3>
-              <p>Contact admin to fund your wallet or use the fund wallet option in your dashboard.</p>
-              <button className="btn-primary btn-block" onClick={() => setShowFundModal(false)}>
-                Close
-              </button>
+          <motion.div className="modal-overlay" onClick={() => { setShowFundModal(false); resetFundModal(); }}>
+            <motion.div className="modal-content fund-wallet-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '550px' }}>
+              <button className="modal-close" onClick={() => { setShowFundModal(false); resetFundModal(); }}>×</button>
+              
+              {/* Step 1: Select Payment Method */}
+              {fundStep === 1 && (
+                <div className="fund-step">
+                  <h3><FaWallet /> Fund Your Roamsmart Wallet</h3>
+                  <p>Select your preferred payment method</p>
+                  
+                  <div className="methods-grid">
+                    {paymentMethods.map(method => (
+                      <div 
+                        key={method.id}
+                        className={`method-card ${selectedMethod === method.id ? 'active' : ''} ${method.comingSoon ? 'coming-soon' : ''}`}
+                        onClick={() => handleMethodSelect(method.id)}
+                      >
+                        <div className="method-icon" style={{ color: method.color }}>{method.icon}</div>
+                        <div className="method-name">{method.name}</div>
+                        <div className="method-fee">{method.fee}</div>
+                        <div className="method-limit">Limit: ₵{method.min} - ₵{method.max.toLocaleString()}</div>
+                        <div className="method-time">⏱️ {method.time}</div>
+                        {method.comingSoon && <span className="coming-soon-badge">Coming Soon</span>}
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <button className="btn-primary btn-block" onClick={() => setFundStep(2)}>
+                    Continue on Roamsmart <FaArrowRight />
+                  </button>
+                </div>
+              )}
+              
+              {/* Step 2: Enter Amount */}
+              {fundStep === 2 && (
+                <div className="fund-step">
+                  <button className="back-btn" onClick={() => setFundStep(1)}><FaArrowLeft /> Back</button>
+                  <h3>Enter Amount to Fund</h3>
+                  
+                  <div className="form-group">
+                    <label>Amount (GHS)</label>
+                    <input 
+                      type="number" 
+                      className="form-control amount-input" 
+                      placeholder="Enter amount" 
+                      min={paymentMethods.find(m => m.id === selectedMethod)?.min || 10}
+                      value={fundAmount} 
+                      onChange={e => setFundAmount(e.target.value)} 
+                    />
+                    <small>Min: ₵{paymentMethods.find(m => m.id === selectedMethod)?.min} · Max: ₵{paymentMethods.find(m => m.id === selectedMethod)?.max.toLocaleString()}</small>
+                  </div>
+                  
+                  <div className="quick-amounts">
+                    {quickAmounts.map(qAmount => (
+                      <button key={qAmount} className="quick-amount" onClick={() => setFundAmount(qAmount.toString())}>
+                        ₵{qAmount}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  {selectedMethod === 'manual' && (
+                    <div className="form-group">
+                      <label>Phone Number (Optional)</label>
+                      <input 
+                        type="tel" 
+                        className="form-control" 
+                        placeholder="024XXXXXXX" 
+                        value={customerPhone}
+                        onChange={e => setCustomerPhone(e.target.value)}
+                      />
+                      <small>For payment confirmation SMS from Roamsmart</small>
+                    </div>
+                  )}
+                  
+                  <button 
+                    className="btn-primary btn-block" 
+                    onClick={handleAmountSubmit} 
+                    disabled={loadingRequest || processingPayment}
+                  >
+                    {(loadingRequest || processingPayment) ? <FaSpinner className="spinning" /> : 'Proceed to Payment'}
+                  </button>
+                </div>
+              )}
+              
+              {/* Step 3: Manual Payment Instructions */}
+              {fundStep === 3 && manualRequest && (
+                <div className="fund-step instructions-step">
+                  <button className="back-btn" onClick={() => setFundStep(2)}><FaArrowLeft /> Back</button>
+                  <h3>Roamsmart Payment Instructions</h3>
+                  
+                  <div className="payment-details-card">
+                    <div className="detail-row">
+                      <span className="detail-label">Amount to Pay:</span>
+                      <span className="detail-value amount">₵{manualRequest.amount?.toFixed(2)}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="detail-label">Recipient Number:</span>
+                      <span className="detail-value">{COMPANY.phone}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="detail-label">Reference ID:</span>
+                      <div className="reference-box">
+                        <code>{manualRequest.reference}</code>
+                        <button onClick={handleCopyReference} className="copy-btn">
+                          {copied ? <FaCheck /> : <FaCopy />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="how-it-works">
+                    <h4>📋 How to complete payment:</h4>
+                    <ol>
+                      <li>Go to your mobile money wallet</li>
+                      <li>Send ₵{manualRequest.amount?.toFixed(2)} to <strong>{COMPANY.phone}</strong></li>
+                      <li>Use reference: <strong>{manualRequest.reference}</strong></li>
+                      <li>Take a screenshot of the confirmation</li>
+                      <li>Upload the screenshot below</li>
+                    </ol>
+                  </div>
+                  
+                  <div className="upload-section">
+                    <h4>Upload Payment Proof</h4>
+                    <div className="upload-area">
+                      <input 
+                        type="file" 
+                        id="proof-upload"
+                        accept="image/*,.pdf"
+                        onChange={(e) => setProofFile(e.target.files[0])}
+                        style={{ display: 'none' }}
+                      />
+                      <label htmlFor="proof-upload" className="upload-label">
+                        {proofFile ? <><FaCheck /> {proofFile.name}</> : <><FaUpload /> Click to upload screenshot</>}
+                      </label>
+                    </div>
+                    
+                    <button 
+                      onClick={handleFileUpload} 
+                      className="btn-primary btn-block"
+                      disabled={uploadingProof || !proofFile}
+                    >
+                      {uploadingProof ? <FaSpinner className="spinning" /> : 'Submit Payment Proof'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ========== VERIFY PAYMENT MODAL ========== */}
+      <AnimatePresence>
+        {showVerifyModal && (
+          <motion.div className="modal-overlay" onClick={() => { setShowVerifyModal(false); resetVerifyModal(); }}>
+            <motion.div className="modal-content verify-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+              <button className="modal-close" onClick={() => { setShowVerifyModal(false); resetVerifyModal(); }}>×</button>
+              
+              <div className="verify-payment">
+                <h3><FaCheckCircle /> Verify Your Payment</h3>
+                <p>Enter your payment details to auto-credit your Roamsmart wallet</p>
+                
+                {pendingTopups.length > 0 && (
+                  <div className="pending-references">
+                    <h4>Your Pending References:</h4>
+                    <div className="ref-list">
+                      {pendingTopups.map(p => (
+                        <div key={p.id} className="ref-item" onClick={() => copyReferenceToVerify(p.reference)} style={{ cursor: 'pointer' }}>
+                          <code>{p.reference}</code>
+                          <small>₵{p.amount} - {new Date(p.created_at).toLocaleDateString()}</small>
+                          <button className="copy-ref-btn"><FaCopy /> Copy</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="form-group">
+                  <label>Payment Reference *</label>
+                  <input 
+                    type="text"
+                    value={verifyReference}
+                    onChange={(e) => setVerifyReference(e.target.value.toUpperCase())}
+                    placeholder="e.g., RS-123-20241201-ABCD"
+                    className="form-control"
+                  />
+                  <small>Enter the reference you received when initiating payment</small>
+                </div>
+                
+                <div className="form-group">
+                  <label>Transaction ID / Reference *</label>
+                  <input 
+                    type="text"
+                    value={verifyTransactionId}
+                    onChange={(e) => setVerifyTransactionId(e.target.value)}
+                    placeholder="e.g., MTC123456789"
+                    className="form-control"
+                  />
+                  <small>Enter the transaction ID from your mobile money app</small>
+                </div>
+                
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Sender Name (Optional)</label>
+                    <input 
+                      type="text"
+                      value={verifySenderName}
+                      onChange={(e) => setVerifySenderName(e.target.value)}
+                      placeholder="Your full name"
+                      className="form-control"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Sender Phone (Optional)</label>
+                    <input 
+                      type="tel"
+                      value={verifySenderPhone}
+                      onChange={(e) => setVerifySenderPhone(e.target.value)}
+                      placeholder="024XXXXXXX"
+                      className="form-control"
+                    />
+                  </div>
+                </div>
+                
+                <button onClick={handleVerifyPayment} className="btn-primary btn-block" disabled={verifying}>
+                  {verifying ? <FaSpinner className="spinning" /> : <FaCheckCircle />}
+                  {verifying ? ' Verifying on Roamsmart...' : ' Verify Payment & Credit Wallet'}
+                </button>
+                
+                <div className="verify-note">
+                  <p>⚠️ <strong>Note:</strong> Please ensure you have actually sent the payment before verifying. False verifications may lead to account suspension.</p>
+                </div>
+              </div>
             </motion.div>
           </motion.div>
         )}

@@ -1,8 +1,5 @@
-
 // src/pages/AdminDashboard.js
-// Move all imports to the top, before any code
-
-// Fix the import - remove statsRes from React import
+// ========== ALL IMPORTS FIRST ==========
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bar, Line, Doughnut, Pie } from 'react-chartjs-2';
@@ -23,16 +20,13 @@ import {
   FaHistory, FaUndo, FaCloudUploadAlt, FaKey, FaPlug, FaBellSlash,
   FaSlidersH, FaToggleOn, FaToggleOff, FaUsersCog, FaNetworkWired,
   FaGraduationCap, FaBolt, FaTint, FaTv, FaFileCsv, FaPlusCircle,
-  FaMinusCircle, FaExchangeAlt, FaNetworkWired as FaNetwork
-}
-from 'react-icons/fa';
+  FaMinusCircle, FaExchangeAlt, FaSync
+} from 'react-icons/fa';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
 import * as XLSX from 'xlsx';
 import io from 'socket.io-client';
-import AdminPriceManagement from './AdminPriceManagement';
-
 
 // IMPORTANT: Register Chart.js components
 import {
@@ -60,6 +54,7 @@ ChartJS.register(
   Filler
 );
 
+// ========== CONSTANTS ==========
 const COMPANY = {
   name: 'Roamsmart Digital Service',
   shortName: 'Roamsmart',
@@ -71,7 +66,7 @@ const COMPANY = {
   domain: 'roamsmart.shop'
 };
 
-// Helper functions
+// ========== HELPER FUNCTIONS ==========
 const safeValue = (value, fallback = '') => {
   return value !== undefined && value !== null ? value : fallback;
 };
@@ -86,11 +81,57 @@ const safeToUpperCase = (value, defaultValue = '') => {
   return String(value).toUpperCase();
 };
 
+// Calculate total price based on Africa's Talking actual prices
+const calculateTotalPrice = (network, sizeGb, quantity) => {
+  // Africa's Talking actual prices
+  const prices = {
+    mtn: {
+      0.02: 0.49,   // 20.46 MB
+      0.04: 0.99,   // 40.91 MB
+      0.39: 2.97,   // 401.63 MB
+      0.81: 9.90,   // 826.72 MB
+      104: 346.62,  // 106.81 GB
+      209: 395.14   // 214.53 GB
+    },
+    airteltigo: {
+      0.05: 0.98,
+      0.11: 1.96,
+      0.38: 2.94,
+      0.54: 4.90,
+      0.86: 9.80,
+      1.70: 19.60,
+      4.40: 49.00,
+      9.90: 98.00,
+      33: 196.00,
+      99: 294.01,
+      115.5: 343.01,
+      250: 392.01
+    },
+    telecel: {
+      0.02: 0.49,
+      0.05: 0.98,
+      0.11: 1.96,
+      0.54: 4.90,
+      0.86: 9.80,
+      1.69: 19.60,
+      4.50: 49.00,
+      10.13: 98.00,
+      33.79: 196.00,
+      101.4: 294.01,
+      256: 392.01
+    }
+  };
+  
+  const unitPrice = prices[network]?.[sizeGb] || 0;
+  return (unitPrice * quantity).toFixed(2);
+};
+
+// ========== MAIN COMPONENT ==========
 export default function AdminDashboard() {
   console.log('===== ADMIN DASHBOARD DEBUG =====');
   console.log('1. Component rendering start');
-  
-  // ========== STATE MANAGEMENT (ALL useState FIRST) ==========
+
+  // ========== ALL useState HOOKS FIRST ==========
   console.log('2. Initializing useState hooks...');
   
   const [stats, setStats] = useState({
@@ -127,6 +168,8 @@ export default function AdminDashboard() {
   const [showWAECModal, setShowWAECModal] = useState(false);
   const [showBillModal, setShowBillModal] = useState(false);
   const [showNetworkPurchaseModal, setShowNetworkPurchaseModal] = useState(false);
+  const [showDataPurchaseModal, setShowDataPurchaseModal] = useState(false);
+  const [showBatchApproveModal, setShowBatchApproveModal] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState('mtn');
   const [networkSales, setNetworkSales] = useState({ mtn: 0, telecel: 0, airteltigo: 0 });
   const [liveStats, setLiveStats] = useState({
@@ -146,6 +189,7 @@ export default function AdminDashboard() {
     username: '', email: '', phone: '', password: '', role: 'user', wallet_balance: 0
   });
   const [selectedRequests, setSelectedRequests] = useState([]);
+  const [selectedPaymentIds, setSelectedPaymentIds] = useState([]);
   const [backups, setBackups] = useState([]);
   const [backupProgress, setBackupProgress] = useState(0);
   const [webhooks, setWebhooks] = useState([]);
@@ -157,7 +201,21 @@ export default function AdminDashboard() {
   const [billPayments, setBillPayments] = useState([]);
   const [billStats, setBillStats] = useState({ total: 0, completed: 0, pending: 0 });
   const [masterInventory, setMasterInventory] = useState({});
-  const [networkPurchase, setNetworkPurchase] = useState({ network: 'mtn', size_gb: 10, quantity: 1 });
+  const [networkPurchase, setNetworkPurchase] = useState({ 
+    product_type: 'data',
+    network: 'mtn', 
+    size_gb: 0.02, 
+    quantity: 1,
+    sms_quantity: 0,
+    phone_number: COMPANY.phone
+  });
+  const [dataPurchase, setDataPurchase] = useState({
+    network: 'mtn',
+    size_gb: 10,
+    quantity: 1,
+    phone_number: COMPANY.phone,
+    customer_name: COMPANY.name
+  });
   const [predictions, setPredictions] = useState({
     next_month_revenue: 0, peak_hour_prediction: '6 PM', churn_risk_users: [],
     demand_forecast: {}
@@ -190,68 +248,73 @@ export default function AdminDashboard() {
     { region: 'Bono', sales: 22000, users: 450, agents: 6 },
     { region: 'Northern', sales: 18000, users: 350, agents: 5 }
   ]);
+  const [africasTalkingBalance, setAfricasTalkingBalance] = useState({
+    account_balance: 0,
+    wallet_balance: 0,
+    currency: 'GHS',
+    loading: true,
+    error: null
+  });
 
   console.log('3. All useState hooks initialized');
 
-  // ========== ALL useEffect HOOKS (BEFORE ANY CONDITIONAL RETURNS) ==========
+  // ========== ALL useEffect HOOKS ==========
   console.log('4. Initializing useEffect hooks...');
+  
+  // Socket connection effect
   useEffect(() => {
-  
-  const socketUrl = process.env.REACT_APP_SOCKET_URL || 'https://roamsmart-backend-production.up.railway.app';
-  
-  
-  const token = localStorage.getItem('roamsmart_token');
-  if (!token) return;
-  
-  socketRef.current = io(socketUrl, {
-    path: '/socket.io',
-    transports: ['polling'],
-    reconnection: false,
-    autoConnect: true,
-    timeout: 10000
-  });
-  
-  socketRef.current.on('connect', () => {
-    console.log('Admin socket connected to:', socketUrl);
-    socketRef.current.emit('admin_join', { role: adminRole });
-  });
-  
-  socketRef.current.on('connect_error', (error) => {
-    console.warn('Admin socket connection error (non-critical):', error.message);
- 
-  });
-  
-  socketRef.current.on('live_stats', (data) => {
-    if (data) setLiveStats(data);
-  });
-  
-  socketRef.current.on('new_order', (order) => {
-    if (order) {
-      showOrderNotification(order);
-      fetchAllData();
-    }
-  });
-  
-  socketRef.current.on('new_agent_request', (request) => {
-    if (request) {
-      showAgentRequestNotification(request);
-      fetchAllData();
-    }
-  });
-  
-  socketRef.current.on('admin_alert', (alert) => {
-    if (alert) addNotification(alert);
-  });
-  
-  return () => {
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current = null;
-    }
-  };
-}, [adminRole]);
+    const socketUrl = process.env.REACT_APP_SOCKET_URL || 'https://roamsmart-backend-production.up.railway.app';
+    const token = localStorage.getItem('roamsmart_token');
+    if (!token) return;
+    
+    socketRef.current = io(socketUrl, {
+      path: '/socket.io',
+      transports: ['polling'],
+      reconnection: false,
+      autoConnect: true,
+      timeout: 10000
+    });
+    
+    socketRef.current.on('connect', () => {
+      console.log('Admin socket connected to:', socketUrl);
+      socketRef.current.emit('admin_join', { role: adminRole });
+    });
+    
+    socketRef.current.on('connect_error', (error) => {
+      console.warn('Admin socket connection error (non-critical):', error.message);
+    });
+    
+    socketRef.current.on('live_stats', (data) => {
+      if (data) setLiveStats(data);
+    });
+    
+    socketRef.current.on('new_order', (order) => {
+      if (order) {
+        showOrderNotification(order);
+        fetchAllData();
+      }
+    });
+    
+    socketRef.current.on('new_agent_request', (request) => {
+      if (request) {
+        showAgentRequestNotification(request);
+        fetchAllData();
+      }
+    });
+    
+    socketRef.current.on('admin_alert', (alert) => {
+      if (alert) addNotification(alert);
+    });
+    
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, [adminRole]);
 
-  // ========== DATA FETCHING ==========
+  // Data fetching on mount
   useEffect(() => {
     fetchAllData();
     fetchRecentActivities();
@@ -268,6 +331,17 @@ export default function AdminDashboard() {
     fetchRegionalStats();
   }, []);
 
+  // Africa's Talking balance polling
+  useEffect(() => {
+    fetchAfricasTalkingBalance();
+    const interval = setInterval(fetchAfricasTalkingBalance, 2 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  console.log('5. All useEffect hooks initialized');
+
+  // ========== DATA FETCHING FUNCTIONS ==========
+  
   const fetchAllData = async () => {
     setLoading(true);
     try {
@@ -281,17 +355,52 @@ export default function AdminDashboard() {
         api.get('/admin/orders')
       ]);
       
-      // Safe assignment with fallbacks
+      // Create user map for enriching payment data
+      const usersList = usersRes?.data?.data || [];
+      const usersMap = new Map();
+      usersList.forEach(user => {
+        usersMap.set(user.id, user);
+        usersMap.set(user._id, user);
+        if (user.email) usersMap.set(user.email, user);
+        if (user.phone) usersMap.set(user.phone, user);
+      });
+      
+      // Enrich manual payments with user data
+      const rawPayments = paymentsRes?.data?.data || [];
+      const enrichedPayments = rawPayments.map(payment => {
+        let userData = null;
+        
+        // Try to find user by various identifiers
+        if (payment.user_id) userData = usersMap.get(payment.user_id);
+        if (!userData && payment.userId) userData = usersMap.get(payment.userId);
+        if (!userData && payment.user) userData = usersMap.get(payment.user);
+        if (!userData && payment.email) userData = usersMap.get(payment.email);
+        if (!userData && payment.phone) userData = usersMap.get(payment.phone);
+        
+        return {
+          id: payment.id || payment._id,
+          amount: payment.amount || 0,
+          reference: payment.reference || payment.transaction_id || 'N/A',
+          proof_url: payment.proof_url || payment.proof_image || null,
+          status: payment.status || 'pending',
+          created_at: payment.created_at || payment.createdAt,
+          updated_at: payment.updated_at || payment.updatedAt,
+          username: userData?.username || payment.username || payment.user_name || 'Unknown User',
+          email: userData?.email || payment.email || 'No email',
+          phone: userData?.phone || payment.phone || 'No phone',
+          user_id: userData?.id || userData?._id || payment.user_id || payment.userId
+        };
+      });
+      
       const statsData = statsRes?.data?.data || {};
       setStats(statsData);
-      setUsers(usersRes?.data?.data || []);
+      setUsers(usersList);
       setAgents(agentsRes?.data?.data || []);
       setAgentRequests(requestsRes?.data?.data || []);
-      setManualPayments(paymentsRes?.data?.data || []);
+      setManualPayments(enrichedPayments);
       setWithdrawals(withdrawalsRes?.data?.data || []);
       setAllOrders(ordersRes?.data?.data || []);
       
-      // Set network sales from stats data
       setNetworkSales({
         mtn: statsData.mtn_sales || 0,
         telecel: statsData.telecel_sales || 0,
@@ -305,6 +414,37 @@ export default function AdminDashboard() {
       setLoading(false);
     }
   };
+
+  const fetchAfricasTalkingBalance = async () => {
+  try {
+    const res = await api.get('/admin/africastalking-balance');
+    if (res.data.success) {
+      setAfricasTalkingBalance({
+        account_balance: res.data.data.account_balance || 0,
+        wallet_balance: res.data.data.wallet_balance || 0,
+        airtime_balance: res.data.data.airtime_balance || 0,
+        sms_balance: res.data.data.sms_balance || 0,
+        voice_balance: res.data.data.voice_balance || 0,
+        currency: res.data.data.currency || 'GHS',
+        loading: false,
+        error: null
+      });
+    } else {
+      setAfricasTalkingBalance(prev => ({
+        ...prev,
+        loading: false,
+        error: res.data.error || 'Failed to fetch balance'
+      }));
+    }
+  } catch (error) {
+    console.error('Failed to fetch Africa\'s Talking balance:', error);
+    setAfricasTalkingBalance(prev => ({
+      ...prev,
+      loading: false,
+      error: 'Could not connect to Africa\'s Talking API'
+    }));
+  }
+};
 
   const fetchAgentApplications = async () => {
     try {
@@ -327,6 +467,24 @@ export default function AdminDashboard() {
       console.error('Failed to fetch WAEC data');
     }
   };
+
+  const clearAllPayments = async () => {
+  const result = await Swal.fire({
+    title: 'Clear All Pending Payments?',
+    text: `This will remove ${manualPayments.length} pending payments from the list.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#dc3545',
+    confirmButtonText: 'Yes, Clear All',
+    cancelButtonText: 'Cancel'
+  });
+  
+  if (result.isConfirmed) {
+    setManualPayments([]);
+    setSelectedPaymentIds([]);
+    toast.success('All pending payments cleared from view');
+  }
+};
 
   const fetchBillPayments = async () => {
     try {
@@ -396,6 +554,35 @@ export default function AdminDashboard() {
     } catch (error) {}
   };
 
+  const fetchRegionalStats = async () => {
+    try {
+      const res = await api.get('/admin/stats/regional');
+      setRegionalStats(res.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch regional stats');
+    }
+  };
+
+  const fetchPredictions = async () => {
+    try {
+      const res = await api.get('/admin/predictions');
+      setPredictions(res.data.data || {
+        next_month_revenue: stats.total_revenue * 1.1 || 0,
+        peak_hour_prediction: '6 PM',
+        churn_risk_users: [],
+        demand_forecast: {}
+      });
+    } catch (error) {
+      console.error('Failed to fetch predictions');
+      setPredictions({
+        next_month_revenue: 0,
+        peak_hour_prediction: '6 PM',
+        churn_risk_users: [],
+        demand_forecast: {}
+      });
+    }
+  };
+
   // ========== NOTIFICATION FUNCTIONS ==========
   const showOrderNotification = (order) => {
     const notification = {
@@ -426,7 +613,6 @@ export default function AdminDashboard() {
       read: false
     };
     setNotifications(prev => [notification, ...prev]);
-    // Fixed: changed toast.info to toast.success
     toast.success(
       <div>
         <strong>👤 New Agent Request at {COMPANY.shortName}!</strong>
@@ -447,6 +633,287 @@ export default function AdminDashboard() {
     };
     setNotifications(prev => [notification, ...prev]);
   };
+
+  // ========== SIMPLIFIED PAYMENT APPROVAL FUNCTIONS ==========
+  
+  // One-click approval - no extra input needed
+const approvePaymentSimple = async (payment) => {
+  console.log("=== APPROVE PAYMENT DEBUG ===");
+  console.log("Payment object:", payment);
+  console.log("Payment ID:", payment.id);
+  console.log("Current manualPayments before removal:", manualPayments.map(p => ({ id: p.id, reference: p.reference })));
+  
+  const result = await Swal.fire({
+    title: 'Approve Payment?',
+    html: `
+      <div style="text-align: left;">
+        <p>Are you sure you want to approve this payment?</p>
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
+          <p><strong>💰 Amount:</strong> ₵${payment.amount}</p>
+          <p><strong>👤 User:</strong> ${payment.username}</p>
+          <p><strong>📱 Phone:</strong> ${payment.phone}</p>
+          <p><strong>🆔 Reference:</strong> ${payment.reference}</p>
+          <p><strong>🆔 ID:</strong> ${payment.id}</p>
+        </div>
+        <p style="color: #28a745;">✅ The user's wallet will be credited automatically.</p>
+      </div>
+    `,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#28a745',
+    confirmButtonText: '✓ Yes, Approve Payment',
+    cancelButtonText: 'Cancel'
+  });
+  
+  if (result.isConfirmed) {
+    let loadingToast;
+    try {
+      loadingToast = toast.loading('Approving payment and crediting wallet...');
+      
+      const response = await api.post(`/admin/manual-payments/${payment.id}/approve-simple`);
+      
+      toast.dismiss(loadingToast);
+      
+      console.log("API Response:", response.data);
+      
+      if (response.data.success) {
+        toast.success(`✅ Payment of ₵${payment.amount} approved and credited to ${payment.username}!`);
+        
+        // Try multiple ways to remove the payment
+        console.log("Removing payment with ID:", payment.id);
+        
+        // Method 1: Filter by id
+        const newPayments = manualPayments.filter(p => {
+          const shouldKeep = p.id !== payment.id;
+          console.log(`  Payment ${p.id} (${p.reference}): keep=${shouldKeep}`);
+          return shouldKeep;
+        });
+        
+        console.log("New payments count:", newPayments.length);
+        setManualPayments(newPayments);
+        
+        // Method 2: Also try direct filter (as backup)
+        setManualPayments(prev => {
+          const filtered = prev.filter(p => p.id !== payment.id);
+          console.log("State update - prev count:", prev.length, "new count:", filtered.length);
+          return filtered;
+        });
+        
+        // Remove from selected payments
+        setSelectedPaymentIds(prevIds => {
+          const newIds = prevIds.filter(id => id !== payment.id);
+          console.log("Selected IDs before:", prevIds, "after:", newIds);
+          return newIds;
+        });
+        
+        // Refresh other data for balance update
+        await fetchAllData();
+        fetchRecentActivities();
+        
+        addNotification({
+          type: 'success',
+          title: 'Payment Approved',
+          message: `₵${payment.amount} credited to ${payment.username}`
+        });
+      } else {
+        toast.error(response.data.error || 'Failed to approve payment');
+      }
+      
+    } catch (error) {
+      console.error('Approval error:', error);
+      if (loadingToast) {
+        toast.dismiss(loadingToast);
+      }
+      toast.error(error.response?.data?.error || 'Failed to approve payment');
+    }
+  }
+};
+
+  // Batch approve multiple payments
+const batchApprovePayments = async () => {
+  if (selectedPaymentIds.length === 0) {
+    toast.error('No payments selected');
+    return;
+  }
+  
+  const selectedPaymentsData = manualPayments.filter(p => selectedPaymentIds.includes(p.id));
+  const totalAmount = selectedPaymentsData.reduce((sum, p) => sum + (p.amount || 0), 0);
+  
+  const result = await Swal.fire({
+    title: `Approve ${selectedPaymentIds.length} Payments?`,
+    html: `
+      <div style="text-align: left;">
+        <p>You are about to approve ${selectedPaymentIds.length} pending payments.</p>
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
+          <p><strong>💰 Total Amount:</strong> ₵${totalAmount.toFixed(2)}</p>
+          <p><strong>👥 Affected Users:</strong> ${selectedPaymentIds.length}</p>
+        </div>
+        <p style="color: #ff9800;">⚠️ All selected users will be credited automatically.</p>
+      </div>
+    `,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#28a745',
+    confirmButtonText: '✓ Approve All',
+    cancelButtonText: 'Cancel'
+  });
+  
+  if (result.isConfirmed) {
+    try {
+      const loadingToast = toast.loading(`Approving ${selectedPaymentIds.length} payments...`);  // <-- ADD THIS LINE
+      
+      await api.post('/admin/manual-payments/batch-approve', { 
+        payment_ids: selectedPaymentIds 
+      });
+      
+      toast.dismiss(loadingToast);
+      toast.success(`✅ Successfully approved ${selectedPaymentIds.length} payments!`);
+      
+      // Remove all approved payments from the list
+      setManualPayments(prevPayments => 
+        prevPayments.filter(p => !selectedPaymentIds.includes(p.id))
+      );
+      
+      // Clear selected payments
+      setSelectedPaymentIds([]);
+      setShowBatchApproveModal(false);
+      
+      // Refresh other data
+      fetchAllData();
+      fetchRecentActivities();
+      
+    } catch (error) {
+      let loadingToast;
+      console.error('Batch approval error:', error);
+      if (typeof loadingToast !== 'undefined') {
+        toast.dismiss(loadingToast);
+      }
+      toast.error(error.response?.data?.error || 'Failed to batch approve payments');
+    }
+  }
+};
+  // ========== PAYMENT PROOF VIEWING FUNCTIONS ==========
+
+const viewPaymentProof = (proofUrl) => {
+  console.log("View Proof clicked. URL:", proofUrl);
+  
+  if (!proofUrl) {
+    toast.error('No proof document available');
+    return;
+  }
+  
+  // Check for invalid values
+  if (proofUrl === 'No proof' || proofUrl === 'N/A' || proofUrl === 'null' || proofUrl === 'undefined') {
+    toast.error('No valid proof document was uploaded');
+    return;
+  }
+  
+  // Validate URL format
+  try {
+    // Check if it's a valid URL
+    if (proofUrl.startsWith('http://') || proofUrl.startsWith('https://')) {
+      window.open(proofUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      // If it's a relative path, prepend your API base URL
+      const fullUrl = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${proofUrl}`;
+      window.open(fullUrl, '_blank', 'noopener,noreferrer');
+    }
+    toast.success('Opening proof document...');
+  } catch (error) {
+    console.error('Error opening proof:', error);
+    toast.error('Could not open proof document');
+  }
+};
+
+const downloadProofDocument = async (proofUrl, filename) => {
+  console.log("Download Proof clicked. URL:", proofUrl);
+  
+  if (!proofUrl || proofUrl === 'No proof' || proofUrl === 'N/A') {
+    toast.error('No document available to download');
+    return;
+  }
+  
+  try {
+    toast.loading('Downloading document...');
+    
+    let url = proofUrl;
+    if (!url.startsWith('http')) {
+      url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${proofUrl}`;
+    }
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename || `payment_proof_${Date.now()}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(blobUrl);
+    
+    toast.dismiss();
+    toast.success('Document downloaded successfully');
+  } catch (error) {
+    console.error('Download error:', error);
+    toast.dismiss();
+    toast.error('Failed to download. Opening in new tab instead.');
+    window.open(proofUrl.startsWith('http') ? proofUrl : `${process.env.REACT_APP_API_URL}/uploads/${proofUrl}`, '_blank');
+  }
+};
+
+  const rejectManualPayment = async (paymentId) => {
+  const { value: rejectionReason } = await Swal.fire({
+    title: 'Reject Payment',
+    html: `
+      <div style="text-align: left;">
+        <p>Are you sure you want to reject this payment?</p>
+        <div style="margin-top: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: bold;">Rejection Reason:</label>
+          <textarea id="reason" class="swal2-textarea" placeholder="Enter reason for rejection..." rows="4" style="width: 100%;"></textarea>
+          <small style="color: #666; display: block; margin-top: 5px;">This reason will be shown to the user.</small>
+        </div>
+      </div>
+    `,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#dc3545',
+    confirmButtonText: 'Yes, Reject Payment',
+    cancelButtonText: 'Cancel',
+    preConfirm: () => {
+      const reason = document.getElementById('reason').value;
+      if (!reason) {
+        Swal.showValidationMessage('Please provide a rejection reason');
+        return false;
+      }
+      return reason;
+    }
+  });
+  
+  if (rejectionReason) {
+    try {
+      await api.post(`/admin/manual-payments/${paymentId}/reject`, { reason: rejectionReason });
+      toast.error('Payment rejected. User has been notified.');
+      
+      // CRITICAL: Remove the rejected payment from the list
+      setManualPayments(prevPayments => prevPayments.filter(p => p.id !== paymentId));
+      
+      // Also remove from selected payments if it was selected
+      setSelectedPaymentIds(prevIds => prevIds.filter(id => id !== paymentId));
+      
+      fetchAllData();
+      fetchRecentActivities();
+      
+    } catch (error) {
+      toast.error('Failed to reject payment');
+    }
+  }
+};
 
   // ========== ANNOUNCEMENT FUNCTIONS ==========
   const createAnnouncement = async () => {
@@ -558,10 +1025,100 @@ export default function AdminDashboard() {
     try {
       const res = await api.post('/admin/network/purchase', networkPurchase);
       if (res.data.success) {
-        toast.success(`Roamsmart purchased ${networkPurchase.quantity}x ${networkPurchase.size_gb}GB from ${safeToUpperCase(networkPurchase.network)}`);
+        toast.success(res.data.message || `Roamsmart purchased ${networkPurchase.quantity}x ${networkPurchase.size_gb}GB from ${safeToUpperCase(networkPurchase.network)}`);
         setShowNetworkPurchaseModal(false);
         fetchMasterInventory();
-        setNetworkPurchase({ network: 'mtn', size_gb: 10, quantity: 1 });
+        fetchAfricasTalkingBalance(); // Refresh balance after purchase
+        setNetworkPurchase({ 
+          product_type: 'data',
+          network: 'mtn', 
+          size_gb: 0.02, 
+          quantity: 1,
+          sms_quantity: 0,
+          phone_number: COMPANY.phone
+        });
+      }
+    } catch (error) {
+      console.error('Purchase error:', error);
+      toast.error(error.response?.data?.error || 'Purchase failed');
+    }
+  };
+
+  const purchaseDataFromNetwork = async () => {
+    try {
+      const totalGB = dataPurchase.size_gb * dataPurchase.quantity;
+      
+      const { value: customPrice } = await Swal.fire({
+        title: '💰 Enter Purchase Amount',
+        html: `
+          <div style="text-align: left;">
+            <p><strong>Network:</strong> ${dataPurchase.network.toUpperCase()}</p>
+            <p><strong>Bundle Size:</strong> ${dataPurchase.size_gb} GB each</p>
+            <p><strong>Quantity:</strong> ${dataPurchase.quantity}</p>
+            <p><strong>Total GB:</strong> ${totalGB} GB</p>
+            <hr/>
+            <label style="display: block; margin: 10px 0;"><strong>Amount to Pay (GHS):</strong></label>
+            <input id="purchase-amount" class="swal2-input" type="number" step="0.01" placeholder="Enter amount in GHS" style="width: 100%;">
+            <small style="color: #666;">Enter the amount you want to pay for this data bundle</small>
+          </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#8B0000',
+        confirmButtonText: 'Confirm Purchase',
+        cancelButtonText: 'Cancel',
+        preConfirm: () => {
+          const amount = document.getElementById('purchase-amount').value;
+          if (!amount || parseFloat(amount) <= 0) {
+            Swal.showValidationMessage('Please enter a valid amount');
+            return false;
+          }
+          return parseFloat(amount);
+        }
+      });
+      
+      if (customPrice) {
+        const confirmResult = await Swal.fire({
+          title: 'Confirm Purchase',
+          html: `
+            <div style="text-align: left;">
+              <p><strong>Network:</strong> ${dataPurchase.network.toUpperCase()}</p>
+              <p><strong>Bundle:</strong> ${dataPurchase.size_gb} GB × ${dataPurchase.quantity} = ${totalGB} GB</p>
+              <p><strong>Amount to Pay:</strong> <strong class="text-success">GHS ${customPrice.toFixed(2)}</strong></p>
+              <p><strong>Phone Number:</strong> ${dataPurchase.phone_number}</p>
+              <hr/>
+              <p class="text-muted" style="font-size: 12px;">⚠️ This amount will be deducted from your Africa's Talking balance.</p>
+            </div>
+          `,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#28a745',
+          confirmButtonText: 'Yes, Purchase',
+          cancelButtonText: 'Cancel'
+        });
+        
+        if (confirmResult.isConfirmed) {
+          const payload = {
+            ...dataPurchase,
+            total_gb: totalGB,
+            amount_paid: customPrice
+          };
+          
+          const res = await api.post('/admin/purchase-data', payload);
+          if (res.data.success) {
+            toast.success(`Successfully purchased ${totalGB} GB from ${dataPurchase.network.toUpperCase()} for GHS ${customPrice.toFixed(2)}!`);
+            setShowDataPurchaseModal(false);
+            fetchMasterInventory();
+            fetchAfricasTalkingBalance();
+            setDataPurchase({
+              network: 'mtn',
+              size_gb: 10,
+              quantity: 1,
+              phone_number: COMPANY.phone,
+              customer_name: COMPANY.name
+            });
+          }
+        }
       }
     } catch (error) {
       toast.error(error.response?.data?.error || 'Purchase failed');
@@ -667,42 +1224,6 @@ export default function AdminDashboard() {
         });
       } catch (error) {
         toast.error('Failed to approve withdrawal');
-      }
-    }
-  };
-
-  // ========== MANUAL PAYMENT VERIFICATION ==========
-  const verifyManualPayment = async (paymentId, senderName, senderPhone) => {
-    try {
-      await api.post(`/admin/manual-payments/${paymentId}/verify`, { 
-        sender_name: senderName, 
-        sender_phone: senderPhone 
-      });
-      toast.success('Payment verified and wallet credited for Roamsmart user!');
-      fetchAllData();
-      fetchRecentActivities();
-    } catch (error) {
-      toast.error('Failed to verify payment');
-    }
-  };
-
-  const rejectManualPayment = async (paymentId) => {
-    const result = await Swal.fire({
-      title: 'Reject Payment?',
-      text: 'The user will be notified and will need to re-upload proof.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#dc3545',
-      confirmButtonText: 'Yes, Reject',
-      cancelButtonText: 'Cancel'
-    });
-    if (result.isConfirmed) {
-      try {
-        await api.post(`/admin/manual-payments/${paymentId}/reject`);
-        toast.success('Payment rejected');
-        fetchAllData();
-      } catch (error) {
-        toast.error('Failed to reject payment');
       }
     }
   };
@@ -847,35 +1368,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchRegionalStats = async () => {
-    try {
-      const res = await api.get('/admin/stats/regional');
-      setRegionalStats(res.data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch regional stats');
-    }
-  };
-
-  const fetchPredictions = async () => {
-    try {
-      const res = await api.get('/admin/predictions');
-      setPredictions(res.data.data || {
-        next_month_revenue: stats.total_revenue * 1.1 || 0,
-        peak_hour_prediction: '6 PM',
-        churn_risk_users: [],
-        demand_forecast: {}
-      });
-    } catch (error) {
-      console.error('Failed to fetch predictions');
-      setPredictions({
-        next_month_revenue: 0,
-        peak_hour_prediction: '6 PM',
-        churn_risk_users: [],
-        demand_forecast: {}
-      });
-    }
-  };
-
   // ========== EXPORT FUNCTIONS ==========
   const exportUsersToExcel = () => {
     const exportData = users.map(user => ({
@@ -897,21 +1389,30 @@ export default function AdminDashboard() {
     toast.success('Users exported from Roamsmart!');
   };
 
-  const exportOrdersToExcel = () => {
-    const exportData = allOrders.map(order => ({
-      'Order ID': order?.order_id || '',
-      Customer: order?.customer_phone || '',
-      Product: `${order?.network || ''} ${order?.size_gb || 0}GB`,
-      Amount: order?.amount || 0,
-      Status: order?.status || '',
-      Date: order?.created_at ? new Date(order.created_at).toLocaleString() : ''
-    }));
-    
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `Roamsmart_Orders`);
-    XLSX.writeFile(wb, `roamsmart_orders_export_${new Date().toISOString().split('T')[0]}.xlsx`);
-    toast.success('Orders exported from Roamsmart!');
+  // ========== ORDER FUNCTIONS ==========
+  const createOrder = async (orderData) => {
+    try {
+      const response = await api.post('/api/order', {
+        network: orderData.network,
+        size_gb: orderData.size_gb,
+        phone: orderData.phone,
+        payment_method: 'wallet',
+        quantity: orderData.quantity
+      });
+      
+      if (response.data.success) {
+        toast.success(response.data.message);
+        // Update user's wallet balance
+        // Show success with actual data delivered
+        if (response.data.data.actual_data_gb) {
+          toast.info(`You will receive ${response.data.data.actual_data_gb}GB per bundle`);
+        }
+        return response.data;
+      }
+    } catch (error) {
+      console.error('Order error:', error);
+      toast.error(error.response?.data?.error || 'Order failed');
+    }
   };
 
   // ========== CHART DATA ==========
@@ -921,7 +1422,6 @@ export default function AdminDashboard() {
     
     if (dateRange === 'week') {
       labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      // Use real data from stats or create endpoint /admin/stats/revenue?range=week
       data = [
         stats.monday_revenue || 0,
         stats.tuesday_revenue || 0,
@@ -1081,7 +1581,8 @@ export default function AdminDashboard() {
           <button className="btn-outline" onClick={() => setShowAnnouncementModal(true)}><FaBullhorn /> Broadcast</button>
           <button className="btn-outline" onClick={() => setShowCreateUserModal(true)}><FaUserPlus /> Add User</button>
           <button className="btn-outline" onClick={bulkAdjustWallet}><FaWallet /> Bulk Wallet</button>
-          <button className="btn-outline" onClick={() => setShowNetworkPurchaseModal(true)}><FaNetwork /> Buy from Network</button>
+          <button className="btn-primary" onClick={() => setShowNetworkPurchaseModal(true)}><FaNetworkWired /> Buy from Africa's Talking</button>
+          <button className="btn-outline" onClick={() => setShowDataPurchaseModal(true)}><FaDatabase /> Purchase Data</button>
           <button className="btn-outline" onClick={() => setShowWAECModal(true)}><FaGraduationCap /> Generate WAEC</button>
           <button className="btn-outline" onClick={() => setShowBackupModal(true)}><FaDatabase /> Backup</button>
           <button className="btn-outline" onClick={() => setShowSettingsModal(true)}><FaCog /> Settings</button>
@@ -1089,16 +1590,42 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Stats Grid - Same as before but with Roamsmart context */}
+      {/* Stats Grid with Africa's Talking Balance */}
       <div className="stats-grid">
         <div className="stat-card"><div className="stat-icon"><FaUsers /></div><div className="stat-value">{stats.total_users || 0}</div><div className="stat-label">Total Users</div></div>
         <div className="stat-card"><div className="stat-icon"><FaUserCheck /></div><div className="stat-value">{stats.total_agents || 0}</div><div className="stat-label">Total Agents</div></div>
         <div className="stat-card warning"><div className="stat-icon"><FaClock /></div><div className="stat-value">{stats.pending_agents || 0}</div><div className="stat-label">Pending Agents</div></div>
         <div className="stat-card success"><div className="stat-icon"><FaMoneyBillWave /></div><div className="stat-value">₵{(stats.total_revenue || 0).toFixed(2)}</div><div className="stat-label">Total Revenue</div></div>
-        <div className="stat-card"><div className="stat-icon"><FaShoppingCart /></div><div className="stat-value">{stats.total_orders || 0}</div><div className="stat-label">Total Orders</div></div>
-        <div className="stat-card danger"><div className="stat-icon"><FaHourglassHalf /></div><div className="stat-value">{stats.pending_manual || 0}</div><div className="stat-label">Pending Payments</div></div>
-        <div className="stat-card info"><div className="stat-icon"><FaBoxes /></div><div className="stat-value">{stats.total_data_sold_gb || 0} GB</div><div className="stat-label">Data Sold</div></div>
-        <div className="stat-card"><div className="stat-icon"><FaTrophy /></div><div className="stat-value">{stats.top_network || 'MTN'}</div><div className="stat-label">Top Network</div></div>
+        
+        {/* Africa's Talking Balance Card - Enhanced */}
+        <div className="stat-card africastalking-card">
+          <div className="stat-icon"><FaMobileAlt /></div>
+          <div className="stat-value">
+            {africasTalkingBalance.loading ? (
+              <FaSpinner className="spinning" />
+            ) : africasTalkingBalance.error ? (
+              <span className="text-danger" style={{ fontSize: '0.8rem' }}>Error</span>
+            ) : (
+              `${africasTalkingBalance.currency || 'GHS'} ${parseFloat(africasTalkingBalance.wallet_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            )}
+          </div>
+          <div className="stat-label">
+            Africa's Talking Wallet
+            {!africasTalkingBalance.loading && !africasTalkingBalance.error && (
+              <small style={{ display: 'block', fontSize: '0.65rem', marginTop: '5px' }}>
+                💬 SMS & 📱 Data Balance
+              </small>
+            )}
+          </div>
+          <button 
+            className="refresh-balance-btn" 
+            onClick={fetchAfricasTalkingBalance} 
+            disabled={africasTalkingBalance.loading}
+            title="Refresh Balance"
+          >
+            <FaSync className={africasTalkingBalance.loading ? 'spinning' : ''} />
+          </button>
+        </div>
       </div>
 
       {/* Second Row Stats */}
@@ -1110,6 +1637,87 @@ export default function AdminDashboard() {
         <div className="stat-card"><div className="stat-value">₵{(stats.customer_lifetime_value || 0).toFixed(2)}</div><div className="stat-label">Customer LTV</div></div>
         <div className="stat-card"><div className="stat-value">₵{(stats.customer_acquisition_cost || 0).toFixed(2)}</div><div className="stat-label">CAC</div></div>
       </div>
+
+      {/* Data Purchase Modal */}
+      <AnimatePresence>
+        {showDataPurchaseModal && (
+          <motion.div className="modal-overlay" onClick={() => setShowDataPurchaseModal(false)}>
+            <motion.div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+              <button className="modal-close" onClick={() => setShowDataPurchaseModal(false)}>×</button>
+              <h3><FaNetworkWired /> Purchase Data from Network</h3>
+              
+              <div className="form-group">
+                <label>Select Network</label>
+                <select 
+                  value={dataPurchase.network} 
+                  onChange={(e) => setDataPurchase({...dataPurchase, network: e.target.value})} 
+                  className="form-control"
+                >
+                  <option value="mtn">MTN</option>
+                  <option value="telecel">Telecel</option>
+                  <option value="airteltigo">AirtelTigo</option>
+                </select>
+              </div>
+              
+              <div className="form-group">
+                <label>Bundle Size (GB per unit)</label>
+                <select 
+                  value={dataPurchase.size_gb} 
+                  onChange={(e) => setDataPurchase({...dataPurchase, size_gb: parseInt(e.target.value)})} 
+                  className="form-control"
+                >
+                  <option value={1}>1 GB per unit</option>
+                  <option value={2}>2 GB per unit</option>
+                  <option value={5}>5 GB per unit</option>
+                  <option value={10}>10 GB per unit</option>
+                  <option value={20}>20 GB per unit</option>
+                  <option value={50}>50 GB per unit</option>
+                  <option value={100}>100 GB per unit</option>
+                </select>
+              </div>
+              
+              <div className="form-group">
+                <label>Quantity</label>
+                <input 
+                  type="number" 
+                  value={dataPurchase.quantity} 
+                  onChange={(e) => setDataPurchase({...dataPurchase, quantity: parseInt(e.target.value)})} 
+                  className="form-control" 
+                  min="1" 
+                  max="100"
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>Phone Number (for delivery)</label>
+                <input 
+                  type="tel" 
+                  value={dataPurchase.phone_number} 
+                  onChange={(e) => setDataPurchase({...dataPurchase, phone_number: e.target.value})} 
+                  className="form-control" 
+                  placeholder="024XXXXXXX"
+                />
+              </div>
+              
+              <div className="price-summary" style={{ background: '#f0f8ff', padding: '15px', borderRadius: '8px', margin: '15px 0' }}>
+                <p><strong>📊 Summary:</strong></p>
+                <p>Bundle: {dataPurchase.size_gb} GB × {dataPurchase.quantity} = <strong>{dataPurchase.size_gb * dataPurchase.quantity} GB</strong></p>
+                <p className="text-muted" style={{ fontSize: '12px', marginTop: '10px' }}>
+                  💡 <strong>Note:</strong> You will be asked to enter the amount you want to pay in the next step.
+                  The amount will be deducted from your Africa's Talking balance.
+                </p>
+              </div>
+              
+              <div className="modal-actions">
+                <button className="btn-secondary" onClick={() => setShowDataPurchaseModal(false)}>Cancel</button>
+                <button className="btn-primary" onClick={purchaseDataFromNetwork}>
+                  <FaNetworkWired /> Continue to Payment
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Charts Row */}
       <div className="charts-row">
@@ -1131,7 +1739,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Admin Tabs - Same structure */}
+      {/* Admin Tabs */}
       <div className="admin-tabs">
         <button className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}><FaChartLine /> Overview</button>
         <button className={`tab-btn ${activeTab === 'applications' ? 'active' : ''}`} onClick={() => setActiveTab('applications')}><FaUserPlus /> Agent Applications ({agentApplications.length})</button>
@@ -1153,7 +1761,9 @@ export default function AdminDashboard() {
           <h3>Pending Agent Applications</h3>
           <div className="table-responsive">
             <table className="data-table">
-              <thead><tr><th>User</th><th>Phone</th><th>Email</th><th>Amount Paid</th><th>Reference</th><th>Date</th><th>Actions</th></tr></thead>
+              <thead>
+                <tr><th>User</th><th>Phone</th><th>Email</th><th>Amount Paid</th><th>Reference</th><th>Date</th><th>Actions</th></tr>
+              </thead>
               <tbody>
                 {agentApplications.map(app => (
                   <tr key={app.id}>
@@ -1167,12 +1777,16 @@ export default function AdminDashboard() {
                       <button className="btn-success btn-sm" onClick={() => approveAgentApplication(app.id)}><FaCheckCircle /> Approve</button>
                       <button className="btn-danger btn-sm" onClick={() => rejectAgentApplication(app.id)}><FaTimesCircle /> Reject</button>
                       {app?.payment_proof_url && (
-                        <a href={app.payment_proof_url} target="_blank" rel="noopener noreferrer" className="btn-info btn-sm"><FaEye /> Proof</a>
+                        <button className="btn-info btn-sm" onClick={() => window.open(app.payment_proof_url, '_blank')}><FaEye /> Proof</button>
                       )}
                     </td>
                   </tr>
                 ))}
-                {agentApplications.length === 0 && <tr><td colSpan="7" className="text-center">No pending applications</td></tr>}
+                {agentApplications.length === 0 && (
+                  <tr>
+                    <td colSpan="7" className="text-center">No pending applications</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -1185,7 +1799,9 @@ export default function AdminDashboard() {
           <div className="panel-header"><h3>Pending Agent Requests</h3>{agentRequests.length > 0 && <button className="btn-primary btn-sm" onClick={() => setShowBulkApproveModal(true)}>Bulk Approve ({agentRequests.length})</button>}</div>
           <div className="table-responsive">
             <table className="data-table">
-              <thead><tr><th><input type="checkbox" onChange={(e) => setSelectedRequests(e.target.checked ? agentRequests.map(r => r.id) : [])} /></th><th>User</th><th>Phone</th><th>Amount</th><th>Reference</th><th>Date</th><th>Actions</th></tr></thead>
+              <thead>
+                <tr><th><input type="checkbox" onChange={(e) => setSelectedRequests(e.target.checked ? agentRequests.map(r => r.id) : [])} /></th><th>User</th><th>Phone</th><th>Amount</th><th>Reference</th><th>Date</th><th>Actions</th></tr>
+              </thead>
               <tbody>
                 {agentRequests.map(req => (
                   <tr key={req.id}>
@@ -1209,28 +1825,132 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ========== MANUAL PAYMENTS TAB ========== */}
+      {/* ========== MANUAL PAYMENTS TAB - SIMPLIFIED ONE-CLICK APPROVAL ========== */}
       {activeTab === 'payments' && (
         <div className="panel">
-          <h3>Pending Manual Payments</h3>
+          <div className="panel-header">
+            <h3>Pending Manual Payments ({manualPayments.length})</h3>
+            <div className="header-actions">
+              {selectedPaymentIds.length > 0 && (
+                <button 
+                  className="btn-success btn-sm" 
+                  onClick={() => setShowBatchApproveModal(true)}
+                >
+                  <FaCheckCircle /> Approve Selected ({selectedPaymentIds.length})
+                </button>
+              )}
+              <button className="btn-outline btn-sm" onClick={() => fetchAllData()}>
+                <FaSync /> Refresh
+              </button>
+            </div>
+          </div>
+          
           <div className="table-responsive">
             <table className="data-table">
-              <thead><tr><th>User</th><th>Amount</th><th>Reference</th><th>Proof</th><th>Date</th><th>Actions</th></tr></thead>
+              <thead>
+                <tr>
+                  <th style={{ width: '40px' }}>
+                    <input 
+                      type="checkbox" 
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedPaymentIds(manualPayments.map(p => p.id));
+                        } else {
+                          setSelectedPaymentIds([]);
+                        }
+                      }}
+                      checked={selectedPaymentIds.length === manualPayments.length && manualPayments.length > 0}
+                    />
+                  </th>
+                  <th>User</th>
+                  <th>Amount</th>
+                  <th>Reference</th>
+                  <th>Proof</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
               <tbody>
                 {manualPayments.map(pay => (
-                  <tr key={pay.id}>
-                    <td><strong>{pay?.username || 'Unknown'}</strong><br/><small>{pay?.phone || ''}</small></td>
-                    <td className="amount">₵{pay?.amount || 0}</td>
-                    <td><code>{pay?.reference || 'N/A'}</code></td>
-                    <td>{pay?.proof_url && <a href={pay.proof_url} target="_blank"><FaEye /> View</a>}</td>
-                    <td>{pay?.created_at ? new Date(pay.created_at).toLocaleString() : 'N/A'}</td>
+                  <tr key={pay.id} className={selectedPaymentIds.includes(pay.id) ? 'selected-row' : ''}>
+                    <td>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedPaymentIds.includes(pay.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedPaymentIds([...selectedPaymentIds, pay.id]);
+                          } else {
+                            setSelectedPaymentIds(selectedPaymentIds.filter(id => id !== pay.id));
+                          }
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <strong>{pay?.username || 'Unknown User'}</strong>
+                      <br/>
+                      <small className="text-muted">{pay?.phone || 'No phone'}</small>
+                    </td>
+                    <td className="amount">
+                      <strong className="text-success">₵{pay?.amount || 0}</strong>
+                    </td>
+                    <td>
+                      <code className="reference-code">{pay?.reference || 'N/A'}</code>
+                    </td>
+                    <td className="proof-cell">
+                      {pay?.proof_url ? (
+                        <div className="proof-actions">
+                          <button 
+                            className="btn-info btn-sm" 
+                            onClick={() => viewPaymentProof(pay.proof_url)}
+                            title="View Proof"
+                          >
+                            <FaEye /> View
+                          </button>
+                          <button 
+                            className="btn-primary btn-sm" 
+                            onClick={() => downloadProofDocument(pay.proof_url, `payment_proof_${pay.reference}`)}
+                            title="Download Proof"
+                          >
+                            <FaDownload /> Download
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-muted">No proof</span>
+                      )}
+                    </td>
+                    <td>
+                      {pay?.created_at ? new Date(pay.created_at).toLocaleString() : 'N/A'}
+                    </td>
                     <td className="actions">
-                      <button className="btn-success btn-sm" onClick={() => { Swal.fire({ title: 'Verify Payment', html: `<input id="sender_name" class="swal2-input" placeholder="Sender Name"><input id="sender_phone" class="swal2-input" placeholder="Sender Phone">`, preConfirm: () => ({ sender_name: document.getElementById('sender_name').value, sender_phone: document.getElementById('sender_phone').value }) }).then(result => { if (result.value) verifyManualPayment(pay.id, result.value.sender_name, result.value.sender_phone); }); }}><FaCheckCircle /> Verify</button>
-                      <button className="btn-danger btn-sm" onClick={() => rejectManualPayment(pay.id)}><FaTimesCircle /> Reject</button>
+                      <button 
+                        className="btn-success btn-sm" 
+                        onClick={() => approvePaymentSimple(pay)}
+                        title="One-click approve - wallet will be credited automatically"
+                      >
+                        <FaCheckCircle /> Approve
+                      </button>
+                      <button 
+                        className="btn-danger btn-sm" 
+                        onClick={() => rejectManualPayment(pay.id)}
+                        title="Reject Payment"
+                      >
+                        <FaTimesCircle /> Reject
+                      </button>
                     </td>
                   </tr>
                 ))}
-                {manualPayments.length === 0 && <tr><td colSpan="6" className="text-center">No pending payments</td></tr>}
+                {manualPayments.length === 0 && (
+                  <tr>
+                    <td colSpan="7" className="text-center">
+                      <div className="empty-state">
+                        <FaWallet size={40} color="#ccc" />
+                        <p>No pending manual payments</p>
+                        <small>All payments have been processed</small>
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -1243,7 +1963,9 @@ export default function AdminDashboard() {
           <h3>Withdrawal Requests</h3>
           <div className="table-responsive">
             <table className="data-table">
-              <thead><tr><th>Agent</th><th>Amount</th><th>Mobile Money</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+              <thead>
+                <tr><th>Agent</th><th>Amount</th><th>Mobile Money</th><th>Date</th><th>Status</th><th>Actions</th></tr>
+              </thead>
               <tbody>
                 {withdrawals.map(w => (
                   <tr key={w.id}>
@@ -1268,7 +1990,9 @@ export default function AdminDashboard() {
           <div className="panel-header"><h3>All Users</h3><div className="search-box"><FaSearch /><input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div></div>
           <div className="table-responsive">
             <table className="data-table">
-              <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Phone</th><th>Role</th><th>Wallet</th><th>Total Spent</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
+              <thead>
+                <tr><th>ID</th><th>Username</th><th>Email</th><th>Phone</th><th>Role</th><th>Wallet</th><th>Total Spent</th><th>Joined</th><th>Status</th><th>Actions</th></tr>
+              </thead>
               <tbody>
                 {users.filter(u => u?.username?.toLowerCase().includes(searchTerm.toLowerCase()) || u?.email?.toLowerCase().includes(searchTerm.toLowerCase()) || u?.phone?.includes(searchTerm)).map(user => (
                   <tr key={user.id}>
@@ -1300,7 +2024,9 @@ export default function AdminDashboard() {
           <h3>All Agents</h3>
           <div className="table-responsive">
             <table className="data-table">
-              <thead><tr><th>Agent Name</th><th>Phone</th><th>Email</th><th>Total Sales</th><th>Commission Earned</th><th>Withdrawn</th><th>Tier</th><th>Joined</th><th>Actions</th></tr></thead>
+              <thead>
+                <tr><th>Agent Name</th><th>Phone</th><th>Email</th><th>Total Sales</th><th>Commission Earned</th><th>Withdrawn</th><th>Tier</th><th>Joined</th><th>Actions</th></tr>
+              </thead>
               <tbody>
                 {agents.map(agent => (
                   <tr key={agent.id}>
@@ -1332,7 +2058,9 @@ export default function AdminDashboard() {
           </div>
           <div className="table-responsive">
             <table className="data-table">
-              <thead><tr><th>Voucher Code</th><th>Serial Number</th><th>PIN</th><th>Exam Type</th><th>Year</th><th>Status</th><th>Purchased By</th><th>Date</th></tr></thead>
+              <thead>
+                <tr><th>Voucher Code</th><th>Serial Number</th><th>PIN</th><th>Exam Type</th><th>Year</th><th>Status</th><th>Purchased By</th><th>Date</th></tr>
+              </thead>
               <tbody>
                 {waecVouchers.slice(0, 50).map(v => (
                   <tr key={v.id}>
@@ -1364,7 +2092,9 @@ export default function AdminDashboard() {
           </div>
           <div className="table-responsive">
             <table className="data-table">
-              <thead><tr><th>Reference</th><th>Biller</th><th>Account Number</th><th>Amount</th><th>Customer</th><th>Status</th><th>Date</th></tr></thead>
+              <thead>
+                <tr><th>Reference</th><th>Biller</th><th>Account Number</th><th>Amount</th><th>Customer</th><th>Status</th><th>Date</th></tr>
+              </thead>
               <tbody>
                 {billPayments.map(p => (
                   <tr key={p.id}>
@@ -1410,7 +2140,9 @@ export default function AdminDashboard() {
           <h3>KYC Verification Requests</h3>
           <div className="table-responsive">
             <table className="data-table">
-              <thead><tr><th>User</th><th>Document Type</th><th>Document Number</th><th>Submitted</th><th>Actions</th></tr></thead>
+              <thead>
+                <tr><th>User</th><th>Document Type</th><th>Document Number</th><th>Submitted</th><th>Actions</th></tr>
+              </thead>
               <tbody>
                 {kycRequests.map(kyc => (
                   <tr key={kyc.id}>
@@ -1419,7 +2151,7 @@ export default function AdminDashboard() {
                     <td>{kyc?.document_number || 'N/A'}</td>
                     <td>{kyc?.created_at ? new Date(kyc.created_at).toLocaleString() : 'N/A'}</td>
                     <td className="actions">
-                      <a href={kyc?.document_url} target="_blank" className="btn-info btn-sm"><FaEye /> View</a>
+                      <button className="btn-info btn-sm" onClick={() => window.open(kyc?.document_url, '_blank')}><FaEye /> View</button>
                       <button className="btn-success btn-sm" onClick={() => verifyKyc(kyc.id, 'approved')}><FaCheckCircle /> Approve</button>
                       <button className="btn-danger btn-sm" onClick={() => verifyKyc(kyc.id, 'rejected')}><FaTimesCircle /> Reject</button>
                     </td>
@@ -1438,7 +2170,9 @@ export default function AdminDashboard() {
           <div className="panel-header"><h3>Webhook Configuration</h3><button className="btn-primary btn-sm" onClick={() => setShowWebhookModal(true)}><FaPlug /> Add Webhook</button></div>
           <div className="table-responsive">
             <table className="data-table">
-              <thead><tr><th>URL</th><th>Events</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+              <thead>
+                <tr><th>URL</th><th>Events</th><th>Status</th><th>Created</th><th>Actions</th></tr>
+              </thead>
               <tbody>
                 {webhooks.map(webhook => (
                   <tr key={webhook.id}>
@@ -1469,37 +2203,153 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Settings Modal - UPDATED with Roamsmart */}
-      <AnimatePresence>{showSettingsModal && (<motion.div className="modal-overlay" onClick={() => setShowSettingsModal(false)}><motion.div className="modal-content settings-modal" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowSettingsModal(false)}>×</button><h3><FaCog /> {COMPANY.name} System Settings</h3><div className="settings-grid"><div className="setting-group"><h4>Commission Rates</h4><label>Bronze: <input type="number" value={systemSettings.commission_rates?.bronze || 10} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, bronze: parseInt(e.target.value)}})} /></label><label>Silver: <input type="number" value={systemSettings.commission_rates?.silver || 15} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, silver: parseInt(e.target.value)}})} /></label><label>Gold: <input type="number" value={systemSettings.commission_rates?.gold || 20} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, gold: parseInt(e.target.value)}})} /></label><label>Platinum: <input type="number" value={systemSettings.commission_rates?.platinum || 25} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, platinum: parseInt(e.target.value)}})} /></label></div><div className="setting-group"><h4>WAEC & Bills</h4><label>WAEC Commission: <input type="number" value={systemSettings.waec_commission || 10} onChange={(e) => setSystemSettings({...systemSettings, waec_commission: parseInt(e.target.value)})} />%</label><label>Bill Commission: <input type="number" value={systemSettings.bill_commission || 5} onChange={(e) => setSystemSettings({...systemSettings, bill_commission: parseInt(e.target.value)})} />%</label></div><div className="setting-group"><h4>Support Contact</h4><label>Support Email: <input type="email" value={systemSettings.support_email} onChange={(e) => setSystemSettings({...systemSettings, support_email: e.target.value})} /></label><label>Support Phone: <input type="tel" value={systemSettings.support_phone} onChange={(e) => setSystemSettings({...systemSettings, support_phone: e.target.value})} /></label></div></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowSettingsModal(false)}>Cancel</button><button className="btn-primary" onClick={() => { api.put('/admin/settings', systemSettings); toast.success(`${COMPANY.shortName} settings saved`); setShowSettingsModal(false); }}>Save Settings</button></div></motion.div></motion.div>)}</AnimatePresence>
-
-      {/* ========== MODALS ========== */}
+      {/* ========== ALL MODALS ========== */}
 
       {/* Announcement Modal */}
       <AnimatePresence>{showAnnouncementModal && (<motion.div className="modal-overlay" onClick={() => setShowAnnouncementModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowAnnouncementModal(false)}>×</button><h3><FaBullhorn /> Create Announcement</h3><div className="form-group"><label>Message</label><textarea value={announcement.message} onChange={(e) => setAnnouncement({...announcement, message: e.target.value})} className="form-control" rows="3" /></div><div className="form-group"><label>Type</label><select value={announcement.type} onChange={(e) => setAnnouncement({...announcement, type: e.target.value})} className="form-control"><option value="info">ℹ️ Info</option><option value="warning">⚠️ Warning</option><option value="error">🚨 Critical</option><option value="success">✅ Success</option></select></div><div className="form-group"><label>Affected Network</label><select value={announcement.network_affected} onChange={(e) => setAnnouncement({...announcement, network_affected: e.target.value})} className="form-control"><option value="all">All Networks</option><option value="mtn">MTN</option><option value="telecel">Telecel</option><option value="airteltigo">AirtelTigo</option></select></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowAnnouncementModal(false)}>Cancel</button><button className="btn-primary" onClick={createAnnouncement}>Publish</button></div></motion.div></motion.div>)}</AnimatePresence>
 
       {/* Create User Modal */}
-      <AnimatePresence>{showCreateUserModal && (<motion.div className="modal-overlay" onClick={() => setShowCreateUserModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowCreateUserModal(false)}>×</button><h3><FaUserPlus /> Create User</h3><div className="form-group"><label>Username *</label><input type="text" value={newUser.username} onChange={(e) => setNewUser({...newUser, username: e.target.value})} className="form-control" /></div><div className="form-group"><label>Email *</label><input type="email" value={newUser.email} onChange={(e) => setNewUser({...newUser, email: e.target.value})} className="form-control" /></div><div className="form-group"><label>Phone *</label><input type="tel" value={newUser.phone} onChange={(e) => setNewUser({...newUser, phone: e.target.value})} className="form-control" /></div><div className="form-group"><label>Password</label><input type="password" value={newUser.password} onChange={(e) => setNewUser({...newUser, password: e.target.value})} className="form-control" /></div><div className="form-group"><label>Role</label><select value={newUser.role} onChange={(e) => setNewUser({...newUser, role: e.target.value})} className="form-control"><option value="user">User</option><option value="agent">Agent</option><option value="admin">Admin</option></select></div><div className="form-group"><label>Initial Wallet Balance</label><input type="number" value={newUser.wallet_balance} onChange={(e) => setNewUser({...newUser, wallet_balance: parseFloat(e.target.value)})} className="form-control" /></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowCreateUserModal(false)}>Cancel</button><button className="btn-primary" onClick={createUser}>Create User</button></div></motion.div></motion.div>)}</AnimatePresence>
+      <AnimatePresence>{showCreateUserModal && (<motion.div className="modal-overlay" onClick={() => setShowCreateUserModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowCreateUserModal(false)}>×</button><h3><FaUserPlus /> Create User</h3><div className="form-group"><label>Username *</label><input type="text" value={newUser.username} onChange={(e) => setNewUser({...newUser, username: e.target.value})} className="form-control" /></div><div className="form-group"><label>Email *</label><input type="email" value={newUser.email} onChange={(e) => setNewUser({...newUser, email: e.target.value})} className="form-control" /></div><div className="form-group"><label>Phone *</label><input type="tel" value={newUser.phone} onChange={(e) => setNewUser({...newUser, phone: e.target.value})} className="form-control" /></div><div className="form-group"><label>Password</label><input type="password" value={newUser.password} onChange={(e) => setNewUser({...newUser, password: e.target.value})} className="form-control" placeholder="Leave blank for auto-generated" /></div><div className="form-group"><label>Role</label><select value={newUser.role} onChange={(e) => setNewUser({...newUser, role: e.target.value})} className="form-control"><option value="user">User</option><option value="agent">Agent</option><option value="admin">Admin</option></select></div><div className="form-group"><label>Initial Wallet Balance</label><input type="number" value={newUser.wallet_balance} onChange={(e) => setNewUser({...newUser, wallet_balance: parseFloat(e.target.value)})} className="form-control" /></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowCreateUserModal(false)}>Cancel</button><button className="btn-primary" onClick={createUser}>Create User</button></div></motion.div></motion.div>)}</AnimatePresence>
 
       {/* Bulk Approve Modal */}
       <AnimatePresence>{showBulkApproveModal && (<motion.div className="modal-overlay" onClick={() => setShowBulkApproveModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowBulkApproveModal(false)}>×</button><h3><FaUserCheck /> Bulk Approve Agents</h3><p>Approve <strong>{selectedRequests.length}</strong> agent requests</p><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowBulkApproveModal(false)}>Cancel</button><button className="btn-primary" onClick={bulkApproveAgents}>Approve All</button></div></motion.div></motion.div>)}</AnimatePresence>
 
+      {/* Batch Approve Payments Modal */}
+      <AnimatePresence>{showBatchApproveModal && (<motion.div className="modal-overlay" onClick={() => setShowBatchApproveModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowBatchApproveModal(false)}>×</button><h3><FaCheckCircle /> Batch Approve Payments</h3><div style={{ margin: '20px 0' }}><p>You are about to approve <strong>{selectedPaymentIds.length}</strong> payments.</p><div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', margin: '15px 0', maxHeight: '300px', overflowY: 'auto' }}><table style={{ width: '100%', fontSize: '14px' }}><thead><tr><th>User</th><th>Amount</th><th>Reference</th></tr></thead><tbody>{manualPayments.filter(p => selectedPaymentIds.includes(p.id)).map(p => (<tr key={p.id}><td>{p.username}</td><td>₵{p.amount}</td><td><code>{p.reference}</code></td></tr>))}</tbody><tfoot><tr style={{ borderTop: '2px solid #ddd' }}><td><strong>Total:</strong></td><td><strong>₵{manualPayments.filter(p => selectedPaymentIds.includes(p.id)).reduce((sum, p) => sum + (p.amount || 0), 0).toFixed(2)}</strong></td><td></td></tr></tfoot></table></div><p style={{ color: '#ff9800' }}>⚠️ All selected users will be credited automatically.</p></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowBatchApproveModal(false)}>Cancel</button><button className="btn-success" onClick={batchApprovePayments}><FaCheckCircle /> Approve All ({selectedPaymentIds.length})</button></div></motion.div></motion.div>)}</AnimatePresence>
+
       {/* WAEC Generate Modal */}
       <AnimatePresence>{showWAECModal && (<motion.div className="modal-overlay" onClick={() => setShowWAECModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowWAECModal(false)}>×</button><h3><FaGraduationCap /> Generate WAEC Vouchers</h3><div className="form-group"><label>Exam Type</label><select value={newWAEC.exam_type} onChange={(e) => setNewWAEC({...newWAEC, exam_type: e.target.value})} className="form-control"><option value="WASSCE">WASSCE</option><option value="BECE">BECE</option><option value="SHS Placement">SHS Placement</option></select></div><div className="form-group"><label>Year</label><input type="number" value={newWAEC.year} onChange={(e) => setNewWAEC({...newWAEC, year: parseInt(e.target.value)})} className="form-control" /></div><div className="form-group"><label>Quantity</label><input type="number" value={newWAEC.quantity} onChange={(e) => setNewWAEC({...newWAEC, quantity: parseInt(e.target.value)})} className="form-control" /></div><div className="form-row"><div className="form-group"><label>Retail Price (₵)</label><input type="number" step="0.5" value={newWAEC.retail_price} onChange={(e) => setNewWAEC({...newWAEC, retail_price: parseFloat(e.target.value)})} className="form-control" /></div><div className="form-group"><label>Agent Price (₵)</label><input type="number" step="0.5" value={newWAEC.agent_price} onChange={(e) => setNewWAEC({...newWAEC, agent_price: parseFloat(e.target.value)})} className="form-control" /></div></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowWAECModal(false)}>Cancel</button><button className="btn-primary" onClick={generateWAECVouchers}>Generate</button></div></motion.div></motion.div>)}</AnimatePresence>
 
-      {/* Network Purchase Modal */}
-      <AnimatePresence>{showNetworkPurchaseModal && (<motion.div className="modal-overlay" onClick={() => setShowNetworkPurchaseModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowNetworkPurchaseModal(false)}>×</button><h3><FaNetwork /> Purchase from Network Provider</h3><div className="form-group"><label>Network</label><select value={networkPurchase.network} onChange={(e) => setNetworkPurchase({...networkPurchase, network: e.target.value})} className="form-control"><option value="mtn">MTN</option><option value="telecel">Telecel</option><option value="airteltigo">AirtelTigo</option></select></div><div className="form-group"><label>Bundle Size (GB)</label><select value={networkPurchase.size_gb} onChange={(e) => setNetworkPurchase({...networkPurchase, size_gb: parseInt(e.target.value)})} className="form-control"><option value={1}>1 GB - ₵3.50</option><option value={2}>2 GB - ₵5.50</option><option value={5}>5 GB - ₵13.00</option><option value={10}>10 GB - ₵25.00</option><option value={20}>20 GB - ₵48.00</option></select></div><div className="form-group"><label>Quantity</label><input type="number" value={networkPurchase.quantity} onChange={(e) => setNetworkPurchase({...networkPurchase, quantity: parseInt(e.target.value)})} className="form-control" min="1" max="100" /></div><div className="price-summary"><p>Total GB: {networkPurchase.size_gb * networkPurchase.quantity} GB</p><p>Total Cost: ₵{(networkPurchase.size_gb === 1 ? 3.5 : networkPurchase.size_gb === 2 ? 5.5 : networkPurchase.size_gb === 5 ? 13 : networkPurchase.size_gb === 10 ? 25 : 48) * networkPurchase.quantity}</p></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowNetworkPurchaseModal(false)}>Cancel</button><button className="btn-primary" onClick={purchaseFromNetwork}>Purchase</button></div></motion.div></motion.div>)}</AnimatePresence>
+      {/* Network Purchase Modal - Updated for Africa's Talking */}
+      <AnimatePresence>
+        {showNetworkPurchaseModal && (
+          <motion.div className="modal-overlay" onClick={() => setShowNetworkPurchaseModal(false)}>
+            <motion.div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '550px' }}>
+              <button className="modal-close" onClick={() => setShowNetworkPurchaseModal(false)}>×</button>
+              <h3><FaNetworkWired /> Purchase from Africa's Talking</h3>
+              
+              <div className="form-group">
+                <label>Product Type</label>
+                <select 
+                  value={networkPurchase.product_type || 'data'} 
+                  onChange={(e) => setNetworkPurchase({...networkPurchase, product_type: e.target.value})} 
+                  className="form-control"
+                >
+                  <option value="data">📱 Mobile Data (Product ID: 1752)</option>
+                  <option value="sms">💬 SMS Credits</option>
+                </select>
+              </div>
+              
+              {networkPurchase.product_type === 'data' ? (
+                <>
+                  <div className="form-group">
+                    <label>Network</label>
+                    <select 
+                      value={networkPurchase.network} 
+                      onChange={(e) => setNetworkPurchase({...networkPurchase, network: e.target.value})} 
+                      className="form-control"
+                    >
+                      <option value="mtn">MTN</option>
+                      <option value="telecel">Telecel</option>
+                      <option value="airteltigo">AirtelTigo</option>
+                    </select>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label>Bundle Size (GB)</label>
+                    <select 
+                      value={networkPurchase.size_gb} 
+                      onChange={(e) => setNetworkPurchase({...networkPurchase, size_gb: parseFloat(e.target.value)})} 
+                      className="form-control"
+                    >
+                      <option value={0.02}>20.46 MB (0.02 GB) - GHS 0.49</option>
+                      <option value={0.04}>40.91 MB (0.04 GB) - GHS 0.99</option>
+                      <option value={0.39}>401.63 MB (0.39 GB) - GHS 2.97</option>
+                      <option value={0.81}>826.72 MB (0.81 GB) - GHS 9.90</option>
+                      <option value={104}>106.81 GB - GHS 346.62</option>
+                      <option value={209}>214.53 GB - GHS 395.14</option>
+                    </select>
+                    <small>MTN available bundles</small>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label>Quantity</label>
+                    <input 
+                      type="number" 
+                      value={networkPurchase.quantity} 
+                      onChange={(e) => setNetworkPurchase({...networkPurchase, quantity: parseInt(e.target.value)})} 
+                      className="form-control" 
+                      min="1" 
+                      max="100"
+                    />
+                  </div>
+                  
+                  <div className="form-group">
+                    <label>Delivery Phone Number</label>
+                    <input 
+                      type="tel" 
+                      value={networkPurchase.phone_number} 
+                      onChange={(e) => setNetworkPurchase({...networkPurchase, phone_number: e.target.value})} 
+                      className="form-control" 
+                      placeholder="024XXXXXXX"
+                    />
+                    <small>Africa's Talking will deliver data to this number</small>
+                  </div>
+                  
+                  <div className="price-summary" style={{ background: '#f0f8ff', padding: '15px', borderRadius: '8px', margin: '15px 0' }}>
+                    <p><strong>📊 Purchase Summary:</strong></p>
+                    <p>Network: {networkPurchase.network?.toUpperCase()}</p>
+                    <p>Bundle: {networkPurchase.size_gb} GB × {networkPurchase.quantity} = <strong>{networkPurchase.size_gb * networkPurchase.quantity} GB</strong></p>
+                    <p>Total Cost: <strong className="text-success">GHS {calculateTotalPrice(networkPurchase.network, networkPurchase.size_gb, networkPurchase.quantity)}</strong></p>
+                    <small className="text-muted">⚠️ This will be deducted from Africa's Talking wallet balance</small>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="form-group">
+                    <label>SMS Quantity</label>
+                    <input 
+                      type="number" 
+                      value={networkPurchase.sms_quantity || 0} 
+                      onChange={(e) => setNetworkPurchase({...networkPurchase, sms_quantity: parseInt(e.target.value)})} 
+                      className="form-control" 
+                      min="1" 
+                      max="100000"
+                      placeholder="Number of SMS credits"
+                    />
+                    <small>Each SMS costs GHS 0.05 - GHS 0.10 depending on destination</small>
+                  </div>
+                  
+                  <div className="price-summary" style={{ background: '#f0f8ff', padding: '15px', borderRadius: '8px', margin: '15px 0' }}>
+                    <p><strong>📊 Purchase Summary:</strong></p>
+                    <p>SMS Credits: <strong>{networkPurchase.sms_quantity || 0}</strong></p>
+                    <p>Total Cost: <strong className="text-success">GHS {((networkPurchase.sms_quantity || 0) * 0.05).toFixed(2)}</strong></p>
+                  </div>
+                </>
+              )}
+              
+              <div className="modal-actions">
+                <button className="btn-secondary" onClick={() => setShowNetworkPurchaseModal(false)}>Cancel</button>
+                <button className="btn-primary" onClick={purchaseFromNetwork}>
+                  <FaNetworkWired /> Purchase from Africa's Talking
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Backup Modal */}
       <AnimatePresence>{showBackupModal && (<motion.div className="modal-overlay" onClick={() => setShowBackupModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowBackupModal(false)}>×</button><h3><FaDatabase /> Backup Management</h3>{backupProgress > 0 && <div className="progress-bar"><div className="progress-fill" style={{ width: `${backupProgress}%` }}></div><span>{backupProgress}%</span></div>}<button className="btn-primary" onClick={createBackup}><FaCloudUploadAlt /> Create New Backup</button><h4>Existing Backups</h4><div className="backups-list">{backups.map(backup => (<div key={backup.id} className="backup-item"><div className="backup-info"><FaDatabase /><span>{backup?.filename || 'Unknown'}</span><small>{backup?.created_at ? new Date(backup.created_at).toLocaleString() : 'N/A'}</small><span>{backup?.size ? `${(backup.size / 1024).toFixed(2)} KB` : '0 KB'}</span></div><button className="btn-danger btn-sm" onClick={() => restoreBackup(backup.id)}><FaUndo /> Restore</button></div>))}</div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowBackupModal(false)}>Close</button></div></motion.div></motion.div>)}</AnimatePresence>
 
       {/* Webhook Modal */}
-      <AnimatePresence>{showWebhookModal && (<motion.div className="modal-overlay" onClick={() => setShowWebhookModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowWebhookModal(false)}>×</button><h3><FaPlug /> Add Webhook</h3><div className="form-group"><label>URL</label><input type="url" value={newWebhook.url} onChange={(e) => setNewWebhook({...newWebhook, url: e.target.value})} className="form-control" /></div><div className="form-group"><label>Events</label><select multiple value={newWebhook.events} onChange={(e) => setNewWebhook({...newWebhook, events: Array.from(e.target.selectedOptions, o => o.value)})} className="form-control"><option value="order.created">Order Created</option><option value="order.completed">Order Completed</option><option value="payment.received">Payment Received</option><option value="agent.approved">Agent Approved</option></select></div><div className="form-group"><label>Secret</label><input type="text" value={newWebhook.secret} onChange={(e) => setNewWebhook({...newWebhook, secret: e.target.value})} className="form-control" /></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowWebhookModal(false)}>Cancel</button><button className="btn-primary" onClick={createWebhook}>Create</button></div></motion.div></motion.div>)}</AnimatePresence>
+      <AnimatePresence>{showWebhookModal && (<motion.div className="modal-overlay" onClick={() => setShowWebhookModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowWebhookModal(false)}>×</button><h3><FaPlug /> Add Webhook</h3><div className="form-group"><label>URL</label><input type="url" value={newWebhook.url} onChange={(e) => setNewWebhook({...newWebhook, url: e.target.value})} className="form-control" /></div><div className="form-group"><label>Events</label><select multiple value={newWebhook.events} onChange={(e) => setNewWebhook({...newWebhook, events: Array.from(e.target.selectedOptions, o => o.value)})} className="form-control"><option value="order.created">Order Created</option><option value="order.completed">Order Completed</option><option value="payment.received">Payment Received</option><option value="agent.approved">Agent Approved</option></select></div><div className="form-group"><label>Secret</label><input type="text" value={newWebhook.secret} onChange={(e) => setNewWebhook({...newWebhook, secret: e.target.value})} className="form-control" placeholder="Optional webhook secret" /></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowWebhookModal(false)}>Cancel</button><button className="btn-primary" onClick={createWebhook}>Create</button></div></motion.div></motion.div>)}</AnimatePresence>
 
       {/* User Details Modal */}
       <AnimatePresence>{showUserModal && selectedUser && (<motion.div className="modal-overlay" onClick={() => setShowUserModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowUserModal(false)}>×</button><h3>User Details: {selectedUser?.username || 'Unknown'}</h3><div className="user-details-grid"><div className="detail-item"><label>Email:</label><span>{selectedUser?.email || 'N/A'}</span></div><div className="detail-item"><label>Phone:</label><span>{selectedUser?.phone || 'N/A'}</span></div><div className="detail-item"><label>Wallet:</label><span>₵{selectedUser?.wallet_balance || 0}</span></div><div className="detail-item"><label>Total Spent:</label><span>₵{selectedUser?.total_spent || 0}</span></div><div className="detail-item"><label>Joined:</label><span>{selectedUser?.created_at ? new Date(selectedUser.created_at).toLocaleString() : 'N/A'}</span></div></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowUserModal(false)}>Close</button><button className="btn-primary" onClick={() => { setShowUserModal(false); setNewUser(selectedUser); setShowCreateUserModal(true); }}><FaEdit /> Edit</button></div></motion.div></motion.div>)}</AnimatePresence>
 
       {/* Settings Modal */}
-      <AnimatePresence>{showSettingsModal && (<motion.div className="modal-overlay" onClick={() => setShowSettingsModal(false)}><motion.div className="modal-content settings-modal" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowSettingsModal(false)}>×</button><h3><FaCog /> System Settings</h3><div className="settings-grid"><div className="setting-group"><h4>Commission Rates</h4><label>Bronze: <input type="number" value={systemSettings.commission_rates?.bronze || 10} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, bronze: parseInt(e.target.value)}})} /></label><label>Silver: <input type="number" value={systemSettings.commission_rates?.silver || 15} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, silver: parseInt(e.target.value)}})} /></label><label>Gold: <input type="number" value={systemSettings.commission_rates?.gold || 20} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, gold: parseInt(e.target.value)}})} /></label><label>Platinum: <input type="number" value={systemSettings.commission_rates?.platinum || 25} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, platinum: parseInt(e.target.value)}})} /></label></div><div className="setting-group"><h4>WAEC & Bills</h4><label>WAEC Commission: <input type="number" value={systemSettings.waec_commission || 10} onChange={(e) => setSystemSettings({...systemSettings, waec_commission: parseInt(e.target.value)})} />%</label><label>Bill Commission: <input type="number" value={systemSettings.bill_commission || 5} onChange={(e) => setSystemSettings({...systemSettings, bill_commission: parseInt(e.target.value)})} />%</label></div></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowSettingsModal(false)}>Cancel</button><button className="btn-primary" onClick={() => { api.put('/admin/settings', systemSettings); toast.success('Settings saved'); setShowSettingsModal(false); }}>Save</button></div></motion.div></motion.div>)}</AnimatePresence>
+      <AnimatePresence>{showSettingsModal && (<motion.div className="modal-overlay" onClick={() => setShowSettingsModal(false)}><motion.div className="modal-content settings-modal" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowSettingsModal(false)}>×</button><h3><FaCog /> System Settings</h3><div className="settings-grid"><div className="setting-group"><h4>Commission Rates</h4><label>Bronze: <input type="number" value={systemSettings.commission_rates?.bronze || 10} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, bronze: parseInt(e.target.value)}})} /></label><label>Silver: <input type="number" value={systemSettings.commission_rates?.silver || 15} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, silver: parseInt(e.target.value)}})} /></label><label>Gold: <input type="number" value={systemSettings.commission_rates?.gold || 20} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, gold: parseInt(e.target.value)}})} /></label><label>Platinum: <input type="number" value={systemSettings.commission_rates?.platinum || 25} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, platinum: parseInt(e.target.value)}})} /></label></div><div className="setting-group"><h4>WAEC & Bills</h4><label>WAEC Commission: <input type="number" value={systemSettings.waec_commission || 10} onChange={(e) => setSystemSettings({...systemSettings, waec_commission: parseInt(e.target.value)})} />%</label><label>Bill Commission: <input type="number" value={systemSettings.bill_commission || 5} onChange={(e) => setSystemSettings({...systemSettings, bill_commission: parseInt(e.target.value)})} />%</label></div><div className="setting-group"><h4>Support Contact</h4><label>Support Email: <input type="email" value={systemSettings.support_email} onChange={(e) => setSystemSettings({...systemSettings, support_email: e.target.value})} /></label><label>Support Phone: <input type="tel" value={systemSettings.support_phone} onChange={(e) => setSystemSettings({...systemSettings, support_phone: e.target.value})} /></label></div></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowSettingsModal(false)}>Cancel</button><button className="btn-primary" onClick={() => { api.put('/admin/settings', systemSettings); toast.success('Settings saved'); setShowSettingsModal(false); }}>Save Settings</button></div></motion.div></motion.div>)}</AnimatePresence>
     </motion.div>
   );
 }
