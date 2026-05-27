@@ -1,7 +1,7 @@
-// src/pages/StoreOrders.js
+// src/pages/StoreOrders.js - No Commission/Profit, Only Actual Order Amounts
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaEye, FaCheckCircle, FaTimesCircle, FaSpinner, FaWhatsapp, FaEnvelope, FaSearch, FaFilter, FaPrint } from 'react-icons/fa';
+import { FaEye, FaCheckCircle, FaTimesCircle, FaSpinner, FaWhatsapp, FaEnvelope, FaSearch, FaFilter, FaPrint, FaMoneyBillWave } from 'react-icons/fa';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
@@ -141,7 +141,7 @@ export default function StoreOrders() {
         </button>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Showing only order counts and revenue */}
       <div className="order-stats-grid">
         <div className="stat-card">
           <div className="stat-value">{stats.total}</div>
@@ -160,8 +160,9 @@ export default function StoreOrders() {
           <div className="stat-label">Completed</div>
         </div>
         <div className="stat-card">
+          <div className="stat-icon"><FaMoneyBillWave /></div>
           <div className="stat-value">₵{stats.revenue.toFixed(2)}</div>
-          <div className="stat-label">Revenue</div>
+          <div className="stat-label">Total Revenue</div>
         </div>
       </div>
 
@@ -191,7 +192,7 @@ export default function StoreOrders() {
         </div>
       </div>
 
-      {/* Orders Table */}
+      {/* Orders Table - Showing actual order amounts */}
       <div className="orders-table-container">
         <div className="table-responsive">
           <table className="data-table">
@@ -217,7 +218,7 @@ export default function StoreOrders() {
                     </div>
                   </td>
                   <td>{order.network?.toUpperCase()} {order.size_gb}GB</td>
-                  <td className="amount">₵{order.amount}</td>
+                  <td className="amount">₵{order.amount?.toFixed(2) || '0.00'}</td>
                   <td>{getStatusBadge(order.status)}</td>
                   <td>{new Date(order.created_at).toLocaleDateString()}</td>
                   <td className="actions">
@@ -290,7 +291,7 @@ export default function StoreOrders() {
         </div>
       </div>
 
-      {/* Order Details Modal */}
+      {/* Order Details Modal - Showing actual order amounts */}
       <AnimatePresence>
         {showDetailsModal && selectedOrder && (
           <motion.div 
@@ -330,7 +331,7 @@ export default function StoreOrders() {
                 </div>
                 <div className="detail-item">
                   <label>Amount:</label>
-                  <span className="amount">₵{selectedOrder.amount}</span>
+                  <span className="amount">₵{selectedOrder.amount?.toFixed(2) || '0.00'}</span>
                 </div>
                 <div className="detail-item">
                   <label>Status:</label>

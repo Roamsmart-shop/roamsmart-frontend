@@ -1,4 +1,4 @@
-// src/pages/AgentDashboard.js - With Enhanced Payment Verification
+// src/pages/AgentDashboard.js - With Commission Removed
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -88,21 +88,20 @@ const paymentMethods = [
 export default function AgentDashboard() {
   const { user } = useAuth();
   
-  // State Management
+  // State Management - REMOVED commission-related fields
   const [stats, setStats] = useState({ 
     wallet_balance: 0, 
     total_sales: 0, 
     total_orders: 0, 
     agent_savings: 0,
-    total_commission: 0,
-    pending_commission: 0,
+    // REMOVED: total_commission, pending_commission
     today_sales: 0,
     this_week_sales: 0,
     this_month_sales: 0,
     total_customers: 0,
     agent_tier: 'Bronze',
     next_tier_sales: 500,
-    commission_rate: 10,
+    // REMOVED: commission_rate
     rank: 0,
     username: ''
   });
@@ -126,7 +125,8 @@ export default function AgentDashboard() {
   const [proofFile, setProofFile] = useState(null);
   const [copied, setCopied] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
-  
+  // Add this with your other state declarations
+  const [phoneNumber, setPhoneNumber] = useState(stats?.phone || user?.phone || '');
   // Verification States
   const [verifyReference, setVerifyReference] = useState('');
   const [verifyTransactionId, setVerifyTransactionId] = useState('');
@@ -160,12 +160,8 @@ export default function AgentDashboard() {
   const [bulkPreview, setBulkPreview] = useState([]);
   const [processingBulk, setProcessingBulk] = useState(false);
   
-  // Earnings & Withdrawals
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [withdrawPhone, setWithdrawPhone] = useState('');
-  const [withdrawals, setWithdrawals] = useState([]);
-  const [withdrawing, setWithdrawing] = useState(false);
+  // Earnings & Withdrawals - REMOVED withdrawal functionality since no commission
+  // REMOVED: showWithdrawModal, withdrawAmount, withdrawPhone, withdrawals, withdrawing
   
   // Purchase Confirmation
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -199,7 +195,7 @@ export default function AgentDashboard() {
 
   useEffect(() => {
     fetchData();
-    fetchWithdrawals();
+    // REMOVED: fetchWithdrawals()
     fetchCustomers();
     fetchStoreSettings();
     fetchPrices();
@@ -317,14 +313,7 @@ export default function AgentDashboard() {
     }
   };
 
-  const fetchWithdrawals = async () => {
-    try {
-      const res = await api.get('/agent/withdrawals');
-      setWithdrawals(res.data.data?.withdrawals || res.data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch withdrawals');
-    }
-  };
+  // REMOVED: fetchWithdrawals function
 
   const fetchCustomers = async () => {
     try {
@@ -368,13 +357,13 @@ export default function AgentDashboard() {
   };
 
   // Paystack Payment Handler
-  const initializePaystackPayment = async (amount, email) => {
+  const initializePaystackPayment = async (amount, email, phone) => {
     setProcessingPayment(true);
     try {
       const response = await api.post('/payment/paystack/initialize', {
         amount: amount,
         email: email,
-        phone: stats.phone || user?.phone,
+        phone: phone,
         metadata: {
           type: 'wallet_funding',
           agent_id: user?.id,
@@ -428,6 +417,67 @@ export default function AgentDashboard() {
     }
   };
 
+// Initialize MoMo Payment Handler
+const initializeMomoPayment = async (amount, phone, customerName) => {
+  setProcessingPayment(true);
+  try {
+    const response = await api.post('/payment/momo/initialize', {
+      amount: amount,
+      phone: phone,
+      name: customerName,
+      metadata: {
+        type: 'wallet_funding',
+        agent_id: user?.id,
+        agent_name: user?.username
+      }
+    });
+    
+    const { payment_url, reference } = response.data.data;
+    
+    // Open MoMo payment page
+    const momoPopup = window.open(payment_url, '_blank', 'width=600,height=700');
+    
+    // Poll for payment verification
+    const checkPaymentInterval = setInterval(async () => {
+      try {
+        const verifyResponse = await api.get(`/payment/momo/verify/${reference}`);
+        if (verifyResponse.data.data.status === 'success') {
+          clearInterval(checkPaymentInterval);
+          momoPopup?.close();
+          
+          await Swal.fire({
+            icon: 'success',
+            title: 'Payment Successful!',
+            html: `₵${amount} has been added to your Roamsmart wallet.`,
+            confirmButtonColor: '#8B0000'
+          });
+          
+          await fetchData();
+          setShowFundModal(false);
+          resetFundModal();
+          setProcessingPayment(false);
+          fetchPendingTopups();
+        }
+      } catch (error) {
+        console.error('MoMo verification error:', error);
+      }
+    }, 5000);
+    
+    // Stop checking after 5 minutes
+    setTimeout(() => {
+      clearInterval(checkPaymentInterval);
+      if (processingPayment) {
+        setProcessingPayment(false);
+      }
+    }, 300000);
+    
+  } catch (error) {
+    console.error('MoMo initialization error:', error);
+    toast.error(error.response?.data?.error || 'MoMo payment initialization failed');
+    setProcessingPayment(false);
+  }
+};
+
   // Manual Payment Handler
   const handleManualPayment = async () => {
     setLoadingRequest(true);
@@ -448,6 +498,7 @@ export default function AgentDashboard() {
     }
   };
 
+  // UPDATED handleAmountSubmit function
   const handleAmountSubmit = async () => {
     const amountNum = parseFloat(fundAmount);
     const method = paymentMethods.find(m => m.id === selectedMethod);
@@ -465,30 +516,106 @@ export default function AgentDashboard() {
       return;
     }
 
-    if (selectedMethod === 'paystack') {
-      const { value: email } = await Swal.fire({
-        title: 'Enter Your Email',
-        input: 'email',
-        inputPlaceholder: 'you@example.com',
-        showCancelButton: true,
-        confirmButtonColor: '#00B3E6',
-        confirmButtonText: 'Proceed to Paystack',
-        preConfirm: (emailValue) => {
-          if (!emailValue) {
-            Swal.showValidationMessage('Email is required');
-          }
-          return emailValue;
-        }
-      });
-      
-      if (email) {
-        await initializePaystackPayment(amountNum, email);
+    if (selectedMethod === 'manual') {
+      setLoadingRequest(true);
+      try {
+        const res = await api.post('/wallet/generate-reference', {
+          amount: amountNum,
+          payment_method: 'manual'
+        });
+        setManualRequest(res.data.data);
+        setFundStep(3);
+        toast.success('Manual payment request created on Roamsmart!');
+      } catch (error) {
+        console.error('Create manual request error:', error);
+        toast.error(error.response?.data?.error || 'Failed to create request');
+      } finally {
+        setLoadingRequest(false);
       }
-    } else if (selectedMethod === 'manual') {
-      await handleManualPayment();
+    } else if (selectedMethod === 'paystack') {
+      // Close the modal first
+      closeFundModal();
+      
+      // Small delay to ensure modal is closed before opening Paystack
+      setTimeout(async () => {
+        const { value: email } = await Swal.fire({
+          title: 'Enter Your Email',
+          input: 'email',
+          inputPlaceholder: 'you@example.com',
+          showCancelButton: true,
+          confirmButtonColor: '#00B3E6',
+          confirmButtonText: 'Proceed to Paystack',
+          preConfirm: (emailValue) => {
+            if (!emailValue) {
+              Swal.showValidationMessage('Email is required');
+            }
+            return emailValue;
+          }
+        });
+        
+        if (email) {
+          await initializePaystackPayment(amountNum, email, stats.phone || phoneNumber);
+        }
+      }, 300);
+      
     } else if (selectedMethod === 'momo') {
-      toast.info('MTN MoMo coming soon to Roamsmart!');
+      // Close the modal first for MoMo as well
+      closeFundModal();
+      
+      setTimeout(async () => {
+        const { value: customerName } = await Swal.fire({
+          title: 'Enter Your Name',
+          input: 'text',
+          inputPlaceholder: 'John Doe',
+          showCancelButton: true,
+          confirmButtonColor: '#FFC107',
+          confirmButtonText: 'Proceed to MTN MoMo',
+          preConfirm: (name) => {
+            if (!name) {
+              Swal.showValidationMessage('Name is required');
+            }
+            return name;
+          }
+        });
+        
+        if (customerName) {
+          let momoPhone = stats.phone || phoneNumber;
+          
+          if (!momoPhone || !validatePhone(momoPhone)) {
+            const { value: phone } = await Swal.fire({
+              title: 'Enter MTN MoMo Number',
+              input: 'tel',
+              inputPlaceholder: '024XXXXXXX',
+              showCancelButton: true,
+              confirmButtonColor: '#FFC107',
+              confirmButtonText: 'Proceed',
+              preConfirm: (phoneValue) => {
+                if (!phoneValue) {
+                  Swal.showValidationMessage('Phone number is required');
+                } else if (!validatePhone(phoneValue)) {
+                  Swal.showValidationMessage('Please enter a valid MTN number');
+                }
+                return phoneValue;
+              }
+            });
+            
+            if (phone) {
+              momoPhone = phone;
+            } else {
+              setProcessingPayment(false);
+              return;
+            }
+          }
+          
+          await initializeMomoPayment(amountNum, momoPhone, customerName);
+        }
+      }, 300);
     }
+  };
+
+  const closeFundModal = () => {
+    setShowFundModal(false);
+    resetFundModal();
   };
 
   const handleCopyReference = () => {
@@ -890,56 +1017,7 @@ export default function AgentDashboard() {
     }
   };
 
-  // ========== WITHDRAWAL FUNCTIONS ==========
-  const requestWithdrawal = async () => {
-    const amount = parseFloat(withdrawAmount);
-    if (amount < 50) {
-      toast.error('Minimum withdrawal is GHS 50');
-      return;
-    }
-    if (amount > stats.total_commission) {
-      toast.error('Insufficient commission balance');
-      return;
-    }
-    if (!withdrawPhone) {
-      toast.error('Enter mobile money number');
-      return;
-    }
-    if (!validatePhone(withdrawPhone)) {
-      toast.error('Enter a valid Ghana mobile money number');
-      return;
-    }
-
-    setWithdrawing(true);
-    
-    try {
-      const res = await api.post('/agent/withdraw', {
-        amount,
-        mobile_money: withdrawPhone
-      });
-      if (res.data.success) {
-        await Swal.fire({
-          icon: 'success',
-          title: 'Withdrawal Request Submitted!',
-          html: `
-            <p>✅ ₵${amount.toFixed(2)} withdrawal request submitted to ${COMPANY.name}</p>
-            <p>⏱️ Please allow up to 24 hours for processing.</p>
-          `,
-          confirmButtonColor: '#8B0000'
-        });
-        setWithdrawAmount('');
-        setWithdrawPhone('');
-        setShowWithdrawModal(false);
-        fetchData();
-        fetchWithdrawals();
-      }
-    } catch (error) {
-      console.error('Withdrawal error:', error);
-      toast.error(error.response?.data?.error || 'Withdrawal failed');
-    } finally {
-      setWithdrawing(false);
-    }
-  };
+  // REMOVED: requestWithdrawal function
 
   // ========== SAVE STORE SETTINGS ==========
   const saveStoreSettings = async () => {
@@ -1027,12 +1105,25 @@ export default function AgentDashboard() {
     };
   };
 
-  const getCommissionChartData = () => {
+  // REMOVED commission chart - replaced with product sales chart
+  const getProductChartData = () => {
+    // Show what's actually in the database (admin configured bundles)
+    const productData = {};
+    for (const [network, bundles] of Object.entries(agentBundles)) {
+      for (const [size, price] of Object.entries(bundles)) {
+        const label = `${network.toUpperCase()} ${size}GB`;
+        productData[label] = price;
+      }
+    }
+    
+    const labels = Object.keys(productData).slice(0, 6);
+    const data = labels.map(label => productData[label]);
+    
     return {
-      labels: ['MTN', 'Telecel', 'AirtelTigo'],
+      labels: labels,
       datasets: [{ 
-        data: [65, 25, 10], 
-        backgroundColor: ['#FFC107', '#EC008C', '#ED1B24'],
+        data: data, 
+        backgroundColor: ['#FFC107', '#EC008C', '#ED1B24', '#00B3E6', '#28a745', '#8B0000'],
         borderWidth: 0
       }]
     };
@@ -1069,7 +1160,7 @@ export default function AgentDashboard() {
       <div className="dashboard-header">
         <div>
           <h1>{COMPANY.name} - Agent Dashboard</h1>
-          <p>Welcome back, {stats.username || user?.username || 'Agent'}! You're earning {stats.commission_rate}% commission on Roamsmart</p>
+          <p>Welcome back, {stats.username || user?.username || 'Agent'}!</p>
         </div>
         <div className="wallet-card" style={{ cursor: 'pointer' }} onClick={() => setShowFundModal(true)}>
           <FaWallet />
@@ -1084,9 +1175,6 @@ export default function AgentDashboard() {
         </button>
         <button className="action-btn btn-success" onClick={() => setShowVerifyModal(true)} style={{ background: '#28a745', color: 'white' }}>
           <FaCheckCircle /> Verify Payment
-        </button>
-        <button className="action-btn" onClick={() => setShowWithdrawModal(true)}>
-          <FaMoneyBillWave /> Withdraw Earnings
         </button>
         <button className="action-btn" onClick={() => setShowStoreModal(true)}>
           <FaStore /> My Store
@@ -1116,15 +1204,12 @@ export default function AgentDashboard() {
         <button className={`tab ${activeTab === 'sell' ? 'active' : ''}`} onClick={() => setActiveTab('sell')}>
           <FaShoppingCart /> Sell Data
         </button>
-        <button className={`tab ${activeTab === 'earnings' ? 'active' : ''}`} onClick={() => setActiveTab('earnings')}>
-          <FaMoneyBillWave /> Earnings
-        </button>
         <button className={`tab ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => setActiveTab('customers')}>
           <FaUsers /> Customers
         </button>
       </div>
 
-      {/* Dashboard Tab */}
+      {/* Dashboard Tab - REMOVED commission displays */}
       {activeTab === 'dashboard' && (
         <>
           <div className="stats-grid">
@@ -1153,19 +1238,9 @@ export default function AgentDashboard() {
             </motion.div>
           </div>
 
+          {/* REMOVED commission stats row */}
+
           <div className="stats-grid">
-            <motion.div whileHover={{ y: -5 }} className="stat-card commission-card">
-              <div className="stat-icon"><FaChartLine /></div>
-              <div className="stat-value">₵{stats.total_commission?.toFixed(2) || '0'}</div>
-              <div className="stat-label">Total Commission Earned</div>
-            </motion.div>
-            
-            <motion.div whileHover={{ y: -5 }} className="stat-card pending-card">
-              <div className="stat-icon"><FaClock /></div>
-              <div className="stat-value">₵{stats.pending_commission?.toFixed(2) || '0'}</div>
-              <div className="stat-label">Pending Commission</div>
-            </motion.div>
-            
             <motion.div whileHover={{ y: -5 }} className="stat-card">
               <div className="stat-icon"><FaUsers /></div>
               <div className="stat-value">{stats.total_customers || 0}</div>
@@ -1209,8 +1284,8 @@ export default function AgentDashboard() {
             </motion.div>
             
             <motion.div initial={{ x: 20 }} animate={{ x: 0 }} className="chart-card">
-              <h3><FaChartPie /> Commission by Network</h3>
-              <Doughnut data={getCommissionChartData()} options={doughnutOptions} />
+              <h3><FaChartPie /> Products in Database (Admin Configured)</h3>
+              <Doughnut data={getProductChartData()} options={doughnutOptions} />
             </motion.div>
           </div>
         </>
@@ -1269,126 +1344,118 @@ export default function AgentDashboard() {
             </div>
           </div>
 
-          {/* Dynamic Size Input Section */}
-          <div className="custom-size-section-agent">
-            <div className="custom-size-input-agent">
-              <h3>Enter Custom Data Size</h3>
-              <div className="size-input-group-agent">
-                <input
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={selectedSize}
-                  onChange={handleCustomSize}
-                  placeholder="Enter GB (e.g., 15)"
-                  className="form-control"
-                />
-                <span className="gb-label-agent">GB</span>
-              </div>
-              
-              {loadingPrice && <div className="spinner-small"><FaSpinner className="spinning" /> Checking price...</div>}
-              
-              {selectedWholesalePrice !== null && !loadingPrice && (
-                <div className="price-display-agent">
-                  <div className="price-row">
-                    <span>Wholesale Price:</span>
-                    <strong>₵{selectedWholesalePrice.toFixed(2)}</strong>
-                  </div>
-                  <div className="price-row">
-                    <span>Suggested Selling Price ({storeSettings.markup || 15}% markup):</span>
-                    <strong className="selling-price">₵{selectedSellingPrice.toFixed(2)}</strong>
-                  </div>
-                  <div className="price-row profit">
-                    <span>Your Profit:</span>
-                    <strong className="profit-amount">+₵{selectedProfit.toFixed(2)}</strong>
-                  </div>
-                  <button 
-                    className="btn-primary btn-block"
-                    onClick={() => {
-                      if (!customerPhone) {
-                        toast.error('Enter customer phone number first');
-                        return;
-                      }
-                      setSellingBundle(`${selectedNetwork}-${selectedSize}`);
-                      sellData(selectedNetwork, parseInt(selectedSize), selectedWholesalePrice, customerPhone, customerName);
-                    }}
-                    disabled={!selectedSize}
-                  >
-                    Sell {selectedSize}GB for ₵{selectedSellingPrice?.toFixed(2)}
-                  </button>
-                </div>
-              )}
-              
-              {selectedSize && selectedWholesalePrice === null && !loadingPrice && (
-                <div className="price-not-found-agent">
-                  <p>⚠️ No price configured for {selectedSize}GB on {selectedNetwork.toUpperCase()}</p>
-                  <p className="text-muted">Please contact admin to add this size or select from available sizes below</p>
-                </div>
-              )}
-              
-              <div className="available-sizes-agent">
-                <h4>Available Sizes (Admin Configured)</h4>
-                <div className="size-chips-agent">
-                  {availableSizes.map(size => (
-                    <button
-                      key={size}
-                      className={`size-chip-agent ${selectedSize == size ? 'active' : ''}`}
-                      onClick={() => handleSizeSelect(size)}
-                    >
-                      {size}GB
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* Dynamic Size Input Section - NO PROFIT */}
+<div className="custom-size-section-agent">
+  <div className="custom-size-input-agent">
+    <h3>Enter Custom Data Size</h3>
+    <div className="size-input-group-agent">
+      <input
+        type="number"
+        min="1"
+        max="100"
+        value={selectedSize}
+        onChange={handleCustomSize}
+        placeholder="Enter GB (e.g., 15)"
+        className="form-control"
+      />
+      <span className="gb-label-agent">GB</span>
+    </div>
+    
+    {loadingPrice && <div className="spinner-small"><FaSpinner className="spinning" /> Checking price...</div>}
+    
+    {selectedWholesalePrice !== null && !loadingPrice && (
+      <div className="price-display-agent">
+        {/* Only show database price - NO wholesale, NO profit */}
+        <div className="price-row">
+          <span>Price:</span>
+          <strong>₵{selectedWholesalePrice.toFixed(2)}</strong>
+        </div>
+        {/* REMOVED: suggested selling price and profit display */}
+        <button 
+          className="btn-primary btn-block"
+          onClick={() => {
+            if (!customerPhone) {
+              toast.error('Enter customer phone number first');
+              return;
+            }
+            setSellingBundle(`${selectedNetwork}-${selectedSize}`);
+            sellData(selectedNetwork, parseInt(selectedSize), selectedWholesalePrice, customerPhone, customerName);
+          }}
+          disabled={!selectedSize}
+        >
+          Sell {selectedSize}GB for ₵{selectedWholesalePrice.toFixed(2)}
+        </button>
+      </div>
+    )}
+    
+    {selectedSize && selectedWholesalePrice === null && !loadingPrice && (
+      <div className="price-not-found-agent">
+        <p>⚠️ No price configured for {selectedSize}GB on {selectedNetwork.toUpperCase()}</p>
+        <p className="text-muted">Please contact admin to add this size or select from available sizes below</p>
+      </div>
+    )}
+    
+    <div className="available-sizes-agent">
+      <h4>Available Sizes (Admin Configured)</h4>
+      <div className="size-chips-agent">
+        {availableSizes.map(size => (
+          <button
+            key={size}
+            className={`size-chip-agent ${selectedSize == size ? 'active' : ''}`}
+            onClick={() => handleSizeSelect(size)}
+          >
+            {size}GB
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+</div>
 
-          {/* Predefined Bundles Grid */}
-          <div className="bundles-grid-agent">
-            <h3 className="bundles-subtitle-agent">Popular Bundles</h3>
-            <div className="bundles-grid-container-agent">
-              {Object.entries(agentBundles[selectedNetwork] || {}).slice(0, 5).map(([size, wholesalePrice]) => {
-                const sellingPrice = wholesalePrice * (1 + (storeSettings.markup || 15) / 100);
-                const profit = sellingPrice - wholesalePrice;
-                const isSelling = sellingBundle === `${selectedNetwork}-${size}`;
-                
-                return (
-                  <motion.div 
-                    key={size} 
-                    whileHover={{ y: -5, scale: 1.02 }} 
-                    className="bundle-card-agent"
-                  >
-                    <div className="bundle-size">{size}GB</div>
-                    <div className="bundle-wholesale">Wholesale: ₵{wholesalePrice}</div>
-                    <div className="bundle-price">Sell: ₵{sellingPrice.toFixed(2)}</div>
-                    <div className="bundle-profit">Your Profit: ₵{profit.toFixed(2)}</div>
-                    <div className="bundle-actions">
-                      <button 
-                        className="btn-primary btn-sm"
-                        onClick={() => {
-                          if (!customerPhone) {
-                            toast.error('Enter customer phone number first');
-                            return;
-                          }
-                          setSellingBundle(`${selectedNetwork}-${size}`);
-                          sellData(selectedNetwork, parseInt(size), wholesalePrice, customerPhone, customerName);
-                        }}
-                        disabled={isSelling}
-                      >
-                        {isSelling ? <FaSpinner className="spinning" /> : 'Sell on Roamsmart'}
-                      </button>
-                      <button 
-                        className="btn-outline btn-sm"
-                        onClick={() => addToCart(selectedNetwork, parseInt(size), wholesalePrice)}
-                      >
-                        <FaPlus /> Add to Cart
-                      </button>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
+          {/* Predefined Bundles Grid - NO PROFIT DISPLAY */}
+<div className="bundles-grid-agent">
+  <h3 className="bundles-subtitle-agent">Popular Bundles</h3>
+  <div className="bundles-grid-container-agent">
+    {Object.entries(agentBundles[selectedNetwork] || {}).slice(0, 5).map(([size, wholesalePrice]) => {
+      const sellingPrice = wholesalePrice * (1 + (storeSettings.markup || 15) / 100);
+      const isSelling = sellingBundle === `${selectedNetwork}-${size}`;
+      
+      return (
+        <motion.div 
+          key={size} 
+          whileHover={{ y: -5, scale: 1.02 }} 
+          className="bundle-card-agent"
+        >
+          <div className="bundle-size">{size}GB</div>
+          {/* Only show database price - NO wholesale, NO profit */}
+          <div className="bundle-price">₵{wholesalePrice}</div>
+          <div className="bundle-actions">
+            <button 
+              className="btn-primary btn-sm"
+              onClick={() => {
+                if (!customerPhone) {
+                  toast.error('Enter customer phone number first');
+                  return;
+                }
+                setSellingBundle(`${selectedNetwork}-${size}`);
+                sellData(selectedNetwork, parseInt(size), wholesalePrice, customerPhone, customerName);
+              }}
+              disabled={isSelling}
+            >
+              {isSelling ? <FaSpinner className="spinning" /> : 'Sell on Roamsmart'}
+            </button>
+            <button 
+              className="btn-outline btn-sm"
+              onClick={() => addToCart(selectedNetwork, parseInt(size), wholesalePrice)}
+            >
+              <FaPlus /> Add to Cart
+            </button>
           </div>
+        </motion.div>
+      );
+    })}
+  </div>
+</div>
 
           <div className="suggested-prices">
             <h3>💰 Suggested Retail Prices for Roamsmart</h3>
@@ -1405,65 +1472,7 @@ export default function AgentDashboard() {
         </>
       )}
 
-      {/* Earnings Tab */}
-      {activeTab === 'earnings' && (
-        <>
-          <div className="earnings-summary">
-            <div className="earnings-card">
-              <h3>Available for Withdrawal on Roamsmart</h3>
-              <div className="earnings-amount">₵{stats.total_commission?.toFixed(2) || '0.00'}</div>
-              <button className="btn-primary" onClick={() => setShowWithdrawModal(true)}>
-                Request Withdrawal
-              </button>
-              <small>Minimum withdrawal: GHS 50 | Processed within 24 hours</small>
-            </div>
-
-            <div className="earnings-stats">
-              <div className="stat-item">
-                <span>Total Commission Earned on Roamsmart</span>
-                <strong>₵{stats.total_commission?.toFixed(2) || '0'}</strong>
-              </div>
-              <div className="stat-item">
-                <span>This Month</span>
-                <strong>₵{stats.this_month_sales?.toFixed(2) || '0'}</strong>
-              </div>
-              <div className="stat-item">
-                <span>Your Commission Rate</span>
-                <strong>{stats.commission_rate || 10}%</strong>
-              </div>
-            </div>
-          </div>
-
-          <div className="section-header">
-            <h3>Withdrawal History from Roamsmart</h3>
-          </div>
-          <div className="withdrawals-table">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Amount</th>
-                  <th>Mobile Money</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {withdrawals.map(w => (
-                  <tr key={w.id}>
-                    <td>{new Date(w.created_at).toLocaleDateString()}</td>
-                    <td className="amount">₵{w.amount}</td>
-                    <td>{w.mobile_money}</td>
-                    <td><span className={`status ${w.status}`}>{w.status === 'pending' ? 'Processing' : w.status}</span></td>
-                  </tr>
-                ))}
-                {withdrawals.length === 0 && (
-                  <tr><td colSpan="4" className="text-center">No withdrawals yet on Roamsmart</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
+      {/* REMOVED Earnings Tab - No commission available */}
 
       {/* Customers Tab */}
       {activeTab === 'customers' && (
@@ -1529,7 +1538,7 @@ export default function AgentDashboard() {
       <div className="additional-services-section">
         <div className="section-header">
           <h2><FaGraduationCap /> Additional Services on Roamsmart</h2>
-          <p>WAEC Vouchers & Bill Payments - Earn commission on these too!</p>
+          <p>WAEC Vouchers & Bill Payments - Available on Roamsmart!</p>
         </div>
         
         <div className="services-grid">
@@ -1537,9 +1546,9 @@ export default function AgentDashboard() {
             <div className="service-header">
               <FaGraduationCap className="service-icon" />
               <h3>WAEC Result Checker</h3>
-              <span className="agent-badge-small">Earn 10% Commission on Roamsmart</span>
+              <span className="agent-badge-small">Available on Roamsmart</span>
             </div>
-            <p className="service-description">Sell WAEC vouchers to your customers and earn commission</p>
+            <p className="service-description">Sell WAEC vouchers to your customers</p>
             <button className="btn-outline btn-sm" onClick={() => window.location.href = '/waec-vouchers'}>
               Sell WAEC Vouchers
             </button>
@@ -1549,7 +1558,7 @@ export default function AgentDashboard() {
             <div className="service-header">
               <FaBolt className="service-icon" />
               <h3>Pay Bills</h3>
-              <span className="agent-badge-small">Earn 5% Commission on Roamsmart</span>
+              <span className="agent-badge-small">Available on Roamsmart</span>
             </div>
             <p className="service-description">Help customers pay electricity, water, and TV bills</p>
             <button className="btn-outline btn-sm" onClick={() => window.location.href = '/bills'}>
@@ -1700,50 +1709,7 @@ export default function AgentDashboard() {
         )}
       </AnimatePresence>
 
-      {/* Withdrawal Modal */}
-      <AnimatePresence>
-        {showWithdrawModal && (
-          <motion.div className="modal-overlay" onClick={() => setShowWithdrawModal(false)}>
-            <motion.div className="modal-content" onClick={e => e.stopPropagation()}>
-              <button className="modal-close" onClick={() => setShowWithdrawModal(false)}>×</button>
-              <h3>Request Withdrawal from Roamsmart</h3>
-              
-              <div className="form-group">
-                <label>Amount (GHS)</label>
-                <input 
-                  type="number" 
-                  value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
-                  placeholder="Enter amount (min. 50)"
-                  className="form-control"
-                  min="50"
-                />
-                <small>Available: ₵{stats.total_commission?.toFixed(2) || '0'}</small>
-              </div>
-              
-              <div className="form-group">
-                <label>Mobile Money Number</label>
-                <input 
-                  type="tel" 
-                  value={withdrawPhone}
-                  onChange={(e) => setWithdrawPhone(e.target.value)}
-                  placeholder="024XXXXXXX"
-                  className="form-control"
-                />
-                <small>MTN, Telecel, or AirtelTigo Money number</small>
-              </div>
-              
-              <button onClick={requestWithdrawal} className="btn-primary btn-block" disabled={withdrawing}>
-                {withdrawing ? <FaSpinner className="spinning" /> : 'Request Withdrawal from Roamsmart'}
-              </button>
-              
-              <div className="withdrawal-note">
-                <small>⚠️ Withdrawals are processed within 24 hours</small>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* REMOVED Withdrawal Modal */}
 
       {/* Store Settings Modal */}
       <AnimatePresence>

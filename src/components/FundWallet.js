@@ -1,4 +1,4 @@
-// src/components/FundWallet.js - Updated with Paystack ACTIVATED
+// src/components/FundWallet.js - Updated with Paystack modal fix
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
@@ -43,7 +43,7 @@ export default function FundWallet({ isOpen, onClose }) {
       description: 'Card, Bank Transfer & Mobile Money',
       time: 'Instant',
       color: '#00B3E6',
-      comingSoon: false  // ACTIVATED - No longer coming soon
+      comingSoon: false
     },
     { 
       id: 'manual', 
@@ -67,7 +67,7 @@ export default function FundWallet({ isOpen, onClose }) {
       description: 'Instant top-up',
       time: 'Coming Soon',
       color: '#25D366',
-      comingSoon: true  // Still coming soon
+      comingSoon: true
     }
   ];
 
@@ -140,6 +140,7 @@ export default function FundWallet({ isOpen, onClose }) {
     }
   };
 
+  // ========== UPDATED: Close modal before Paystack ==========
   const handleAmountSubmit = async () => {
     const amountNum = parseFloat(amount);
     const method = paymentMethods.find(m => m.id === selectedMethod);
@@ -158,25 +159,33 @@ export default function FundWallet({ isOpen, onClose }) {
     }
 
     if (selectedMethod === 'paystack') {
-      // Collect email and proceed with Paystack
-      const { value: email } = await Swal.fire({
-        title: 'Enter Your Email',
-        input: 'email',
-        inputPlaceholder: 'you@example.com',
-        showCancelButton: true,
-        confirmButtonColor: '#00B3E6',
-        confirmButtonText: 'Proceed to Paystack',
-        preConfirm: (emailValue) => {
-          if (!emailValue) {
-            Swal.showValidationMessage('Email is required');
-          }
-          return emailValue;
-        }
-      });
+      // CRITICAL FIX: Close the modal first
+      handleClose();
       
-      if (email) {
-        await initializePaystackPayment(amountNum, email);
-      }
+      // Small delay to ensure modal is fully closed before opening Paystack
+      setTimeout(async () => {
+        const { value: email } = await Swal.fire({
+          title: 'Enter Your Email',
+          input: 'email',
+          inputPlaceholder: 'you@example.com',
+          showCancelButton: true,
+          confirmButtonColor: '#00B3E6',
+          confirmButtonText: 'Proceed to Paystack',
+          preConfirm: (emailValue) => {
+            if (!emailValue) {
+              Swal.showValidationMessage('Email is required');
+            }
+            return emailValue;
+          }
+        });
+        
+        if (email) {
+          await initializePaystackPayment(amountNum, email);
+        } else {
+          setProcessingPayment(false);
+        }
+      }, 300);
+      
     } else if (selectedMethod === 'manual') {
       setLoading(true);
       try {

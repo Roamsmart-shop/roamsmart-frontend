@@ -111,7 +111,6 @@ export default function AgentCustomers() {
     });
     
     if (message) {
-      // WhatsApp doesn't have bulk API, open individual chats
       toast.info(`Open WhatsApp for each customer (${customers.length} customers)`);
       customers.forEach(customer => {
         setTimeout(() => {
@@ -219,7 +218,7 @@ export default function AgentCustomers() {
         </div>
       </div>
 
-      {/* Customer Stats Overview */}
+      {/* Customer Stats Overview - Showing actual amounts from database */}
       <div className="customer-stats-grid">
         <div className="stat-card">
           <div className="stat-icon"><FaUsers /></div>
@@ -290,7 +289,7 @@ export default function AgentCustomers() {
         </div>
       </div>
 
-      {/* Customers Table */}
+      {/* Customers Table - Showing actual data from database */}
       <div className="customers-table-container">
         <table className="data-table">
           <thead>
@@ -358,7 +357,7 @@ export default function AgentCustomers() {
         </table>
       </div>
 
-      {/* Customer Details Modal */}
+      {/* Customer Details Modal - Showing actual order amounts from database */}
       <AnimatePresence>
         {showCustomerModal && selectedCustomer && (
           <motion.div 
@@ -398,7 +397,7 @@ export default function AgentCustomers() {
                 </div>
               </div>
 
-              {/* Customer Stats */}
+              {/* Customer Stats - Showing actual amounts from database */}
               <div className="customer-stats">
                 <div className="stat">
                   <FaHistory />
@@ -430,7 +429,7 @@ export default function AgentCustomers() {
                 </div>
               </div>
 
-              {/* Order History */}
+              {/* Order History - Showing actual prices from database (no profit/commission) */}
               <h3>Order History on Roamsmart</h3>
               <div className="order-history">
                 <table className="data-table">

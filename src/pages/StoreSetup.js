@@ -1,4 +1,4 @@
-// src/pages/StoreSetup.js
+// src/pages/StoreSetup.js - No Commission/Profit, Only Store Configuration
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FaStore, FaSave, FaCopy, FaCheck, FaWhatsapp, FaTelegram, FaShareAlt, FaEye, FaQrcode } from 'react-icons/fa';
@@ -21,14 +21,12 @@ export default function StoreSetup() {
     contact_phone: '',
     contact_email: '',
     store_description: '',
-    markup: 15,
     logo_url: '',
     theme_color: '#8B0000'
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [previewMarkup, setPreviewMarkup] = useState(15);
 
   useEffect(() => {
     fetchStore();
@@ -39,7 +37,6 @@ export default function StoreSetup() {
       const res = await api.get('/agent/store');
       if (res.data.data) {
         setStore(res.data.data);
-        setPreviewMarkup(res.data.data.markup || 15);
       }
     } catch (error) {
       console.error('No store found');
@@ -195,24 +192,6 @@ export default function StoreSetup() {
                 rows="4"
               />
             </div>
-
-            <div className="form-group">
-              <label>Your Markup (%)</label>
-              <input 
-                type="number" 
-                value={store.markup}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  setStore({...store, markup: val});
-                  setPreviewMarkup(val);
-                }}
-                placeholder="15"
-                className="form-control"
-                min="0"
-                max="100"
-              />
-              <small>You earn {previewMarkup}% profit on every sale through your Roamsmart store</small>
-            </div>
           </div>
 
           <div className="form-actions">
@@ -256,12 +235,10 @@ export default function StoreSetup() {
               <p>{store.store_description || 'Your store description will appear here...'}</p>
               <div className="preview-contact">📞 {store.contact_phone || '024XXXXXXX'}</div>
               {store.contact_email && <div className="preview-contact">✉️ {store.contact_email}</div>}
-              <div className="preview-markup">
-                <span className="badge">Your Profit: {previewMarkup}% on every sale</span>
-              </div>
               <div className="preview-products">
-                <div className="preview-product">MTN 10GB - ₵{store.markup ? (30 * (1 + store.markup / 100)).toFixed(2) : '34.50'}</div>
-                <div className="preview-product">Telecel 5GB - ₵{store.markup ? (15.5 * (1 + store.markup / 100)).toFixed(2) : '17.83'}</div>
+                <div className="preview-product">MTN 10GB - ₵30.00</div>
+                <div className="preview-product">Telecel 5GB - ₵15.50</div>
+                <div className="preview-product">AirtelTigo 2GB - ₵10.00</div>
               </div>
             </div>
             <div className="preview-footer">

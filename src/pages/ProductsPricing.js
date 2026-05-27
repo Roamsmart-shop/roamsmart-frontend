@@ -1,7 +1,7 @@
-// src/pages/ProductsPricing.js
+// src/pages/ProductsPricing.js - No Commission/Profit, Only Actual Prices
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FaEdit, FaSave, FaDollarSign } from 'react-icons/fa';
+import { FaEdit, FaSave, FaDollarSign, FaDatabase } from 'react-icons/fa';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 
@@ -9,7 +9,7 @@ export default function ProductsPricing() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
-  const [editMarkup, setEditMarkup] = useState(0);
+  const [editPrice, setEditPrice] = useState(0);
 
   useEffect(() => {
     fetchProducts();
@@ -17,7 +17,7 @@ export default function ProductsPricing() {
 
   const fetchProducts = async () => {
     try {
-      const res = await api.get('/agent/products');
+      const res = await api.get('/admin/products');
       setProducts(res.data.data || []);
     } catch (error) {
       toast.error('Failed to load products');
@@ -26,10 +26,10 @@ export default function ProductsPricing() {
     }
   };
 
-  const updateMarkup = async (productId, markup) => {
+  const updatePrice = async (productId, price) => {
     try {
-      await api.put(`/agent/products/${productId}/markup`, { markup });
-      toast.success('Price updated');
+      await api.put(`/admin/products/${productId}/price`, { price });
+      toast.success('Price updated successfully');
       fetchProducts();
       setEditingId(null);
     } catch (error) {
@@ -37,9 +37,9 @@ export default function ProductsPricing() {
     }
   };
 
-  const bulkUpdateMarkup = async (percentage) => {
+  const bulkUpdatePrices = async (percentage) => {
     try {
-      await api.post('/agent/products/bulk-markup', { percentage });
+      await api.post('/admin/products/bulk-price', { percentage });
       toast.success(`All prices ${percentage > 0 ? 'increased' : 'decreased'} by ${Math.abs(percentage)}%`);
       fetchProducts();
     } catch (error) {
@@ -52,15 +52,15 @@ export default function ProductsPricing() {
   return (
     <motion.div className="products-pricing-page" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="page-header">
-        <h1><FaDollarSign /> Products & Pricing</h1>
-        <p>Set your selling prices (markup from wholesale)</p>
+        <h1><FaDatabase /> Products & Pricing</h1>
+        <p>Manage data bundle prices on Roamsmart</p>
       </div>
 
       <div className="bulk-actions">
-        <button className="btn-outline" onClick={() => bulkUpdateMarkup(5)}>+5% on all</button>
-        <button className="btn-outline" onClick={() => bulkUpdateMarkup(10)}>+10% on all</button>
-        <button className="btn-outline" onClick={() => bulkUpdateMarkup(15)}>+15% on all</button>
-        <button className="btn-outline" onClick={() => bulkUpdateMarkup(-5)}>-5% on all</button>
+        <button className="btn-outline" onClick={() => bulkUpdatePrices(5)}>+5% on all</button>
+        <button className="btn-outline" onClick={() => bulkUpdatePrices(10)}>+10% on all</button>
+        <button className="btn-outline" onClick={() => bulkUpdatePrices(15)}>+15% on all</button>
+        <button className="btn-outline" onClick={() => bulkUpdatePrices(-5)}>-5% on all</button>
       </div>
 
       <div className="products-table-container">
@@ -70,10 +70,7 @@ export default function ProductsPricing() {
               <th>Product</th>
               <th>Network</th>
               <th>Size</th>
-              <th>Wholesale (GHS)</th>
-              <th>Your Markup (%)</th>
-              <th>Your Price (GHS)</th>
-              <th>Profit</th>
+              <th>Selling Price (GHS)</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -83,36 +80,29 @@ export default function ProductsPricing() {
                 <td>Data Bundle</td>
                 <td>{product.network?.toUpperCase()}</td>
                 <td>{product.size_gb}GB</td>
-                <td>₵{product.wholesale_price}</td>
                 <td>
                   {editingId === product.id ? (
                     <input 
                       type="number" 
-                      value={editMarkup}
-                      onChange={(e) => setEditMarkup(parseInt(e.target.value))}
-                      className="markup-input"
+                      value={editPrice}
+                      onChange={(e) => setEditPrice(parseFloat(e.target.value))}
+                      className="price-input"
                       min="0"
-                      max="100"
+                      step="0.01"
                     />
                   ) : (
-                    <span>{product.markup || 0}%</span>
+                    <span className="selling-price">₵{product.price?.toFixed(2) || '0.00'}</span>
                   )}
-                </td>
-                <td className="selling-price">
-                  ₵{(product.wholesale_price * (1 + (product.markup || 0) / 100)).toFixed(2)}
-                </td>
-                <td className="profit">
-                  ₵{(product.wholesale_price * (product.markup || 0) / 100).toFixed(2)}
                 </td>
                 <td>
                   {editingId === product.id ? (
-                    <button className="btn-success btn-sm" onClick={() => updateMarkup(product.id, editMarkup)}>
+                    <button className="btn-success btn-sm" onClick={() => updatePrice(product.id, editPrice)}>
                       <FaSave />
                     </button>
                   ) : (
                     <button className="btn-info btn-sm" onClick={() => {
                       setEditingId(product.id);
-                      setEditMarkup(product.markup || 0);
+                      setEditPrice(product.price || 0);
                     }}>
                       <FaEdit />
                     </button>

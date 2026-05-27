@@ -1,7 +1,7 @@
 
 import axios from 'axios';
 
-const API_URL = 'https://roamsmart-backend-production.up.railway.app/api';
+const API_URL = 'http://localhost:5000/api';
 // Company Configuration
 export const COMPANY_CONFIG = {
   name: 'Roamsmart Digital Service',

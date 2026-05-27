@@ -1,4 +1,4 @@
-// src/components/BillPayment.js
+// src/components/BillPayment.js - No Commission, Only Bill Payment
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FaBolt, FaTint, FaTv, FaGlobe, FaGraduationCap, FaCheckCircle, FaSpinner, FaSearch, FaHistory, FaMoneyBillWave } from 'react-icons/fa';
@@ -168,7 +168,6 @@ export default function BillPayment({ isAgent = false }) {
       <div className="section-header">
         <h3><FaMoneyBillWave /> Pay Bills on Roamsmart</h3>
         <p>Pay electricity, water, TV subscriptions, and more instantly</p>
-        {isAgent && <span className="agent-badge">Agent - Earn Commission</span>}
       </div>
       
       <div className="billers-grid">
@@ -273,7 +272,7 @@ export default function BillPayment({ isAgent = false }) {
         </motion.div>
       )}
       
-      {/* Payment History */}
+      {/* Payment History - No commission shown */}
       {paymentHistory.length > 0 && (
         <div className="payment-history">
           <div className="history-header" onClick={() => setShowHistory(!showHistory)}>
@@ -306,7 +305,7 @@ export default function BillPayment({ isAgent = false }) {
                         <td className="date">{new Date(payment.created_at).toLocaleDateString()}</td>
                         <td>{payment.biller_name}</td>
                         <td className="account">{payment.account_number}</td>
-                        <td className="amount">₵{payment.amount}</td>
+                        <td className="amount">₵{payment.amount?.toFixed(2) || payment.amount}</td>
                         <td>{getStatusBadge(payment.status)}</td>
                       </tr>
                     ))}

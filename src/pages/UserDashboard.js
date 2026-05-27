@@ -1,4 +1,5 @@
-// src/pages/UserDashboard.js - Fixed modal closing and payment details
+// src/pages/UserDashboard.js - No Commission/Profit, Only Actual Data Prices
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -26,7 +27,7 @@ const COMPANY = {
   website: 'https://roamsmart.shop'
 };
 
-// Payment Methods Configuration (comingSoon removed - all activated)
+// Payment Methods Configuration (all activated)
 const paymentMethods = [
   { 
     id: 'manual', 
@@ -361,13 +362,11 @@ export default function UserDashboard() {
 
   // ========== PAYMENT HANDLERS (ALL ACTIVATED) ==========
   
-  // NEW: Separate function to close fund modal
   const closeFundModal = () => {
     setShowFundModal(false);
     resetFundModal();
   };
 
-  // NEW: Separate function to close verify modal
   const closeVerifyModal = () => {
     setShowVerifyModal(false);
     resetVerifyModal();
@@ -378,73 +377,70 @@ export default function UserDashboard() {
   };
 
   // ========== PAYSTACK PAYMENT HANDLER ==========
-  const initializePaystackPayment = async (amount, email, phone) => {
-    setProcessingPayment(true);
-    try {
-      // Call backend to initialize Paystack transaction
-      const response = await api.post('/payment/paystack/initialize', {
-        amount: amount,
-        email: email,
-        phone: phone,
-        reference: `ROAMSMART_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      });
-      
-      const { authorization_url, reference } = response.data.data;
-      
-      // Open Paystack popup
-      const paystackPopup = window.open(authorization_url, '_blank', 'width=600,height=700');
-      
-      // Poll for payment verification
-      const checkPaymentInterval = setInterval(async () => {
-        try {
-          const verifyResponse = await api.get(`/payment/paystack/verify/${reference}`);
-          if (verifyResponse.data.data.status === 'success') {
-            clearInterval(checkPaymentInterval);
-            paystackPopup?.close();
-            
-            await Swal.fire({
-              icon: 'success',
-              title: 'Payment Successful!',
-              html: `₵${amount} has been added to your Roamsmart wallet.`,
-              confirmButtonColor: '#8B0000'
-            });
-            
-            await fetchUserData();
-            closeFundModal();
-            setProcessingPayment(false);
-          }
-        } catch (error) {
-          console.error('Verification error:', error);
-        }
-      }, 5000);
-      
-      // Stop checking after 5 minutes
-      setTimeout(() => {
-        clearInterval(checkPaymentInterval);
-        if (processingPayment) {
+  // Update the initializePaystackPayment function
+const initializePaystackPayment = async (amount, email, phone) => {
+  setProcessingPayment(true);
+  try {
+    const response = await api.post('/payment/paystack/initialize', {
+      amount: amount,
+      email: email,
+      phone: phone,
+      reference: `ROAMSMART_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    });
+    
+    const { authorization_url, reference } = response.data.data;
+    
+    // Open Paystack popup
+    const paystackPopup = window.open(authorization_url, '_blank', 'width=600,height=700');
+    
+    // Poll for payment verification
+    const checkPaymentInterval = setInterval(async () => {
+      try {
+        const verifyResponse = await api.get(`/payment/paystack/verify/${reference}`);
+        if (verifyResponse.data.data.status === 'success') {
+          clearInterval(checkPaymentInterval);
+          paystackPopup?.close();
+          
+          await Swal.fire({
+            icon: 'success',
+            title: 'Payment Successful!',
+            html: `₵${amount} has been added to your Roamsmart wallet.`,
+            confirmButtonColor: '#8B0000'
+          });
+          
+          await fetchUserData();
           setProcessingPayment(false);
         }
-      }, 300000);
-      
-    } catch (error) {
-      console.error('Paystack initialization error:', error);
-      toast.error(error.response?.data?.error || 'Payment initialization failed. Please try again.');
-      setProcessingPayment(false);
-    }
-  };
+      } catch (error) {
+        console.error('Verification error:', error);
+      }
+    }, 5000);
+    
+    // Stop checking after 5 minutes
+    setTimeout(() => {
+      clearInterval(checkPaymentInterval);
+      if (processingPayment) {
+        setProcessingPayment(false);
+      }
+    }, 300000);
+    
+  } catch (error) {
+    console.error('Paystack initialization error:', error);
+    toast.error(error.response?.data?.error || 'Payment initialization failed. Please try again.');
+    setProcessingPayment(false);
+  }
+};
 
   // ========== MTN MOMO PAYMENT HANDLER ==========
   const initializeMomoPayment = async (amount, phone, name) => {
     setProcessingPayment(true);
     try {
-      // Validate phone number
       if (!validatePhone(phone)) {
         toast.error('Please enter a valid MTN mobile money number');
         setProcessingPayment(false);
         return;
       }
       
-      // Call backend to initialize MoMo payment
       const response = await api.post('/payment/momo/initialize', {
         amount: amount,
         phone: phone,
@@ -454,7 +450,6 @@ export default function UserDashboard() {
       
       const { paymentReference, checkoutRequestId } = response.data.data;
       
-      // Show pending dialog
       Swal.fire({
         title: 'Payment Initiated',
         text: 'Please check your phone and authorize the payment.',
@@ -462,7 +457,6 @@ export default function UserDashboard() {
         confirmButtonColor: '#8B0000',
         allowOutsideClick: false,
         willClose: () => {
-          // Verify payment after dialog closes
           verifyMomoPayment(paymentReference, amount);
         }
       });
@@ -477,9 +471,8 @@ export default function UserDashboard() {
   const verifyMomoPayment = async (reference, amount) => {
     setProcessingPayment(true);
     try {
-      // Poll for payment status
       let attempts = 0;
-      const maxAttempts = 60; // 60 seconds max wait
+      const maxAttempts = 60;
       
       const checkInterval = setInterval(async () => {
         attempts++;
@@ -520,38 +513,43 @@ export default function UserDashboard() {
     }
   };
 
-  const handleAmountSubmit = async () => {
-    const amountNum = parseFloat(fundAmount);
-    const method = paymentMethods.find(m => m.id === selectedMethod);
-    
-    if (!fundAmount || isNaN(amountNum)) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-    if (amountNum < method.min) {
-      toast.error(`Minimum amount is ₵${method.min}`);
-      return;
-    }
-    if (amountNum > method.max) {
-      toast.error(`Maximum amount is ₵${method.max.toLocaleString()}`);
-      return;
-    }
+  
 
-    if (selectedMethod === 'manual') {
-      setLoadingRequest(true);
-      try {
-        const res = await paymentAPI.createManualRequest(amountNum, stats.phone || phoneNumber);
-        setManualRequest(res.data.data);
-        setFundStep(3);
-        toast.success('Manual payment request created on Roamsmart!');
-      } catch (error) {
-        console.error('Create manual request error:', error);
-        toast.error(error.response?.data?.error || 'Failed to create request');
-      } finally {
-        setLoadingRequest(false);
-      }
-    } else if (selectedMethod === 'paystack') {
-      // Collect email and proceed with Paystack
+const handleAmountSubmit = async () => {
+  const amountNum = parseFloat(fundAmount);
+  const method = paymentMethods.find(m => m.id === selectedMethod);
+  
+  if (!fundAmount || isNaN(amountNum)) {
+    toast.error('Please enter a valid amount');
+    return;
+  }
+  if (amountNum < method.min) {
+    toast.error(`Minimum amount is ₵${method.min}`);
+    return;
+  }
+  if (amountNum > method.max) {
+    toast.error(`Maximum amount is ₵${method.max.toLocaleString()}`);
+    return;
+  }
+
+  if (selectedMethod === 'manual') {
+    setLoadingRequest(true);
+    try {
+      const res = await paymentAPI.createManualRequest(amountNum, stats.phone || phoneNumber);
+      setManualRequest(res.data.data);
+      setFundStep(3);
+      toast.success('Manual payment request created on Roamsmart!');
+    } catch (error) {
+      console.error('Create manual request error:', error);
+      toast.error(error.response?.data?.error || 'Failed to create request');
+    } finally {
+      setLoadingRequest(false);
+    }
+  } else if (selectedMethod === 'paystack') {
+    // Close the modal first
+    closeFundModal();
+    
+    setTimeout(async () => {
       const { value: email } = await Swal.fire({
         title: 'Enter Your Email',
         input: 'email',
@@ -570,8 +568,13 @@ export default function UserDashboard() {
       if (email) {
         await initializePaystackPayment(amountNum, email, stats.phone || phoneNumber);
       }
-    } else if (selectedMethod === 'momo') {
-      // Collect customer name and proceed with MoMo
+    }, 300);
+    
+  } else if (selectedMethod === 'momo') {
+    // Close the modal first for MoMo as well
+    closeFundModal();
+    
+    setTimeout(async () => {
       const { value: customerName } = await Swal.fire({
         title: 'Enter Your Name',
         input: 'text',
@@ -602,7 +605,7 @@ export default function UserDashboard() {
               if (!phoneValue) {
                 Swal.showValidationMessage('Phone number is required');
               } else if (!validatePhone(phoneValue)) {
-                Swal.showValidationMessage('Please enter a valid MTN number (024, 025, 026, 027, 028, 020, 054, 055, 059, 050, 057, 053, 056)');
+                Swal.showValidationMessage('Please enter a valid MTN number');
               }
               return phoneValue;
             }
@@ -618,8 +621,9 @@ export default function UserDashboard() {
         
         await initializeMomoPayment(amountNum, momoPhone, customerName);
       }
-    }
-  };
+    }, 300);
+  }
+};
 
   const handleCopyReference = () => {
     if (manualRequest?.reference) {
@@ -657,7 +661,6 @@ export default function UserDashboard() {
     }
   };
 
-  // Update the manual payment instructions with correct company details
   const downloadInstructions = () => {
     if (!manualRequest) return;
     
@@ -798,7 +801,7 @@ Your Roamsmart wallet will be credited after admin verification.
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - No commission, only actual data */}
       <div className="stats-grid">
         <motion.div whileHover={{ y: -5 }} className="stat-card">
           <div className="stat-icon"><FaWallet /></div>
@@ -864,7 +867,7 @@ Your Roamsmart wallet will be credited after admin verification.
         </div>
       </div>
 
-      {/* Data Bundles Section */}
+      {/* Data Bundles Section - Showing actual prices from database */}
       <div className="section-header">
         <h2><FaDatabase /> Data Bundles on Roamsmart</h2>
         <div className="network-tabs">
@@ -936,7 +939,7 @@ Your Roamsmart wallet will be credited after admin verification.
         </div>
       </div>
 
-      {/* Predefined Bundles Grid (Fallback/Quick Buy) */}
+      {/* Predefined Bundles Grid - Showing actual prices only */}
       <div className="bundles-grid">
         <h3 className="bundles-subtitle">Popular Bundles</h3>
         <div className="bundles-grid-container">
@@ -994,7 +997,7 @@ Your Roamsmart wallet will be credited after admin verification.
         </div>
       </div>
 
-      {/* Recent Orders */}
+      {/* Recent Orders - Showing actual amounts only */}
       <div className="section-header">
         <h2><FaHistory /> Recent Orders on Roamsmart</h2>
       </div>
@@ -1044,7 +1047,7 @@ Your Roamsmart wallet will be credited after admin verification.
         </div>
       </div>
 
-      {/* ========== FUND WALLET MODAL - FIXED CLOSING ========== */}
+      {/* ========== FUND WALLET MODAL ========== */}
       <AnimatePresence>
         {showFundModal && (
           <motion.div 
@@ -1141,7 +1144,7 @@ Your Roamsmart wallet will be credited after admin verification.
                 </div>
               )}
               
-              {/* Step 3: Manual Payment Instructions - FIXED with correct company details */}
+              {/* Step 3: Manual Payment Instructions */}
               {fundStep === 3 && manualRequest && (
                 <div className="fund-step instructions-step">
                   <button className="back-btn" onClick={() => setFundStep(2)}>← Back</button>
@@ -1224,7 +1227,7 @@ Your Roamsmart wallet will be credited after admin verification.
         )}
       </AnimatePresence>
 
-      {/* ========== VERIFY PAYMENT MODAL - FIXED CLOSING ========== */}
+      {/* ========== VERIFY PAYMENT MODAL ========== */}
       <AnimatePresence>
         {showVerifyModal && (
           <motion.div 

@@ -83,42 +83,17 @@ const safeToUpperCase = (value, defaultValue = '') => {
 
 // Calculate total price based on Africa's Talking actual prices
 const calculateTotalPrice = (network, sizeGb, quantity) => {
-  // Africa's Talking actual prices
   const prices = {
     mtn: {
-      0.02: 0.49,   // 20.46 MB
-      0.04: 0.99,   // 40.91 MB
-      0.39: 2.97,   // 401.63 MB
-      0.81: 9.90,   // 826.72 MB
-      104: 346.62,  // 106.81 GB
-      209: 395.14   // 214.53 GB
+      0.02: 0.49, 0.04: 0.99, 0.39: 2.97, 0.81: 9.90, 104: 346.62, 209: 395.14
     },
     airteltigo: {
-      0.05: 0.98,
-      0.11: 1.96,
-      0.38: 2.94,
-      0.54: 4.90,
-      0.86: 9.80,
-      1.70: 19.60,
-      4.40: 49.00,
-      9.90: 98.00,
-      33: 196.00,
-      99: 294.01,
-      115.5: 343.01,
-      250: 392.01
+      0.05: 0.98, 0.11: 1.96, 0.38: 2.94, 0.54: 4.90, 0.86: 9.80, 1.70: 19.60,
+      4.40: 49.00, 9.90: 98.00, 33: 196.00, 99: 294.01, 115.5: 343.01, 250: 392.01
     },
     telecel: {
-      0.02: 0.49,
-      0.05: 0.98,
-      0.11: 1.96,
-      0.54: 4.90,
-      0.86: 9.80,
-      1.69: 19.60,
-      4.50: 49.00,
-      10.13: 98.00,
-      33.79: 196.00,
-      101.4: 294.01,
-      256: 392.01
+      0.02: 0.49, 0.05: 0.98, 0.11: 1.96, 0.54: 4.90, 0.86: 9.80, 1.69: 19.60,
+      4.50: 49.00, 10.13: 98.00, 33.79: 196.00, 101.4: 294.01, 256: 392.01
     }
   };
   
@@ -129,11 +104,8 @@ const calculateTotalPrice = (network, sizeGb, quantity) => {
 // ========== MAIN COMPONENT ==========
 export default function AdminDashboard() {
   console.log('===== ADMIN DASHBOARD DEBUG =====');
-  console.log('1. Component rendering start');
 
-  // ========== ALL useState HOOKS FIRST ==========
-  console.log('2. Initializing useState hooks...');
-  
+  // ========== ALL useState HOOKS ==========
   const [stats, setStats] = useState({
     total_users: 0, total_agents: 0, pending_agents: 0, total_revenue: 0,
     total_orders: 0, pending_manual: 0, total_withdrawals: 0, pending_withdrawals: 0,
@@ -248,6 +220,8 @@ export default function AdminDashboard() {
     { region: 'Bono', sales: 22000, users: 450, agents: 6 },
     { region: 'Northern', sales: 18000, users: 350, agents: 5 }
   ]);
+  
+  // NEW STATE: Africa's Talking Balance
   const [africasTalkingBalance, setAfricasTalkingBalance] = useState({
     account_balance: 0,
     wallet_balance: 0,
@@ -255,11 +229,26 @@ export default function AdminDashboard() {
     loading: true,
     error: null
   });
-
-  console.log('3. All useState hooks initialized');
+  
+  // NEW STATE: Digimall Balance
+  const [digimallBalance, setDigimallBalance] = useState({
+    account_balance: 0,
+    wallet_balance: 0,
+    currency: 'GHS',
+    loading: true,
+    error: null
+  });
+  
+  // NEW STATE: Total Sales from Database
+  const [totalSales, setTotalSales] = useState({
+    today: 0,
+    week: 0,
+    month: 0,
+    year: 0,
+    all_time: 0
+  });
 
   // ========== ALL useEffect HOOKS ==========
-  console.log('4. Initializing useEffect hooks...');
   
   // Socket connection effect
   useEffect(() => {
@@ -292,6 +281,7 @@ export default function AdminDashboard() {
       if (order) {
         showOrderNotification(order);
         fetchAllData();
+        fetchTotalSales(); // Refresh sales when new order comes
       }
     });
     
@@ -337,8 +327,18 @@ export default function AdminDashboard() {
     const interval = setInterval(fetchAfricasTalkingBalance, 2 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
-
-  console.log('5. All useEffect hooks initialized');
+  
+  // Digimall balance polling
+  useEffect(() => {
+    fetchDigimallBalance();
+    const interval = setInterval(fetchDigimallBalance, 2 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  // Fetch total sales when stats change
+  useEffect(() => {
+    fetchTotalSales();
+  }, []);
 
   // ========== DATA FETCHING FUNCTIONS ==========
   
@@ -355,7 +355,6 @@ export default function AdminDashboard() {
         api.get('/admin/orders')
       ]);
       
-      // Create user map for enriching payment data
       const usersList = usersRes?.data?.data || [];
       const usersMap = new Map();
       usersList.forEach(user => {
@@ -365,12 +364,10 @@ export default function AdminDashboard() {
         if (user.phone) usersMap.set(user.phone, user);
       });
       
-      // Enrich manual payments with user data
       const rawPayments = paymentsRes?.data?.data || [];
       const enrichedPayments = rawPayments.map(payment => {
         let userData = null;
         
-        // Try to find user by various identifiers
         if (payment.user_id) userData = usersMap.get(payment.user_id);
         if (!userData && payment.userId) userData = usersMap.get(payment.userId);
         if (!userData && payment.user) userData = usersMap.get(payment.user);
@@ -414,18 +411,32 @@ export default function AdminDashboard() {
       setLoading(false);
     }
   };
-
-  const fetchAfricasTalkingBalance = async () => {
+  
+  // NEW: Fetch Africa's Talking Balance
+   // Update the fetchAfricasTalkingBalance function
+const fetchAfricasTalkingBalance = async () => {
   try {
     const res = await api.get('/admin/africastalking-balance');
+    console.log('Africa\'s Talking balance response:', res.data);
+    
     if (res.data.success) {
+      // Handle different possible response structures
+      let balance = 0;
+      let currency = 'GHS';
+      
+      if (res.data.data) {
+        balance = res.data.data.wallet_balance || res.data.data.balance || res.data.data.account_balance || 0;
+        currency = res.data.data.currency || 'GHS';
+      } else if (res.data.wallet_balance) {
+        balance = res.data.wallet_balance;
+      } else if (res.data.balance) {
+        balance = res.data.balance;
+      }
+      
       setAfricasTalkingBalance({
-        account_balance: res.data.data.account_balance || 0,
-        wallet_balance: res.data.data.wallet_balance || 0,
-        airtime_balance: res.data.data.airtime_balance || 0,
-        sms_balance: res.data.data.sms_balance || 0,
-        voice_balance: res.data.data.voice_balance || 0,
-        currency: res.data.data.currency || 'GHS',
+        wallet_balance: parseFloat(balance),
+        account_balance: parseFloat(balance),
+        currency: currency,
         loading: false,
         error: null
       });
@@ -445,6 +456,61 @@ export default function AdminDashboard() {
     }));
   }
 };
+
+// Update the fetchDigimallBalance function
+const fetchDigimallBalance = async () => {
+  try {
+    const res = await api.get('/admin/digimall-balance');
+    console.log('Digimall balance response:', res.data);
+    
+    if (res.data.success) {
+      let balance = 0;
+      let currency = 'GHS';
+      
+      if (res.data.data) {
+        balance = res.data.data.wallet_balance || res.data.data.balance || res.data.data.account_balance || 0;
+        currency = res.data.data.currency || 'GHS';
+      } else if (res.data.wallet_balance) {
+        balance = res.data.wallet_balance;
+      }
+      
+      setDigimallBalance({
+        wallet_balance: parseFloat(balance),
+        account_balance: parseFloat(balance),
+        currency: currency,
+        loading: false,
+        error: null
+      });
+    } else {
+      setDigimallBalance(prev => ({
+        ...prev,
+        loading: false,
+        error: res.data.error || 'Failed to fetch Digimall balance'
+      }));
+    }
+  } catch (error) {
+    console.error('Failed to fetch Digimall balance:', error);
+    setDigimallBalance(prev => ({
+      ...prev,
+      loading: false,
+      error: 'Could not connect to Digimall API'
+    }));
+  }
+};
+  
+ 
+  
+  // NEW: Fetch Total Sales from Database
+  const fetchTotalSales = async () => {
+    try {
+      const res = await api.get('/admin/total-sales');
+      if (res.data.success) {
+        setTotalSales(res.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch total sales:', error);
+    }
+  };
 
   const fetchAgentApplications = async () => {
     try {
@@ -467,24 +533,6 @@ export default function AdminDashboard() {
       console.error('Failed to fetch WAEC data');
     }
   };
-
-  const clearAllPayments = async () => {
-  const result = await Swal.fire({
-    title: 'Clear All Pending Payments?',
-    text: `This will remove ${manualPayments.length} pending payments from the list.`,
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#dc3545',
-    confirmButtonText: 'Yes, Clear All',
-    cancelButtonText: 'Cancel'
-  });
-  
-  if (result.isConfirmed) {
-    setManualPayments([]);
-    setSelectedPaymentIds([]);
-    toast.success('All pending payments cleared from view');
-  }
-};
 
   const fetchBillPayments = async () => {
     try {
@@ -636,284 +684,233 @@ export default function AdminDashboard() {
 
   // ========== SIMPLIFIED PAYMENT APPROVAL FUNCTIONS ==========
   
-  // One-click approval - no extra input needed
-const approvePaymentSimple = async (payment) => {
-  console.log("=== APPROVE PAYMENT DEBUG ===");
-  console.log("Payment object:", payment);
-  console.log("Payment ID:", payment.id);
-  console.log("Current manualPayments before removal:", manualPayments.map(p => ({ id: p.id, reference: p.reference })));
-  
-  const result = await Swal.fire({
-    title: 'Approve Payment?',
-    html: `
-      <div style="text-align: left;">
-        <p>Are you sure you want to approve this payment?</p>
-        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-          <p><strong>💰 Amount:</strong> ₵${payment.amount}</p>
-          <p><strong>👤 User:</strong> ${payment.username}</p>
-          <p><strong>📱 Phone:</strong> ${payment.phone}</p>
-          <p><strong>🆔 Reference:</strong> ${payment.reference}</p>
-          <p><strong>🆔 ID:</strong> ${payment.id}</p>
+  const approvePaymentSimple = async (payment) => {
+    console.log("=== APPROVE PAYMENT DEBUG ===");
+    console.log("Payment object:", payment);
+    console.log("Payment ID:", payment.id);
+    
+    const result = await Swal.fire({
+      title: 'Approve Payment?',
+      html: `
+        <div style="text-align: left;">
+          <p>Are you sure you want to approve this payment?</p>
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <p><strong>💰 Amount:</strong> ₵${payment.amount}</p>
+            <p><strong>👤 User:</strong> ${payment.username}</p>
+            <p><strong>📱 Phone:</strong> ${payment.phone}</p>
+            <p><strong>🆔 Reference:</strong> ${payment.reference}</p>
+          </div>
+          <p style="color: #28a745;">✅ The user's wallet will be credited automatically.</p>
         </div>
-        <p style="color: #28a745;">✅ The user's wallet will be credited automatically.</p>
-      </div>
-    `,
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonColor: '#28a745',
-    confirmButtonText: '✓ Yes, Approve Payment',
-    cancelButtonText: 'Cancel'
-  });
-  
-  if (result.isConfirmed) {
-    let loadingToast;
-    try {
-      loadingToast = toast.loading('Approving payment and crediting wallet...');
-      
-      const response = await api.post(`/admin/manual-payments/${payment.id}/approve-simple`);
-      
-      toast.dismiss(loadingToast);
-      
-      console.log("API Response:", response.data);
-      
-      if (response.data.success) {
-        toast.success(`✅ Payment of ₵${payment.amount} approved and credited to ${payment.username}!`);
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#28a745',
+      confirmButtonText: '✓ Yes, Approve Payment',
+      cancelButtonText: 'Cancel'
+    });
+    
+    if (result.isConfirmed) {
+      let loadingToast;
+      try {
+        loadingToast = toast.loading('Approving payment and crediting wallet...');
         
-        // Try multiple ways to remove the payment
-        console.log("Removing payment with ID:", payment.id);
+        const response = await api.post(`/admin/manual-payments/${payment.id}/approve-simple`);
         
-        // Method 1: Filter by id
-        const newPayments = manualPayments.filter(p => {
-          const shouldKeep = p.id !== payment.id;
-          console.log(`  Payment ${p.id} (${p.reference}): keep=${shouldKeep}`);
-          return shouldKeep;
+        toast.dismiss(loadingToast);
+        
+        console.log("API Response:", response.data);
+        
+        if (response.data.success) {
+          toast.success(`✅ Payment of ₵${payment.amount} approved and credited to ${payment.username}!`);
+          
+          setManualPayments(prev => prev.filter(p => p.id !== payment.id));
+          setSelectedPaymentIds(prevIds => prevIds.filter(id => id !== payment.id));
+          
+          await fetchAllData();
+          await fetchTotalSales(); // Refresh sales after approval
+          fetchRecentActivities();
+          
+          addNotification({
+            type: 'success',
+            title: 'Payment Approved',
+            message: `₵${payment.amount} credited to ${payment.username}`
+          });
+        } else {
+          toast.error(response.data.error || 'Failed to approve payment');
+        }
+        
+      } catch (error) {
+        console.error('Approval error:', error);
+        if (loadingToast) toast.dismiss(loadingToast);
+        toast.error(error.response?.data?.error || 'Failed to approve payment');
+      }
+    }
+  };
+
+  const batchApprovePayments = async () => {
+    if (selectedPaymentIds.length === 0) {
+      toast.error('No payments selected');
+      return;
+    }
+    
+    const selectedPaymentsData = manualPayments.filter(p => selectedPaymentIds.includes(p.id));
+    const totalAmount = selectedPaymentsData.reduce((sum, p) => sum + (p.amount || 0), 0);
+    
+    const result = await Swal.fire({
+      title: `Approve ${selectedPaymentIds.length} Payments?`,
+      html: `
+        <div style="text-align: left;">
+          <p>You are about to approve ${selectedPaymentIds.length} pending payments.</p>
+          <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
+            <p><strong>💰 Total Amount:</strong> ₵${totalAmount.toFixed(2)}</p>
+            <p><strong>👥 Affected Users:</strong> ${selectedPaymentIds.length}</p>
+          </div>
+          <p style="color: #ff9800;">⚠️ All selected users will be credited automatically.</p>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#28a745',
+      confirmButtonText: '✓ Approve All',
+      cancelButtonText: 'Cancel'
+    });
+    
+    if (result.isConfirmed) {
+      try {
+        const loadingToast = toast.loading(`Approving ${selectedPaymentIds.length} payments...`);
+        
+        await api.post('/admin/manual-payments/batch-approve', { 
+          payment_ids: selectedPaymentIds 
         });
         
-        console.log("New payments count:", newPayments.length);
-        setManualPayments(newPayments);
+        toast.dismiss(loadingToast);
+        toast.success(`✅ Successfully approved ${selectedPaymentIds.length} payments!`);
         
-        // Method 2: Also try direct filter (as backup)
-        setManualPayments(prev => {
-          const filtered = prev.filter(p => p.id !== payment.id);
-          console.log("State update - prev count:", prev.length, "new count:", filtered.length);
-          return filtered;
-        });
+        setManualPayments(prevPayments => prevPayments.filter(p => !selectedPaymentIds.includes(p.id)));
+        setSelectedPaymentIds([]);
+        setShowBatchApproveModal(false);
         
-        // Remove from selected payments
-        setSelectedPaymentIds(prevIds => {
-          const newIds = prevIds.filter(id => id !== payment.id);
-          console.log("Selected IDs before:", prevIds, "after:", newIds);
-          return newIds;
-        });
-        
-        // Refresh other data for balance update
-        await fetchAllData();
+        fetchAllData();
+        fetchTotalSales(); // Refresh sales after batch approval
         fetchRecentActivities();
         
-        addNotification({
-          type: 'success',
-          title: 'Payment Approved',
-          message: `₵${payment.amount} credited to ${payment.username}`
-        });
-      } else {
-        toast.error(response.data.error || 'Failed to approve payment');
+      } catch (error) {
+        console.error('Batch approval error:', error);
+        toast.error(error.response?.data?.error || 'Failed to batch approve payments');
       }
-      
-    } catch (error) {
-      console.error('Approval error:', error);
-      if (loadingToast) {
-        toast.dismiss(loadingToast);
-      }
-      toast.error(error.response?.data?.error || 'Failed to approve payment');
     }
-  }
-};
-
-  // Batch approve multiple payments
-const batchApprovePayments = async () => {
-  if (selectedPaymentIds.length === 0) {
-    toast.error('No payments selected');
-    return;
-  }
+  };
   
-  const selectedPaymentsData = manualPayments.filter(p => selectedPaymentIds.includes(p.id));
-  const totalAmount = selectedPaymentsData.reduce((sum, p) => sum + (p.amount || 0), 0);
-  
-  const result = await Swal.fire({
-    title: `Approve ${selectedPaymentIds.length} Payments?`,
-    html: `
-      <div style="text-align: left;">
-        <p>You are about to approve ${selectedPaymentIds.length} pending payments.</p>
-        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;">
-          <p><strong>💰 Total Amount:</strong> ₵${totalAmount.toFixed(2)}</p>
-          <p><strong>👥 Affected Users:</strong> ${selectedPaymentIds.length}</p>
-        </div>
-        <p style="color: #ff9800;">⚠️ All selected users will be credited automatically.</p>
-      </div>
-    `,
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonColor: '#28a745',
-    confirmButtonText: '✓ Approve All',
-    cancelButtonText: 'Cancel'
-  });
-  
-  if (result.isConfirmed) {
-    try {
-      const loadingToast = toast.loading(`Approving ${selectedPaymentIds.length} payments...`);  // <-- ADD THIS LINE
-      
-      await api.post('/admin/manual-payments/batch-approve', { 
-        payment_ids: selectedPaymentIds 
-      });
-      
-      toast.dismiss(loadingToast);
-      toast.success(`✅ Successfully approved ${selectedPaymentIds.length} payments!`);
-      
-      // Remove all approved payments from the list
-      setManualPayments(prevPayments => 
-        prevPayments.filter(p => !selectedPaymentIds.includes(p.id))
-      );
-      
-      // Clear selected payments
-      setSelectedPaymentIds([]);
-      setShowBatchApproveModal(false);
-      
-      // Refresh other data
-      fetchAllData();
-      fetchRecentActivities();
-      
-    } catch (error) {
-      let loadingToast;
-      console.error('Batch approval error:', error);
-      if (typeof loadingToast !== 'undefined') {
-        toast.dismiss(loadingToast);
-      }
-      toast.error(error.response?.data?.error || 'Failed to batch approve payments');
-    }
-  }
-};
   // ========== PAYMENT PROOF VIEWING FUNCTIONS ==========
+  const viewPaymentProof = (proofUrl) => {
+    console.log("View Proof clicked. URL:", proofUrl);
+    
+    if (!proofUrl || proofUrl === 'No proof' || proofUrl === 'N/A' || proofUrl === 'null' || proofUrl === 'undefined') {
+      toast.error('No valid proof document was uploaded');
+      return;
+    }
+    
+    try {
+      if (proofUrl.startsWith('http://') || proofUrl.startsWith('https://')) {
+        window.open(proofUrl, '_blank', 'noopener,noreferrer');
+      } else {
+        const fullUrl = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${proofUrl}`;
+        window.open(fullUrl, '_blank', 'noopener,noreferrer');
+      }
+      toast.success('Opening proof document...');
+    } catch (error) {
+      console.error('Error opening proof:', error);
+      toast.error('Could not open proof document');
+    }
+  };
 
-const viewPaymentProof = (proofUrl) => {
-  console.log("View Proof clicked. URL:", proofUrl);
-  
-  if (!proofUrl) {
-    toast.error('No proof document available');
-    return;
-  }
-  
-  // Check for invalid values
-  if (proofUrl === 'No proof' || proofUrl === 'N/A' || proofUrl === 'null' || proofUrl === 'undefined') {
-    toast.error('No valid proof document was uploaded');
-    return;
-  }
-  
-  // Validate URL format
-  try {
-    // Check if it's a valid URL
-    if (proofUrl.startsWith('http://') || proofUrl.startsWith('https://')) {
-      window.open(proofUrl, '_blank', 'noopener,noreferrer');
-    } else {
-      // If it's a relative path, prepend your API base URL
-      const fullUrl = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${proofUrl}`;
-      window.open(fullUrl, '_blank', 'noopener,noreferrer');
-    }
-    toast.success('Opening proof document...');
-  } catch (error) {
-    console.error('Error opening proof:', error);
-    toast.error('Could not open proof document');
-  }
-};
-
-const downloadProofDocument = async (proofUrl, filename) => {
-  console.log("Download Proof clicked. URL:", proofUrl);
-  
-  if (!proofUrl || proofUrl === 'No proof' || proofUrl === 'N/A') {
-    toast.error('No document available to download');
-    return;
-  }
-  
-  try {
-    toast.loading('Downloading document...');
+  const downloadProofDocument = async (proofUrl, filename) => {
+    console.log("Download Proof clicked. URL:", proofUrl);
     
-    let url = proofUrl;
-    if (!url.startsWith('http')) {
-      url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${proofUrl}`;
+    if (!proofUrl || proofUrl === 'No proof' || proofUrl === 'N/A') {
+      toast.error('No document available to download');
+      return;
     }
     
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+      toast.loading('Downloading document...');
+      
+      let url = proofUrl;
+      if (!url.startsWith('http')) {
+        url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${proofUrl}`;
+      }
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename || `payment_proof_${Date.now()}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+      
+      toast.dismiss();
+      toast.success('Document downloaded successfully');
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.dismiss();
+      toast.error('Failed to download. Opening in new tab instead.');
+      window.open(proofUrl.startsWith('http') ? proofUrl : `${process.env.REACT_APP_API_URL}/uploads/${proofUrl}`, '_blank');
     }
-    
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = filename || `payment_proof_${Date.now()}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(blobUrl);
-    
-    toast.dismiss();
-    toast.success('Document downloaded successfully');
-  } catch (error) {
-    console.error('Download error:', error);
-    toast.dismiss();
-    toast.error('Failed to download. Opening in new tab instead.');
-    window.open(proofUrl.startsWith('http') ? proofUrl : `${process.env.REACT_APP_API_URL}/uploads/${proofUrl}`, '_blank');
-  }
-};
+  };
 
   const rejectManualPayment = async (paymentId) => {
-  const { value: rejectionReason } = await Swal.fire({
-    title: 'Reject Payment',
-    html: `
-      <div style="text-align: left;">
-        <p>Are you sure you want to reject this payment?</p>
-        <div style="margin-top: 15px;">
-          <label style="display: block; margin-bottom: 5px; font-weight: bold;">Rejection Reason:</label>
-          <textarea id="reason" class="swal2-textarea" placeholder="Enter reason for rejection..." rows="4" style="width: 100%;"></textarea>
-          <small style="color: #666; display: block; margin-top: 5px;">This reason will be shown to the user.</small>
+    const { value: rejectionReason } = await Swal.fire({
+      title: 'Reject Payment',
+      html: `
+        <div style="text-align: left;">
+          <p>Are you sure you want to reject this payment?</p>
+          <div style="margin-top: 15px;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Rejection Reason:</label>
+            <textarea id="reason" class="swal2-textarea" placeholder="Enter reason for rejection..." rows="4" style="width: 100%;"></textarea>
+            <small style="color: #666; display: block; margin-top: 5px;">This reason will be shown to the user.</small>
+          </div>
         </div>
-      </div>
-    `,
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#dc3545',
-    confirmButtonText: 'Yes, Reject Payment',
-    cancelButtonText: 'Cancel',
-    preConfirm: () => {
-      const reason = document.getElementById('reason').value;
-      if (!reason) {
-        Swal.showValidationMessage('Please provide a rejection reason');
-        return false;
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      confirmButtonText: 'Yes, Reject Payment',
+      cancelButtonText: 'Cancel',
+      preConfirm: () => {
+        const reason = document.getElementById('reason').value;
+        if (!reason) {
+          Swal.showValidationMessage('Please provide a rejection reason');
+          return false;
+        }
+        return reason;
       }
-      return reason;
+    });
+    
+    if (rejectionReason) {
+      try {
+        await api.post(`/admin/manual-payments/${paymentId}/reject`, { reason: rejectionReason });
+        toast.error('Payment rejected. User has been notified.');
+        
+        setManualPayments(prevPayments => prevPayments.filter(p => p.id !== paymentId));
+        setSelectedPaymentIds(prevIds => prevIds.filter(id => id !== paymentId));
+        
+        fetchAllData();
+        fetchRecentActivities();
+        
+      } catch (error) {
+        toast.error('Failed to reject payment');
+      }
     }
-  });
-  
-  if (rejectionReason) {
-    try {
-      await api.post(`/admin/manual-payments/${paymentId}/reject`, { reason: rejectionReason });
-      toast.error('Payment rejected. User has been notified.');
-      
-      // CRITICAL: Remove the rejected payment from the list
-      setManualPayments(prevPayments => prevPayments.filter(p => p.id !== paymentId));
-      
-      // Also remove from selected payments if it was selected
-      setSelectedPaymentIds(prevIds => prevIds.filter(id => id !== paymentId));
-      
-      fetchAllData();
-      fetchRecentActivities();
-      
-    } catch (error) {
-      toast.error('Failed to reject payment');
-    }
-  }
-};
+  };
 
   // ========== ANNOUNCEMENT FUNCTIONS ==========
   const createAnnouncement = async () => {
@@ -1028,7 +1025,7 @@ const downloadProofDocument = async (proofUrl, filename) => {
         toast.success(res.data.message || `Roamsmart purchased ${networkPurchase.quantity}x ${networkPurchase.size_gb}GB from ${safeToUpperCase(networkPurchase.network)}`);
         setShowNetworkPurchaseModal(false);
         fetchMasterInventory();
-        fetchAfricasTalkingBalance(); // Refresh balance after purchase
+        fetchAfricasTalkingBalance();
         setNetworkPurchase({ 
           product_type: 'data',
           network: 'mtn', 
@@ -1110,6 +1107,7 @@ const downloadProofDocument = async (proofUrl, filename) => {
             setShowDataPurchaseModal(false);
             fetchMasterInventory();
             fetchAfricasTalkingBalance();
+            fetchDigimallBalance(); // Refresh Digimall balance as well
             setDataPurchase({
               network: 'mtn',
               size_gb: 10,
@@ -1389,32 +1387,6 @@ const downloadProofDocument = async (proofUrl, filename) => {
     toast.success('Users exported from Roamsmart!');
   };
 
-  // ========== ORDER FUNCTIONS ==========
-  const createOrder = async (orderData) => {
-    try {
-      const response = await api.post('/api/order', {
-        network: orderData.network,
-        size_gb: orderData.size_gb,
-        phone: orderData.phone,
-        payment_method: 'wallet',
-        quantity: orderData.quantity
-      });
-      
-      if (response.data.success) {
-        toast.success(response.data.message);
-        // Update user's wallet balance
-        // Show success with actual data delivered
-        if (response.data.data.actual_data_gb) {
-          toast.info(`You will receive ${response.data.data.actual_data_gb}GB per bundle`);
-        }
-        return response.data;
-      }
-    } catch (error) {
-      console.error('Order error:', error);
-      toast.error(error.response?.data?.error || 'Order failed');
-    }
-  };
-
   // ========== CHART DATA ==========
   const getRevenueChartData = () => {
     let labels = [];
@@ -1590,14 +1562,54 @@ const downloadProofDocument = async (proofUrl, filename) => {
         </div>
       </div>
 
-      {/* Stats Grid with Africa's Talking Balance */}
+      {/* Stats Grid with Total Sales, Digimall Balance & Africa's Talking Balance */}
       <div className="stats-grid">
         <div className="stat-card"><div className="stat-icon"><FaUsers /></div><div className="stat-value">{stats.total_users || 0}</div><div className="stat-label">Total Users</div></div>
         <div className="stat-card"><div className="stat-icon"><FaUserCheck /></div><div className="stat-value">{stats.total_agents || 0}</div><div className="stat-label">Total Agents</div></div>
         <div className="stat-card warning"><div className="stat-icon"><FaClock /></div><div className="stat-value">{stats.pending_agents || 0}</div><div className="stat-label">Pending Agents</div></div>
         <div className="stat-card success"><div className="stat-icon"><FaMoneyBillWave /></div><div className="stat-value">₵{(stats.total_revenue || 0).toFixed(2)}</div><div className="stat-label">Total Revenue</div></div>
         
-        {/* Africa's Talking Balance Card - Enhanced */}
+        {/* Total Sales Card - NEW */}
+        <div className="stat-card sales-card">
+          <div className="stat-icon"><FaShoppingCart /></div>
+          <div className="stat-value">₵{(totalSales.all_time || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          <div className="stat-label">
+            Total Sales (All Time)
+            <small style={{ display: 'block', fontSize: '0.65rem', marginTop: '5px' }}>
+              📈 Today: ₵{(totalSales.today || 0).toFixed(2)} | Week: ₵{(totalSales.week || 0).toFixed(2)}
+            </small>
+          </div>
+        </div>
+
+        {/* Digimall Balance Card - NEW */}
+        <div className="stat-card digimall-card">
+          <div className="stat-icon"><FaDatabase /></div>
+          <div className="stat-value">
+            {digimallBalance.loading ? (
+              <FaSpinner className="spinning" />
+            ) : digimallBalance.error ? (
+              <span className="text-danger" style={{ fontSize: '0.8rem' }}>Error</span>
+            ) : (
+              `${digimallBalance.currency || 'GHS'} ${parseFloat(digimallBalance.wallet_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            )}
+          </div>
+          <div className="stat-label">
+            Digimall Balance
+            <small style={{ display: 'block', fontSize: '0.65rem', marginTop: '5px' }}>
+              💾 Data Selling Balance
+            </small>
+          </div>
+          <button 
+            className="refresh-balance-btn" 
+            onClick={fetchDigimallBalance} 
+            disabled={digimallBalance.loading}
+            title="Refresh Digimall Balance"
+          >
+            <FaSync className={digimallBalance.loading ? 'spinning' : ''} />
+          </button>
+        </div>
+
+        {/* Africa's Talking Balance Card */}
         <div className="stat-card africastalking-card">
           <div className="stat-icon"><FaMobileAlt /></div>
           <div className="stat-value">
@@ -1610,21 +1622,46 @@ const downloadProofDocument = async (proofUrl, filename) => {
             )}
           </div>
           <div className="stat-label">
-            Africa's Talking Wallet
-            {!africasTalkingBalance.loading && !africasTalkingBalance.error && (
-              <small style={{ display: 'block', fontSize: '0.65rem', marginTop: '5px' }}>
-                💬 SMS & 📱 Data Balance
-              </small>
-            )}
+            Africa's Talking Balance
+            <small style={{ display: 'block', fontSize: '0.65rem', marginTop: '5px' }}>
+              💬 SMS & 📱 Data Balance
+            </small>
           </div>
           <button 
             className="refresh-balance-btn" 
             onClick={fetchAfricasTalkingBalance} 
             disabled={africasTalkingBalance.loading}
-            title="Refresh Balance"
+            title="Refresh Africa's Talking Balance"
           >
             <FaSync className={africasTalkingBalance.loading ? 'spinning' : ''} />
           </button>
+        </div>
+      </div>
+
+      {/* Sales Breakdown Section */}
+      <div className="sales-breakdown-section">
+        <h3><FaChartLine /> Sales Breakdown</h3>
+        <div className="sales-breakdown-grid">
+          <div className="sales-card-small">
+            <div className="sales-label">Today's Sales</div>
+            <div className="sales-amount">₵{(totalSales.today || 0).toFixed(2)}</div>
+          </div>
+          <div className="sales-card-small">
+            <div className="sales-label">This Week</div>
+            <div className="sales-amount">₵{(totalSales.week || 0).toFixed(2)}</div>
+          </div>
+          <div className="sales-card-small">
+            <div className="sales-label">This Month</div>
+            <div className="sales-amount">₵{(totalSales.month || 0).toFixed(2)}</div>
+          </div>
+          <div className="sales-card-small">
+            <div className="sales-label">This Year</div>
+            <div className="sales-amount">₵{(totalSales.year || 0).toFixed(2)}</div>
+          </div>
+          <div className="sales-card-small total">
+            <div className="sales-label">All Time Sales</div>
+            <div className="sales-amount">₵{(totalSales.all_time || 0).toFixed(2)}</div>
+          </div>
         </div>
       </div>
 
@@ -1783,9 +1820,7 @@ const downloadProofDocument = async (proofUrl, filename) => {
                   </tr>
                 ))}
                 {agentApplications.length === 0 && (
-                  <tr>
-                    <td colSpan="7" className="text-center">No pending applications</td>
-                  </tr>
+                  <tr><td colSpan="7" className="text-center">No pending applications</td></tr>
                 )}
               </tbody>
             </table>
@@ -1825,7 +1860,7 @@ const downloadProofDocument = async (proofUrl, filename) => {
         </div>
       )}
 
-      {/* ========== MANUAL PAYMENTS TAB - SIMPLIFIED ONE-CLICK APPROVAL ========== */}
+      {/* ========== MANUAL PAYMENTS TAB ========== */}
       {activeTab === 'payments' && (
         <div className="panel">
           <div className="panel-header">
@@ -2125,7 +2160,7 @@ const downloadProofDocument = async (proofUrl, filename) => {
                 <div className="inventory-stats">
                   <div><span>Total Purchased:</span><strong>{masterInventory[network]?.total || 0} GB</strong></div>
                   <div><span>Remaining:</span><strong className={(masterInventory[network]?.remaining || 0) < 100 ? 'text-danger' : 'text-success'}>{(masterInventory[network]?.remaining || 0)} GB</strong></div>
-                  <div><span>Sold to Agents:</span><strong>{masterInventory[network]?.sold_to_agents || 0} GB</strong></div>
+                  <div><span>Sold:</span><strong>{masterInventory[network]?.sold || 0} GB</strong></div>
                 </div>
                 <div className="progress-bar"><div className="progress-fill" style={{ width: `${((masterInventory[network]?.total - masterInventory[network]?.remaining) / (masterInventory[network]?.total || 1) * 100) || 0}%` }}></div></div>
               </div>
@@ -2215,12 +2250,12 @@ const downloadProofDocument = async (proofUrl, filename) => {
       <AnimatePresence>{showBulkApproveModal && (<motion.div className="modal-overlay" onClick={() => setShowBulkApproveModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowBulkApproveModal(false)}>×</button><h3><FaUserCheck /> Bulk Approve Agents</h3><p>Approve <strong>{selectedRequests.length}</strong> agent requests</p><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowBulkApproveModal(false)}>Cancel</button><button className="btn-primary" onClick={bulkApproveAgents}>Approve All</button></div></motion.div></motion.div>)}</AnimatePresence>
 
       {/* Batch Approve Payments Modal */}
-      <AnimatePresence>{showBatchApproveModal && (<motion.div className="modal-overlay" onClick={() => setShowBatchApproveModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowBatchApproveModal(false)}>×</button><h3><FaCheckCircle /> Batch Approve Payments</h3><div style={{ margin: '20px 0' }}><p>You are about to approve <strong>{selectedPaymentIds.length}</strong> payments.</p><div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', margin: '15px 0', maxHeight: '300px', overflowY: 'auto' }}><table style={{ width: '100%', fontSize: '14px' }}><thead><tr><th>User</th><th>Amount</th><th>Reference</th></tr></thead><tbody>{manualPayments.filter(p => selectedPaymentIds.includes(p.id)).map(p => (<tr key={p.id}><td>{p.username}</td><td>₵{p.amount}</td><td><code>{p.reference}</code></td></tr>))}</tbody><tfoot><tr style={{ borderTop: '2px solid #ddd' }}><td><strong>Total:</strong></td><td><strong>₵{manualPayments.filter(p => selectedPaymentIds.includes(p.id)).reduce((sum, p) => sum + (p.amount || 0), 0).toFixed(2)}</strong></td><td></td></tr></tfoot></table></div><p style={{ color: '#ff9800' }}>⚠️ All selected users will be credited automatically.</p></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowBatchApproveModal(false)}>Cancel</button><button className="btn-success" onClick={batchApprovePayments}><FaCheckCircle /> Approve All ({selectedPaymentIds.length})</button></div></motion.div></motion.div>)}</AnimatePresence>
+      <AnimatePresence>{showBatchApproveModal && (<motion.div className="modal-overlay" onClick={() => setShowBatchApproveModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowBatchApproveModal(false)}>×</button><h3><FaCheckCircle /> Batch Approve Payments</h3><div style={{ margin: '20px 0' }}><p>You are about to approve <strong>{selectedPaymentIds.length}</strong> payments.</p><div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', margin: '15px 0', maxHeight: '300px', overflowY: 'auto' }}><table style={{ width: '100%', fontSize: '14px' }}><thead><tr><th>User</th><th>Amount</th><th>Reference</th></tr></thead><tbody>{manualPayments.filter(p => selectedPaymentIds.includes(p.id)).map(p => (<tr key={p.id}><td>{p.username}</td><td className="amount">₵{p.amount}</td><td><code>{p.reference}</code></td></tr>))}</tbody><tfoot><tr style={{ borderTop: '2px solid #ddd' }}><td><strong>Total:</strong></td><td><strong>₵{manualPayments.filter(p => selectedPaymentIds.includes(p.id)).reduce((sum, p) => sum + (p.amount || 0), 0).toFixed(2)}</strong></td><td></td></tr></tfoot></table></div><p style={{ color: '#ff9800' }}>⚠️ All selected users will be credited automatically.</p></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowBatchApproveModal(false)}>Cancel</button><button className="btn-success" onClick={batchApprovePayments}><FaCheckCircle /> Approve All ({selectedPaymentIds.length})</button></div></motion.div></motion.div>)}</AnimatePresence>
 
       {/* WAEC Generate Modal */}
       <AnimatePresence>{showWAECModal && (<motion.div className="modal-overlay" onClick={() => setShowWAECModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowWAECModal(false)}>×</button><h3><FaGraduationCap /> Generate WAEC Vouchers</h3><div className="form-group"><label>Exam Type</label><select value={newWAEC.exam_type} onChange={(e) => setNewWAEC({...newWAEC, exam_type: e.target.value})} className="form-control"><option value="WASSCE">WASSCE</option><option value="BECE">BECE</option><option value="SHS Placement">SHS Placement</option></select></div><div className="form-group"><label>Year</label><input type="number" value={newWAEC.year} onChange={(e) => setNewWAEC({...newWAEC, year: parseInt(e.target.value)})} className="form-control" /></div><div className="form-group"><label>Quantity</label><input type="number" value={newWAEC.quantity} onChange={(e) => setNewWAEC({...newWAEC, quantity: parseInt(e.target.value)})} className="form-control" /></div><div className="form-row"><div className="form-group"><label>Retail Price (₵)</label><input type="number" step="0.5" value={newWAEC.retail_price} onChange={(e) => setNewWAEC({...newWAEC, retail_price: parseFloat(e.target.value)})} className="form-control" /></div><div className="form-group"><label>Agent Price (₵)</label><input type="number" step="0.5" value={newWAEC.agent_price} onChange={(e) => setNewWAEC({...newWAEC, agent_price: parseFloat(e.target.value)})} className="form-control" /></div></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowWAECModal(false)}>Cancel</button><button className="btn-primary" onClick={generateWAECVouchers}>Generate</button></div></motion.div></motion.div>)}</AnimatePresence>
 
-      {/* Network Purchase Modal - Updated for Africa's Talking */}
+      {/* Network Purchase Modal */}
       <AnimatePresence>
         {showNetworkPurchaseModal && (
           <motion.div className="modal-overlay" onClick={() => setShowNetworkPurchaseModal(false)}>
@@ -2350,6 +2385,80 @@ const downloadProofDocument = async (proofUrl, filename) => {
 
       {/* Settings Modal */}
       <AnimatePresence>{showSettingsModal && (<motion.div className="modal-overlay" onClick={() => setShowSettingsModal(false)}><motion.div className="modal-content settings-modal" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowSettingsModal(false)}>×</button><h3><FaCog /> System Settings</h3><div className="settings-grid"><div className="setting-group"><h4>Commission Rates</h4><label>Bronze: <input type="number" value={systemSettings.commission_rates?.bronze || 10} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, bronze: parseInt(e.target.value)}})} /></label><label>Silver: <input type="number" value={systemSettings.commission_rates?.silver || 15} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, silver: parseInt(e.target.value)}})} /></label><label>Gold: <input type="number" value={systemSettings.commission_rates?.gold || 20} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, gold: parseInt(e.target.value)}})} /></label><label>Platinum: <input type="number" value={systemSettings.commission_rates?.platinum || 25} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, platinum: parseInt(e.target.value)}})} /></label></div><div className="setting-group"><h4>WAEC & Bills</h4><label>WAEC Commission: <input type="number" value={systemSettings.waec_commission || 10} onChange={(e) => setSystemSettings({...systemSettings, waec_commission: parseInt(e.target.value)})} />%</label><label>Bill Commission: <input type="number" value={systemSettings.bill_commission || 5} onChange={(e) => setSystemSettings({...systemSettings, bill_commission: parseInt(e.target.value)})} />%</label></div><div className="setting-group"><h4>Support Contact</h4><label>Support Email: <input type="email" value={systemSettings.support_email} onChange={(e) => setSystemSettings({...systemSettings, support_email: e.target.value})} /></label><label>Support Phone: <input type="tel" value={systemSettings.support_phone} onChange={(e) => setSystemSettings({...systemSettings, support_phone: e.target.value})} /></label></div></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowSettingsModal(false)}>Cancel</button><button className="btn-primary" onClick={() => { api.put('/admin/settings', systemSettings); toast.success('Settings saved'); setShowSettingsModal(false); }}>Save Settings</button></div></motion.div></motion.div>)}</AnimatePresence>
+
+      {/* CSS Styles for new components */}
+      <style jsx>{`
+        .stat-card.sales-card,
+        .stat-card.digimall-card,
+        .stat-card.africastalking-card {
+          position: relative;
+          overflow: visible;
+        }
+
+        .refresh-balance-btn {
+          position: absolute;
+          top: 10px;
+          right: 10px;
+          background: rgba(255, 255, 255, 0.2);
+          border: none;
+          border-radius: 50%;
+          width: 28px;
+          height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: inherit;
+          transition: all 0.2s;
+        }
+
+        .refresh-balance-btn:hover {
+          background: rgba(255, 255, 255, 0.3);
+          transform: rotate(45deg);
+        }
+
+        .sales-breakdown-section {
+          background: white;
+          border-radius: 12px;
+          padding: 20px;
+          margin: 20px 0;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .sales-breakdown-section h3 {
+          margin-bottom: 15px;
+          color: #8B0000;
+        }
+
+        .sales-breakdown-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 15px;
+        }
+
+        .sales-card-small {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border-radius: 10px;
+          padding: 15px;
+          text-align: center;
+          color: white;
+        }
+
+        .sales-card-small.total {
+          background: linear-gradient(135deg, #8B0000 0%, #D2691E 100%);
+        }
+
+        .sales-label {
+          font-size: 14px;
+          opacity: 0.9;
+          margin-bottom: 8px;
+        }
+
+        .sales-amount {
+          font-size: 24px;
+          font-weight: bold;
+        }
+      `}</style>
     </motion.div>
   );
 }
