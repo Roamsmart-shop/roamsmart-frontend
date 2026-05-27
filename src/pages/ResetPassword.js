@@ -23,6 +23,15 @@ export default function ResetPassword() {
   const location = useLocation();
 
   useEffect(() => {
+    // ========== CRITICAL: Clear any existing session ==========
+    // This prevents auto-redirect to dashboard
+    console.log("Reset page loaded - clearing any existing session");
+    localStorage.removeItem('roamsmart_token');
+    localStorage.removeItem('roamsmart_user');
+    localStorage.removeItem('roamsmart_token_expiry');
+    sessionStorage.clear();
+    // ========== END OF FIX ==========
+    
     const params = new URLSearchParams(location.search);
     const resetToken = params.get('token');
     
@@ -55,6 +64,10 @@ export default function ResetPassword() {
       if (response.data.success) {
         setResetSuccess(true);
         toast.success('Password reset successful!');
+        
+        // Clear again to ensure no token remains
+        localStorage.removeItem('roamsmart_token');
+        localStorage.removeItem('roamsmart_user');
         
         setTimeout(() => {
           navigate('/login');

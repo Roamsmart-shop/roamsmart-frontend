@@ -183,11 +183,13 @@ function AppContent() {
     }
   }
   
-  // Handle public routes - redirect logged-in users away from auth pages
-  const publicRoutes = ['/login', '/register', '/forgot-password', '/reset-password'];
-  const isAuthRoute = publicRoutes.includes(location.pathname);
+  // ========== FIX: REDIRECT LOGIC - EXCLUDE RESET-PASSWORD ==========
+  const authPages = ['/login', '/register', '/forgot-password'];
+  const isAuthPage = authPages.includes(location.pathname);
+  const isResetPage = location.pathname === '/reset-password';
   
-  if (user && isAuthRoute) {
+  // Only redirect for auth pages, NOT for reset-password
+  if (user && isAuthPage && !isResetPage) {
     const redirectPath = actualIsAdmin ? '/admin' : (actualIsAgent ? '/agent' : '/dashboard');
     return <Navigate to={redirectPath} replace />;
   }
@@ -215,7 +217,7 @@ function AppContent() {
                        location.pathname === '/login' || 
                        location.pathname === '/register' ||
                        location.pathname === '/forgot-password' ||
-                       location.pathname === '/reset-password' ||
+                       location.pathname === '/reset-password' ||  // Add reset-password here
                        location.pathname === '/support' ||
                        location.pathname === '/faq' ||
                        location.pathname === '/privacy' ||
@@ -224,7 +226,7 @@ function AppContent() {
   
   // Navbar shows on ALL pages
   const showNavbar = true;
-  const showSidebar = user && isDashboardRoute;
+  const showSidebar = user && isDashboardRoute && !isResetPage; // Don't show sidebar on reset page
   
   // Sidebar visibility logic
   const isSidebarVisible = isMobile ? isMobileSidebarOpen : sidebarOpen;
