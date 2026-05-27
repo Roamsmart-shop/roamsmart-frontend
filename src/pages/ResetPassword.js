@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FaLock, FaEye, FaEyeSlash, FaCheckCircle, FaSpinner, FaArrowLeft } from 'react-icons/fa';
-import { authAPI } from '../services/api';
+import api from '../services/api'; // Direct import instead of authAPI
 import toast from 'react-hot-toast';
 
 const COMPANY = {
@@ -23,14 +23,11 @@ export default function ResetPassword() {
   const location = useLocation();
 
   useEffect(() => {
-    // ========== CRITICAL: Clear any existing session ==========
-    // This prevents auto-redirect to dashboard
-    console.log("Reset page loaded - clearing any existing session");
+    // Clear any existing session
     localStorage.removeItem('roamsmart_token');
     localStorage.removeItem('roamsmart_user');
     localStorage.removeItem('roamsmart_token_expiry');
     sessionStorage.clear();
-    // ========== END OF FIX ==========
     
     const params = new URLSearchParams(location.search);
     const resetToken = params.get('token');
@@ -59,13 +56,17 @@ export default function ResetPassword() {
     
     setLoading(true);
     try {
-      const response = await authAPI.resetPassword(token, newPassword);
+      // FIX: Use the correct parameter name 'new_password' (not 'password')
+      const response = await api.post('/auth/reset-password', { 
+        token: token, 
+        new_password: newPassword 
+      });
       
       if (response.data.success) {
         setResetSuccess(true);
         toast.success('Password reset successful!');
         
-        // Clear again to ensure no token remains
+        // Clear any remaining tokens
         localStorage.removeItem('roamsmart_token');
         localStorage.removeItem('roamsmart_user');
         
@@ -77,7 +78,8 @@ export default function ResetPassword() {
       }
     } catch (error) {
       console.error('Reset password error:', error);
-      toast.error(error.response?.data?.error || 'Failed to reset password. Please try again.');
+      const errorMsg = error.response?.data?.error || 'Failed to reset password. Please try again.';
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
