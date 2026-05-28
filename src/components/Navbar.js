@@ -486,7 +486,7 @@ export default function Navbar({ onMenuClick, showMenu, isMobile, onCollapse, is
               border: '1px solid #8B0000',
               borderRadius: '4px',
               textDecoration: 'none'
-            }}>Login to Roamsmart</Link>
+            }}>Login </Link>
             <Link to="/register" className="btn-register" style={{
               padding: '8px 16px',
               backgroundColor: '#8B0000',
