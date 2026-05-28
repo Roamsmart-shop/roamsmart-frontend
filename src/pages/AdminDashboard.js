@@ -248,7 +248,38 @@ export default function AdminDashboard() {
     all_time: 0
   });
 
-  // ========== ALL useEffect HOOKS ==========
+  // In your fetchDashboardData function, add these detailed logs
+const fetchDashboardData = async () => {
+  try {
+    console.log('Fetching admin dashboard data...');
+    
+    const salesRes = await api.get('/admin/total-sales');
+    console.log('Total sales FULL response:', JSON.stringify(salesRes.data, null, 2));
+    
+    const statsRes = await api.get('/admin/stats');
+    console.log('Stats FULL response:', JSON.stringify(statsRes.data, null, 2));
+    
+    const ordersRes = await api.get('/admin/orders/recent');
+    console.log('Recent orders FULL response:', JSON.stringify(ordersRes.data, null, 2));
+    
+    // Check what data structure you're receiving
+    if (salesRes.data.success) {
+      console.log('Sales data structure:', Object.keys(salesRes.data.data));
+      console.log('Today sales:', salesRes.data.data.today);
+      console.log('Week sales:', salesRes.data.data.this_week);
+    }
+    
+    if (statsRes.data.success) {
+      console.log('Stats data structure:', Object.keys(statsRes.data.data));
+      console.log('Total users:', statsRes.data.data.total_users);
+      console.log('Total revenue:', statsRes.data.data.total_revenue);
+    }
+    
+  } catch (error) {
+    console.error('Failed to fetch dashboard data:', error);
+  }
+};
+    
   
   // Socket connection effect
   useEffect(() => {
@@ -342,75 +373,120 @@ export default function AdminDashboard() {
 
   // ========== DATA FETCHING FUNCTIONS ==========
   
-  const fetchAllData = async () => {
-    setLoading(true);
-    try {
-      const [statsRes, usersRes, agentsRes, requestsRes, paymentsRes, withdrawalsRes, ordersRes] = await Promise.all([
-        api.get('/admin/stats'),
-        api.get('/admin/users'),
-        api.get('/admin/agents'),
-        api.get('/admin/agent-requests'),
-        api.get('/admin/manual-payments'),
-        api.get('/admin/withdrawals'),
-        api.get('/admin/orders')
-      ]);
+  // Update the fetchAllData function in AdminDashboard.js
+const fetchAllData = async () => {
+  setLoading(true);
+  try {
+    // Fetch stats first - this is your main data source
+    const statsRes = await api.get('/admin/stats');
+    console.log('Stats data received:', statsRes.data);
+    
+    if (statsRes.data.success && statsRes.data.data) {
+      const data = statsRes.data.data;
       
-      const usersList = usersRes?.data?.data || [];
-      const usersMap = new Map();
-      usersList.forEach(user => {
-        usersMap.set(user.id, user);
-        usersMap.set(user._id, user);
-        if (user.email) usersMap.set(user.email, user);
-        if (user.phone) usersMap.set(user.phone, user);
+      // Update main stats
+      setStats({
+        total_users: data.total_users || 0,
+        total_agents: data.total_agents || 0,
+        pending_agents: data.pending_agents || 0,
+        total_orders: data.total_orders || 0,
+        total_revenue: data.total_revenue || 0,
+        pending_manual: data.pending_manual || 0,
+        pending_withdrawals: data.pending_withdrawals || 0,
+        // Use the actual data from API
+        today_sales: data.today_sales || 0,
+        today_orders: data.today_orders || 0,
+        week_sales: data.week_sales || 0,
+        month_sales: data.month_sales || 0,
+        year_sales: data.year_sales || 0,
+        // Keep existing stats with defaults
+        monthly_revenue: data.month_sales || data.total_revenue || 0,
+        weekly_revenue: data.week_sales || data.total_revenue / 4 || 0,
+        daily_revenue: data.today_sales || data.total_revenue / 30 || 0,
+        active_users: data.active_users || data.total_users || 0,
+        suspended_users: 0,
+        total_commission_paid: 0,
+        avg_order_value: data.total_orders > 0 ? data.total_revenue / data.total_orders : 0,
+        conversion_rate: 0,
+        total_data_sold_gb: 0,
+        top_network: 'MTN',
+        peak_hour: '6 PM',
+        customer_lifetime_value: 0,
+        customer_acquisition_cost: 0,
+        gross_merchandise_value: data.total_revenue || 0,
+        total_waec_sold: 0,
+        total_bills_paid: 0
       });
       
-      const rawPayments = paymentsRes?.data?.data || [];
-      const enrichedPayments = rawPayments.map(payment => {
-        let userData = null;
-        
-        if (payment.user_id) userData = usersMap.get(payment.user_id);
-        if (!userData && payment.userId) userData = usersMap.get(payment.userId);
-        if (!userData && payment.user) userData = usersMap.get(payment.user);
-        if (!userData && payment.email) userData = usersMap.get(payment.email);
-        if (!userData && payment.phone) userData = usersMap.get(payment.phone);
-        
-        return {
-          id: payment.id || payment._id,
-          amount: payment.amount || 0,
-          reference: payment.reference || payment.transaction_id || 'N/A',
-          proof_url: payment.proof_url || payment.proof_image || null,
-          status: payment.status || 'pending',
-          created_at: payment.created_at || payment.createdAt,
-          updated_at: payment.updated_at || payment.updatedAt,
-          username: userData?.username || payment.username || payment.user_name || 'Unknown User',
-          email: userData?.email || payment.email || 'No email',
-          phone: userData?.phone || payment.phone || 'No phone',
-          user_id: userData?.id || userData?._id || payment.user_id || payment.userId
-        };
+      // Update live stats with actual data
+      setLiveStats({
+        online_users: data.active_users || data.total_users || 0,
+        active_purchases_per_sec: 0,
+        revenue_today: data.today_sales || 0,  // Fixed: use today_sales
+        orders_today: data.today_orders || 0,   // Fixed: use today_orders
+        pending_actions: (data.pending_agents || 0) + (data.pending_withdrawals || 0) + (data.pending_manual || 0)
       });
       
-      const statsData = statsRes?.data?.data || {};
-      setStats(statsData);
-      setUsers(usersList);
-      setAgents(agentsRes?.data?.data || []);
-      setAgentRequests(requestsRes?.data?.data || []);
-      setManualPayments(enrichedPayments);
-      setWithdrawals(withdrawalsRes?.data?.data || []);
-      setAllOrders(ordersRes?.data?.data || []);
+      // Update recent orders if available
+      if (data.recent_orders && data.recent_orders.length > 0) {
+        setAllOrders(data.recent_orders);
+      }
       
-      setNetworkSales({
-        mtn: statsData.mtn_sales || 0,
-        telecel: statsData.telecel_sales || 0,
-        airteltigo: statsData.airteltigo_sales || 0
+      // Set total sales from the stats data
+      setTotalSales({
+        today: data.today_sales || 0,
+        week: data.week_sales || 0,
+        month: data.month_sales || 0,
+        year: data.year_sales || 0,
+        all_time: data.total_revenue || 0
       });
-      
-    } catch (error) {
-      console.error('Failed to load data:', error);
-      toast.error('Failed to load dashboard data');
-    } finally {
-      setLoading(false);
     }
-  };
+    
+    // Fetch total sales separately for additional data
+    try {
+      const salesRes = await api.get('/admin/total-sales');
+      console.log('Total sales data:', salesRes.data);
+      
+      if (salesRes.data.success && salesRes.data.data) {
+        const salesData = salesRes.data.data;
+        // Update total sales with more precise data if available
+        setTotalSales(prev => ({
+          today: salesData.today_sales !== undefined ? salesData.today_sales : prev.today,
+          week: salesData.week_sales !== undefined ? salesData.week_sales : prev.week,
+          month: salesData.month_sales !== undefined ? salesData.month_sales : prev.month,
+          year: salesData.year_sales !== undefined ? salesData.year_sales : prev.year,
+          all_time: salesData.total_sales !== undefined ? salesData.total_sales : prev.all_time
+        }));
+      }
+    } catch (err) {
+      console.warn('Total sales endpoint issue:', err.message);
+      // Already have total sales from stats, so this is fine
+    }
+    
+    // Fetch other data
+    const [usersRes, agentsRes, requestsRes, paymentsRes, withdrawalsRes, ordersRes] = await Promise.all([
+      api.get('/admin/users').catch(() => ({ data: { data: [] } })),
+      api.get('/admin/agents').catch(() => ({ data: { data: [] } })),
+      api.get('/admin/agent-requests').catch(() => ({ data: { data: [] } })),
+      api.get('/admin/manual-payments').catch(() => ({ data: { data: [] } })),
+      api.get('/admin/withdrawals').catch(() => ({ data: { data: [] } })),
+      api.get('/admin/orders').catch(() => ({ data: { data: [] } }))
+    ]);
+    
+    setUsers(usersRes.data?.data || []);
+    setAgents(agentsRes.data?.data || []);
+    setAgentRequests(requestsRes.data?.data || []);
+    setManualPayments(paymentsRes.data?.data || []);
+    setWithdrawals(withdrawalsRes.data?.data || []);
+    setAllOrders(ordersRes.data?.data || []);
+    
+  } catch (error) {
+    console.error('Failed to load data:', error);
+    toast.error('Failed to load dashboard data');
+  } finally {
+    setLoading(false);
+  }
+};
   
   // NEW: Fetch Africa's Talking Balance
    // Update the fetchAfricasTalkingBalance function
