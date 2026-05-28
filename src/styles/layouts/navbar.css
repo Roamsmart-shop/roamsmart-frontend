@@ -1,5 +1,4 @@
-/* src/styles/layouts/navbar.css */
-/* ========== COMPLETE MOBILE-FRIENDLY FIXED VERSION ========== */
+
 
 /* ========== BASE RESET ========== */
 html, body {
@@ -421,6 +420,7 @@ html, body {
 }
 
 /* Dropdown - JavaScript controls visibility via inline styles */
+/* ========== USER DROPDOWN - FIXED FOR MOBILE ========== */
 .user-dropdown {
   position: absolute;
   top: 50px;
@@ -428,7 +428,8 @@ html, body {
   background: var(--white);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
-  min-width: 200px;
+  min-width: 220px;
+  width: auto;
   z-index: var(--z-dropdown);
   overflow: hidden;
   animation: slideDown 0.2s ease;
@@ -436,12 +437,41 @@ html, body {
 
 @media (max-width: 768px) {
   .user-dropdown {
-    position: fixed;
-    top: 60px;
-    right: 10px;
-    left: 10px;
+    position: absolute;
+    top: 45px;
+    right: 0;
+    left: auto;
+    min-width: 200px;
     width: auto;
-    min-width: auto;
+    max-width: 260px;
+  }
+}
+
+@media (max-width: 480px) {
+  .user-dropdown {
+    right: 5px;
+    min-width: 180px;
+    max-width: calc(100vw - 20px);
+  }
+  
+  .user-dropdown a,
+  .user-dropdown button {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+    gap: 8px;
+  }
+  
+  .user-dropdown .user-info {
+    padding: 10px 12px;
+  }
+  
+  .user-dropdown .user-name {
+    font-size: 0.9rem;
+  }
+  
+  .user-dropdown .user-email {
+    font-size: 0.7rem;
+    word-break: break-word;
   }
 }
 
@@ -449,8 +479,8 @@ html, body {
 .user-dropdown button {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: var(--spacing-lg) var(--spacing-md);
+  gap: 12px;
+  padding: 12px 16px;
   text-decoration: none;
   color: var(--gray-800);
   width: 100%;
@@ -459,6 +489,8 @@ html, body {
   cursor: pointer;
   transition: background var(--transition-fast);
   font-size: 0.9rem;
+  text-align: left;
+  box-sizing: border-box;
 }
 
 .user-dropdown a:hover,
