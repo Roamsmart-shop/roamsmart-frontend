@@ -1,81 +1,422 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+
+  <!-- ==================== MAIN PAGES ==================== -->
+  
+  <!-- Homepage -->
   <url>
     <loc>https://roamsmart.shop/</loc>
     <lastmod>2026-05-28</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
-  <url>
-    <loc>https://roamsmart.shop/dashboard</loc>
-    <lastmod>2026-05-28</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://roamsmart.shop/agent</loc>
-    <lastmod>2026-05-28</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
+  
+  <!-- Authentication Pages -->
   <url>
     <loc>https://roamsmart.shop/login</loc>
     <lastmod>2026-05-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
+  
   <url>
     <loc>https://roamsmart.shop/register</loc>
     <lastmod>2026-05-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/forgot-password</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  
+  <!-- Dashboard Pages -->
+  <url>
+    <loc>https://roamsmart.shop/dashboard</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/agent</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/admin</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/become-agent</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- Service Pages -->
+  <url>
+    <loc>https://roamsmart.shop/buy-data</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/data-bundles</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
   <url>
     <loc>https://roamsmart.shop/waec-vouchers</loc>
     <lastmod>2026-05-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
+  
   <url>
-    <loc>https://roamsmart.shop/bills</loc>
+    <loc>https://roamsmart.shop/afa-registration</loc>
     <lastmod>2026-05-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
+  
+  <!-- Wallet & Transactions -->
+  <url>
+    <loc>https://roamsmart.shop/wallet</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
   <url>
     <loc>https://roamsmart.shop/transactions</loc>
     <lastmod>2026-05-28</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <changefreq>daily</changefreq>
+    <priority>0.7</priority>
   </url>
+  
   <url>
     <loc>https://roamsmart.shop/earnings</loc>
     <lastmod>2026-05-28</lastmod>
-    <changefreq>weekly</changefreq>
+    <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
+  
   <url>
     <loc>https://roamsmart.shop/referrals</loc>
     <lastmod>2026-05-28</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
+  
+  <!-- Support Pages -->
   <url>
     <loc>https://roamsmart.shop/support</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/faq</loc>
     <lastmod>2026-05-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
+  
   <url>
-    <loc>https://roamsmart.shop/prices</loc>
+    <loc>https://roamsmart.shop/contact</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  
+  <!-- Profile & Settings -->
+  <url>
+    <loc>https://roamsmart.shop/profile</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/settings</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+
+  <!-- ==================== BLOG PAGES ==================== -->
+  
+  <!-- Blog Main Page -->
+  <url>
+    <loc>https://roamsmart.shop/blog</loc>
     <lastmod>2026-05-28</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
   </url>
-<url>
-  <loc>https://roamsmart.shop/prices</loc>
-  <lastmod>2026-05-28</lastmod>
-  <changefreq>daily</changefreq>
-  <priority>0.9</priority>
-</url>
+  
+  <!-- TRAVEL & DESTINATION POSTS -->
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/top-5-hidden-beaches-in-ghana</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <image:image>
+      <image:loc>https://roamsmart.shop/images/blog/beaches-ghana.jpg</image:loc>
+      <image:title>Top 5 Hidden Beaches in Ghana</image:title>
+    </image:image>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/best-waterfalls-in-ghana-to-visit</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/volta-region-travel-guide</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/cape-coast-castle-things-to-do</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/kakum-national-park-guide</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/weekend-getaways-from-accra</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/best-hotels-in-ghana-for-budget-travelers</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- TECH & DATA POSTS -->
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/mtn-vs-telecel-vs-airteltigo-data-comparison</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/how-to-buy-data-online-in-ghana</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/best-data-plans-for-remote-work-ghana</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/how-to-check-data-balance-on-mtn-telecel-airteltigo</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/mtn-data-bundles-prices-2026</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/telecel-data-plans-comparison</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/airteltigo-cheapest-data-bundles</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- BUSINESS & ENTREPRENEURSHIP POSTS -->
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/how-to-become-a-data-reseller-in-ghana</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/earn-money-online-ghana-data-reselling</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/agent-interview-making-ghs-5000-month-roamsmart</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/tips-for-new-resellers-data-business</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- EDUCATION & WAEC POSTS -->
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/how-to-check-waec-results-online-ghana</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/waec-result-checker-voucher-buy-online</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/top-10-universities-in-ghana-2026</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/scholarships-for-ghanaian-students-2026</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- PROMOTIONS & OFFERS -->
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/roamsmart-data-bundle-sale-june-2026</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+    <news:news>
+      <news:publication>
+        <news:name>RoamSmart Blog</news:name>
+        <news:language>en</news:language>
+      </news:publication>
+      <news:publication_date>2026-05-28</news:publication_date>
+      <news:title>RoamSmart Data Bundle Sale - Up to 30% Off</news:title>
+    </news:news>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/agent-recruitment-drive-2026</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- LIFESTYLE & TIPS -->
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/best-restaurants-in-accra-2026</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/nightlife-in-accra-where-to-go</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/shopping-malls-in-ghana-guide</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/blog/ghanaian-food-must-try-dishes</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- ==================== LEGAL PAGES ==================== -->
+  
+  <url>
+    <loc>https://roamsmart.shop/terms</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/privacy</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/cookies</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  
+  <url>
+    <loc>https://roamsmart.shop/refund-policy</loc>
+    <lastmod>2026-05-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
 </urlset>

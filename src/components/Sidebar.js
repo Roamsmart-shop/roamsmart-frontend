@@ -15,7 +15,7 @@ import {
   FaDownload, FaPrint, FaEye, FaEdit, FaTrash, FaPlus,
   FaMinus, FaArrowUp, FaArrowDown, FaChartBar, FaPieChart,
   FaLineChart, FaBarChart, FaCalendarAlt, FaClock, FaFilter,
-  FaArrowRight, FaArrowLeft, FaDollarSign
+  FaArrowRight, FaArrowLeft, FaDollarSign, FaNewspaper
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import { FaUserGraduate, FaGraduationCap } from 'react-icons/fa';
@@ -133,7 +133,7 @@ export default function Sidebar({ isOpen, onClose, user: propUser, isCollapsed, 
     return fallbackUrl;
   };
 
-  // ========== USER LINKS ==========
+  // ========== USER LINKS (with Blog added) ==========
   const userLinks = [
     { to: '/dashboard', icon: <FaTachometerAlt />, label: 'Dashboard', description: 'Overview & Stats on Roamsmart' },
     { to: '/dashboard#bundles', icon: <FaDatabase />, label: 'Buy Data', description: 'Purchase data bundles on Roamsmart' },
@@ -144,11 +144,12 @@ export default function Sidebar({ isOpen, onClose, user: propUser, isCollapsed, 
     { to: '/earnings', icon: <FaMoneyBillWave />, label: 'Earnings', description: 'Track your Roamsmart commissions' },
     { to: '/become-agent', icon: <FaUserPlus />, label: 'Become Roamsmart Agent', description: 'Start earning more' },
     { to: '/referrals', icon: <FaGift />, label: 'Referrals', description: 'Invite & earn on Roamsmart' },
+    { to: '/blog', icon: <FaNewspaper />, label: 'Blog', description: 'Read latest articles on Roamsmart' },
     { to: '/support', icon: <FaHeadset />, label: 'Support', description: 'Get Roamsmart help 24/7' },
     { to: '/profile', icon: <FaCog />, label: 'Settings', description: 'Account settings on Roamsmart' }
   ];
 
-  // ========== AGENT LINKS ==========
+  // ========== AGENT LINKS (with Blog added) ==========
   const agentLinks = [
     { to: '/agent/orders', icon: <FaShoppingCart />, label: 'Orders', description: 'Track customer orders on Roamsmart' },
     { to: '/agent/store', icon: <FaStore />, label: 'My Store', description: 'Your Roamsmart online store dashboard' },
@@ -161,11 +162,12 @@ export default function Sidebar({ isOpen, onClose, user: propUser, isCollapsed, 
     { to: '/wallet/transactions', icon: <FaHistory />, label: 'Wallet History', description: 'All Roamsmart transactions' },
     { to: '/agent/customers', icon: <FaUsers />, label: 'Customers', description: 'Your customer base on Roamsmart' },
     { to: '/transactions', icon: <FaExchangeAlt />, label: 'Sales History', description: 'Your Roamsmart sales records' },
+    { to: '/blog', icon: <FaNewspaper />, label: 'Blog', description: 'Read latest articles on Roamsmart' },
     { to: '/support', icon: <FaHeadset />, label: 'Support', description: 'Get Roamsmart help' },
     { to: '/profile', icon: <FaCog />, label: 'Settings', description: 'Account settings on Roamsmart' }
   ];
 
-  // ========== ADMIN LINKS ==========
+  // ========== ADMIN LINKS (with Blog added) ==========
   const adminLinks = [
     { to: '/admin', icon: <FaTachometerAlt />, label: 'Dashboard', description: 'Roamsmart Overview & KPIs' },
     { to: '/admin#analytics', icon: <FaChartLine />, label: 'Analytics', description: 'Roamsmart Advanced analytics' },
@@ -177,14 +179,16 @@ export default function Sidebar({ isOpen, onClose, user: propUser, isCollapsed, 
     { to: '/admin#kyc', icon: <FaShieldAlt />, label: 'KYC Verification', description: 'Verify Roamsmart users' },
     { to: '/admin#webhooks', icon: <FaPlug />, label: 'Webhooks', description: 'Roamsmart API integrations' },
     { to: '/admin#backup', icon: <FaCloudUploadAlt />, label: 'Backup', description: 'Roamsmart database backup' },
-    { to: '/admin#settings', icon: <FaCog />, label: 'Settings', description: 'Roamsmart system settings' }
+    { to: '/admin#settings', icon: <FaCog />, label: 'Settings', description: 'Roamsmart system settings' },
+    { to: '/blog', icon: <FaNewspaper />, label: 'Blog', description: 'Read latest articles on Roamsmart' }
   ];
 
-  // ========== SUPER ADMIN LINKS ==========
+  // ========== SUPER ADMIN LINKS (with Blog added) ==========
   const superAdminLinks = [
     { to: '/admin/roles', icon: <FaUserCheck />, label: 'Admin Roles', description: 'Manage Roamsmart admins' },
     { to: '/admin/audit', icon: <FaHistory />, label: 'Audit Logs', description: 'Admin actions on Roamsmart' },
-    { to: '/admin/system', icon: <FaRobot />, label: 'System Health', description: 'Roamsmart server status' }
+    { to: '/admin/system', icon: <FaRobot />, label: 'System Health', description: 'Roamsmart server status' },
+    { to: '/blog', icon: <FaNewspaper />, label: 'Blog', description: 'Read latest articles on Roamsmart' }
   ];
 
   // Combine links based on role

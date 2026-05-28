@@ -8,7 +8,8 @@ import PrivateRoute from './components/PrivateRoute';
 import AnnouncementBanner from './components/AnnouncementBanner';
 import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from './components/ErrorBoundary';
-
+import Blog from './pages/Blog';
+import BlogPost from './pages/BlogPost';
 // Direct imports for core components
 import AgentOrders from './pages/AgentOrders';
 import AgentInventory from './pages/AgentInventory';
@@ -522,7 +523,8 @@ function AppContent() {
                     <AdminRoles />
                   </PrivateRoute>
                 } />
-                
+                <Route path="/blog" element={<Blog />} />
+                <Route path="/blog/:slug" element={<BlogPost />} />
                 {/* Redirect any unknown routes to dashboard */}
                 <Route path="*" element={<Navigate to={user ? (actualIsAdmin ? '/admin' : (actualIsAgent ? '/agent' : '/dashboard')) : '/'} replace />} />
               </Routes>

@@ -1191,3 +1191,20 @@ img {
     display: inline-block !important;
   }
 }
+
+/* Fix for mobile dropdown cutoff */
+@media (max-width: 768px) {
+  .user-dropdown {
+    right: 10px !important;
+    left: auto !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .user-dropdown {
+    right: 50% !important;
+    left: auto !important;
+    transform: translateX(50%) !important;
+    width: 280px !important;
+  }
+}

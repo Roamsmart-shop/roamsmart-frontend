@@ -12,10 +12,11 @@ import {
   FaRegSmile, FaRegClock, FaRegCreditCard, FaRegCheckCircle,
   FaNetworkWired, FaCloudUploadAlt, FaDatabase, FaLock,
   FaUserPlus, FaMoneyBillWave, FaPercentage, FaInfinity,
-  FaBullhorn, FaSpinner
+  FaBullhorn, FaSpinner, FaNewspaper
 } from 'react-icons/fa';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import { BLOG_POSTS } from './Blog';
 
 // Company Configuration
 const COMPANY = {
@@ -117,6 +118,7 @@ export default function Landing() {
   const [isLoading, setIsLoading] = useState(true);
   const [testimonials, setTestimonials] = useState(DEFAULT_TESTIMONIALS);
   const [faqs, setFaqs] = useState(DEFAULT_FAQS);
+  const [blogPosts, setBlogPosts] = useState([]);
 
   // Animation refs
   const featuresRef = React.useRef(null);
@@ -138,6 +140,9 @@ export default function Landing() {
       startCounters();
     };
     fetchData();
+    
+    // Load blog posts
+    setBlogPosts(BLOG_POSTS.slice(0, 3));
   }, []);
 
   const fetchAnnouncement = async () => {
@@ -644,6 +649,45 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ========== LATEST BLOG POSTS SECTION ========== */}
+      <section className="latest-blog-section">
+        <div className="container">
+          <div className="section-header">
+            <h2>Latest from <span className="gradient-text">Our Blog</span></h2>
+            <p>Tips, guides, and stories from Roamsmart</p>
+          </div>
+          <div className="blog-preview-grid">
+            {blogPosts.map((post, index) => (
+              <motion.div 
+                key={post.id}
+                className="blog-preview-card"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ y: -5 }}
+              >
+                <Link to={`/blog/${post.slug}`}>
+                  <img src={post.image} alt={post.title} />
+                  <div className="blog-preview-content">
+                    <span className="blog-category">{post.category}</span>
+                    <h3>{post.title}</h3>
+                    <p>{post.excerpt.substring(0, 100)}...</p>
+                    <div className="read-more">
+                      Read More <FaArrowRight />
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+          <div className="view-all-blog">
+            <Link to="/blog" className="btn-outline">
+              <FaNewspaper /> View All Articles
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* ========== NEWSLETTER SECTION ========== */}
       <section className="newsletter-section">
         <div className="container">
@@ -702,6 +746,7 @@ export default function Landing() {
                 <li><Link to="/dashboard">Dashboard</Link></li>
                 <li><Link to="/become-agent">Become Agent</Link></li>
                 <li><Link to="/support">Support</Link></li>
+                <li><Link to="/blog">Blog</Link></li>
               </ul>
             </div>
             <div className="footer-links">
