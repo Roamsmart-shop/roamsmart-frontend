@@ -1,5 +1,19 @@
 // src/config/index.js
 
+// ========== DISABLE CONSOLE LOGS IN PRODUCTION ==========
+if (process.env.NODE_ENV === 'production') {
+  // Store original console methods
+  const noop = () => {};
+  
+  // Disable console methods (keep error for critical debugging)
+  console.log = noop;
+  console.info = noop;
+  console.debug = noop;
+  console.warn = noop;
+  // console.error is kept for critical errors
+  // console.table is kept for debugging
+}
+
 // Company Configuration
 const COMPANY = {
   name: 'Roamsmart Digital Service',
