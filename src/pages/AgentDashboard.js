@@ -1,4 +1,4 @@
-// src/pages/AgentDashboard.js - With Commission Removed
+// src/pages/AgentDashboard.js - With Commission Removed (No profit/commission display)
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -125,8 +125,8 @@ export default function AgentDashboard() {
   const [proofFile, setProofFile] = useState(null);
   const [copied, setCopied] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
-  // Add this with your other state declarations
   const [phoneNumber, setPhoneNumber] = useState(stats?.phone || user?.phone || '');
+  
   // Verification States
   const [verifyReference, setVerifyReference] = useState('');
   const [verifyTransactionId, setVerifyTransactionId] = useState('');
@@ -160,8 +160,7 @@ export default function AgentDashboard() {
   const [bulkPreview, setBulkPreview] = useState([]);
   const [processingBulk, setProcessingBulk] = useState(false);
   
-  // Earnings & Withdrawals - REMOVED withdrawal functionality since no commission
-  // REMOVED: showWithdrawModal, withdrawAmount, withdrawPhone, withdrawals, withdrawing
+  // REMOVED: earnings & withdrawal states (no commission)
   
   // Purchase Confirmation
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -417,66 +416,66 @@ export default function AgentDashboard() {
     }
   };
 
-// Initialize MoMo Payment Handler
-const initializeMomoPayment = async (amount, phone, customerName) => {
-  setProcessingPayment(true);
-  try {
-    const response = await api.post('/payment/momo/initialize', {
-      amount: amount,
-      phone: phone,
-      name: customerName,
-      metadata: {
-        type: 'wallet_funding',
-        agent_id: user?.id,
-        agent_name: user?.username
-      }
-    });
-    
-    const { payment_url, reference } = response.data.data;
-    
-    // Open MoMo payment page
-    const momoPopup = window.open(payment_url, '_blank', 'width=600,height=700');
-    
-    // Poll for payment verification
-    const checkPaymentInterval = setInterval(async () => {
-      try {
-        const verifyResponse = await api.get(`/payment/momo/verify/${reference}`);
-        if (verifyResponse.data.data.status === 'success') {
-          clearInterval(checkPaymentInterval);
-          momoPopup?.close();
-          
-          await Swal.fire({
-            icon: 'success',
-            title: 'Payment Successful!',
-            html: `₵${amount} has been added to your Roamsmart wallet.`,
-            confirmButtonColor: '#8B0000'
-          });
-          
-          await fetchData();
-          setShowFundModal(false);
-          resetFundModal();
-          setProcessingPayment(false);
-          fetchPendingTopups();
+  // Initialize MoMo Payment Handler
+  const initializeMomoPayment = async (amount, phone, customerName) => {
+    setProcessingPayment(true);
+    try {
+      const response = await api.post('/payment/momo/initialize', {
+        amount: amount,
+        phone: phone,
+        name: customerName,
+        metadata: {
+          type: 'wallet_funding',
+          agent_id: user?.id,
+          agent_name: user?.username
         }
-      } catch (error) {
-        console.error('MoMo verification error:', error);
-      }
-    }, 5000);
-    
-    // Stop checking after 5 minutes
-    setTimeout(() => {
-      clearInterval(checkPaymentInterval);
-      if (processingPayment) {
-        setProcessingPayment(false);
-      }
-    }, 300000);
-    
-  } catch (error) {
-    console.error('MoMo initialization error:', error);
-    toast.error(error.response?.data?.error || 'MoMo payment initialization failed');
-    setProcessingPayment(false);
-  }
-};
+      });
+      
+      const { payment_url, reference } = response.data.data;
+      
+      // Open MoMo payment page
+      const momoPopup = window.open(payment_url, '_blank', 'width=600,height=700');
+      
+      // Poll for payment verification
+      const checkPaymentInterval = setInterval(async () => {
+        try {
+          const verifyResponse = await api.get(`/payment/momo/verify/${reference}`);
+          if (verifyResponse.data.data.status === 'success') {
+            clearInterval(checkPaymentInterval);
+            momoPopup?.close();
+            
+            await Swal.fire({
+              icon: 'success',
+              title: 'Payment Successful!',
+              html: `₵${amount} has been added to your Roamsmart wallet.`,
+              confirmButtonColor: '#8B0000'
+            });
+            
+            await fetchData();
+            setShowFundModal(false);
+            resetFundModal();
+            setProcessingPayment(false);
+            fetchPendingTopups();
+          }
+        } catch (error) {
+          console.error('MoMo verification error:', error);
+        }
+      }, 5000);
+      
+      // Stop checking after 5 minutes
+      setTimeout(() => {
+        clearInterval(checkPaymentInterval);
+        if (processingPayment) {
+          setProcessingPayment(false);
+        }
+      }, 300000);
+      
+    } catch (error) {
+      console.error('MoMo initialization error:', error);
+      toast.error(error.response?.data?.error || 'MoMo payment initialization failed');
+      setProcessingPayment(false);
+    }
+  };
 
   // Manual Payment Handler
   const handleManualPayment = async () => {
@@ -1345,117 +1344,117 @@ const initializeMomoPayment = async (amount, phone, customerName) => {
           </div>
 
           {/* Dynamic Size Input Section - NO PROFIT */}
-<div className="custom-size-section-agent">
-  <div className="custom-size-input-agent">
-    <h3>Enter Custom Data Size</h3>
-    <div className="size-input-group-agent">
-      <input
-        type="number"
-        min="1"
-        max="100"
-        value={selectedSize}
-        onChange={handleCustomSize}
-        placeholder="Enter GB (e.g., 15)"
-        className="form-control"
-      />
-      <span className="gb-label-agent">GB</span>
-    </div>
-    
-    {loadingPrice && <div className="spinner-small"><FaSpinner className="spinning" /> Checking price...</div>}
-    
-    {selectedWholesalePrice !== null && !loadingPrice && (
-      <div className="price-display-agent">
-        {/* Only show database price - NO wholesale, NO profit */}
-        <div className="price-row">
-          <span>Price:</span>
-          <strong>₵{selectedWholesalePrice.toFixed(2)}</strong>
-        </div>
-        {/* REMOVED: suggested selling price and profit display */}
-        <button 
-          className="btn-primary btn-block"
-          onClick={() => {
-            if (!customerPhone) {
-              toast.error('Enter customer phone number first');
-              return;
-            }
-            setSellingBundle(`${selectedNetwork}-${selectedSize}`);
-            sellData(selectedNetwork, parseInt(selectedSize), selectedWholesalePrice, customerPhone, customerName);
-          }}
-          disabled={!selectedSize}
-        >
-          Sell {selectedSize}GB for ₵{selectedWholesalePrice.toFixed(2)}
-        </button>
-      </div>
-    )}
-    
-    {selectedSize && selectedWholesalePrice === null && !loadingPrice && (
-      <div className="price-not-found-agent">
-        <p>⚠️ No price configured for {selectedSize}GB on {selectedNetwork.toUpperCase()}</p>
-        <p className="text-muted">Please contact admin to add this size or select from available sizes below</p>
-      </div>
-    )}
-    
-    <div className="available-sizes-agent">
-      <h4>Available Sizes (Admin Configured)</h4>
-      <div className="size-chips-agent">
-        {availableSizes.map(size => (
-          <button
-            key={size}
-            className={`size-chip-agent ${selectedSize == size ? 'active' : ''}`}
-            onClick={() => handleSizeSelect(size)}
-          >
-            {size}GB
-          </button>
-        ))}
-      </div>
-    </div>
-  </div>
-</div>
+          <div className="custom-size-section-agent">
+            <div className="custom-size-input-agent">
+              <h3>Enter Custom Data Size</h3>
+              <div className="size-input-group-agent">
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={selectedSize}
+                  onChange={handleCustomSize}
+                  placeholder="Enter GB (e.g., 15)"
+                  className="form-control"
+                />
+                <span className="gb-label-agent">GB</span>
+              </div>
+              
+              {loadingPrice && <div className="spinner-small"><FaSpinner className="spinning" /> Checking price...</div>}
+              
+              {selectedWholesalePrice !== null && !loadingPrice && (
+                <div className="price-display-agent">
+                  {/* Only show database price - NO wholesale, NO profit */}
+                  <div className="price-row">
+                    <span>Price:</span>
+                    <strong>₵{selectedWholesalePrice.toFixed(2)}</strong>
+                  </div>
+                  {/* REMOVED: suggested selling price and profit display */}
+                  <button 
+                    className="btn-primary btn-block"
+                    onClick={() => {
+                      if (!customerPhone) {
+                        toast.error('Enter customer phone number first');
+                        return;
+                      }
+                      setSellingBundle(`${selectedNetwork}-${selectedSize}`);
+                      sellData(selectedNetwork, parseInt(selectedSize), selectedWholesalePrice, customerPhone, customerName);
+                    }}
+                    disabled={!selectedSize}
+                  >
+                    Sell {selectedSize}GB for ₵{selectedWholesalePrice.toFixed(2)}
+                  </button>
+                </div>
+              )}
+              
+              {selectedSize && selectedWholesalePrice === null && !loadingPrice && (
+                <div className="price-not-found-agent">
+                  <p>⚠️ No price configured for {selectedSize}GB on {selectedNetwork.toUpperCase()}</p>
+                  <p className="text-muted">Please contact admin to add this size or select from available sizes below</p>
+                </div>
+              )}
+              
+              <div className="available-sizes-agent">
+                <h4>Available Sizes (Admin Configured)</h4>
+                <div className="size-chips-agent">
+                  {availableSizes.map(size => (
+                    <button
+                      key={size}
+                      className={`size-chip-agent ${selectedSize == size ? 'active' : ''}`}
+                      onClick={() => handleSizeSelect(size)}
+                    >
+                      {size}GB
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Predefined Bundles Grid - NO PROFIT DISPLAY */}
-<div className="bundles-grid-agent">
-  <h3 className="bundles-subtitle-agent">Popular Bundles</h3>
-  <div className="bundles-grid-container-agent">
-    {Object.entries(agentBundles[selectedNetwork] || {}).slice(0, 5).map(([size, wholesalePrice]) => {
-      const sellingPrice = wholesalePrice * (1 + (storeSettings.markup || 15) / 100);
-      const isSelling = sellingBundle === `${selectedNetwork}-${size}`;
-      
-      return (
-        <motion.div 
-          key={size} 
-          whileHover={{ y: -5, scale: 1.02 }} 
-          className="bundle-card-agent"
-        >
-          <div className="bundle-size">{size}GB</div>
-          {/* Only show database price - NO wholesale, NO profit */}
-          <div className="bundle-price">₵{wholesalePrice}</div>
-          <div className="bundle-actions">
-            <button 
-              className="btn-primary btn-sm"
-              onClick={() => {
-                if (!customerPhone) {
-                  toast.error('Enter customer phone number first');
-                  return;
-                }
-                setSellingBundle(`${selectedNetwork}-${size}`);
-                sellData(selectedNetwork, parseInt(size), wholesalePrice, customerPhone, customerName);
-              }}
-              disabled={isSelling}
-            >
-              {isSelling ? <FaSpinner className="spinning" /> : 'Sell on Roamsmart'}
-            </button>
-            <button 
-              className="btn-outline btn-sm"
-              onClick={() => addToCart(selectedNetwork, parseInt(size), wholesalePrice)}
-            >
-              <FaPlus /> Add to Cart
-            </button>
+          <div className="bundles-grid-agent">
+            <h3 className="bundles-subtitle-agent">Popular Bundles</h3>
+            <div className="bundles-grid-container-agent">
+              {Object.entries(agentBundles[selectedNetwork] || {}).slice(0, 5).map(([size, wholesalePrice]) => {
+                const sellingPrice = wholesalePrice * (1 + (storeSettings.markup || 15) / 100);
+                const isSelling = sellingBundle === `${selectedNetwork}-${size}`;
+                
+                return (
+                  <motion.div 
+                    key={size} 
+                    whileHover={{ y: -5, scale: 1.02 }} 
+                    className="bundle-card-agent"
+                  >
+                    <div className="bundle-size">{size}GB</div>
+                    {/* Only show database price - NO wholesale, NO profit */}
+                    <div className="bundle-price">₵{wholesalePrice}</div>
+                    <div className="bundle-actions">
+                      <button 
+                        className="btn-primary btn-sm"
+                        onClick={() => {
+                          if (!customerPhone) {
+                            toast.error('Enter customer phone number first');
+                            return;
+                          }
+                          setSellingBundle(`${selectedNetwork}-${size}`);
+                          sellData(selectedNetwork, parseInt(size), wholesalePrice, customerPhone, customerName);
+                        }}
+                        disabled={isSelling}
+                      >
+                        {isSelling ? <FaSpinner className="spinning" /> : 'Sell on Roamsmart'}
+                      </button>
+                      <button 
+                        className="btn-outline btn-sm"
+                        onClick={() => addToCart(selectedNetwork, parseInt(size), wholesalePrice)}
+                      >
+                        <FaPlus /> Add to Cart
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
           </div>
-        </motion.div>
-      );
-    })}
-  </div>
-</div>
 
           <div className="suggested-prices">
             <h3>💰 Suggested Retail Prices for Roamsmart</h3>

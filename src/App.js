@@ -22,6 +22,7 @@ import WAECVouchersPage from './pages/WAECVouchersPage';
 import AdminPriceManagement from './pages/AdminPriceManagement';
 import AdminDashboard from './pages/AdminDashboard';
 import BecomeAgent from './pages/BecomeAgent';
+import BillPayment from './components/BillPayment';
 
 // Lazy load pages for better performance
 const Landing = lazy(() => import('./pages/Landingpages'));
@@ -197,6 +198,7 @@ function AppContent() {
   
   // ========== DETERMINE IF SIDEBAR SHOULD BE SHOWN ==========
   // Sidebar only shows on dashboard routes when user is authenticated
+  // UPDATED: Added '/bills' to dashboard routes
   const isDashboardRoute = location.pathname.startsWith('/admin') || 
                           location.pathname.startsWith('/agent') || 
                           location.pathname.startsWith('/dashboard') ||
@@ -211,14 +213,15 @@ function AppContent() {
                           location.pathname.startsWith('/afa-registration') ||
                           location.pathname.startsWith('/2fa') ||
                           location.pathname.startsWith('/sessions') ||
-                          location.pathname.startsWith('/become-agent');
+                          location.pathname.startsWith('/become-agent') ||
+                          location.pathname.startsWith('/bills');  // ADDED THIS LINE
   
   // ========== FIX: Determine if this is a public page ==========
   const isPublicPage = location.pathname === '/' || 
                        location.pathname === '/login' || 
                        location.pathname === '/register' ||
                        location.pathname === '/forgot-password' ||
-                       location.pathname === '/reset-password' ||  // Add reset-password here
+                       location.pathname === '/reset-password' ||
                        location.pathname === '/support' ||
                        location.pathname === '/faq' ||
                        location.pathname === '/privacy' ||
@@ -354,6 +357,19 @@ function AppContent() {
                   </PrivateRoute>
                 } />
                 
+                {/* BILL PAYMENT ROUTES - ADDED */}
+                <Route path="/bills" element={
+                  <PrivateRoute>
+                    <BillPayment />
+                  </PrivateRoute>
+                } />
+                
+                <Route path="/agent/bills" element={
+                  <PrivateRoute allowedRoles={['agent']}>
+                    <BillPayment isAgent={true} />
+                  </PrivateRoute>
+                } />
+                
                 <Route path="/waec-vouchers" element={
                   <PrivateRoute>
                     <WAECVouchersPage />
@@ -480,7 +496,7 @@ function AppContent() {
                     <StoreClients />
                   </PrivateRoute>
                 } />
-
+                
                 {/* Admin Routes */}
                 <Route path="/admin" element={
                   <PrivateRoute allowedRoles={['admin', 'super_admin']}>
@@ -523,8 +539,11 @@ function AppContent() {
                     <AdminRoles />
                   </PrivateRoute>
                 } />
+                
+                {/* Blog Routes */}
                 <Route path="/blog" element={<Blog />} />
                 <Route path="/blog/:slug" element={<BlogPost />} />
+                
                 {/* Redirect any unknown routes to dashboard */}
                 <Route path="*" element={<Navigate to={user ? (actualIsAdmin ? '/admin' : (actualIsAgent ? '/agent' : '/dashboard')) : '/'} replace />} />
               </Routes>

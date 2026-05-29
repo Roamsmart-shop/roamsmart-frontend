@@ -1,0 +1,708 @@
+/* src/styles/billPayment.css */
+
+/* Hubtel Badge */
+.hubtel-badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.hubtel-text {
+  color: #f39c12;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* Billers Grid - Mobile First */
+.billers-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.biller-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.biller-card:active {
+  transform: scale(0.98);
+}
+
+.biller-card.active {
+  border-color: #8B0000;
+  background: #fff3f0;
+  box-shadow: 0 2px 4px rgba(139,0,0,0.1);
+}
+
+.biller-icon {
+  font-size: 24px;
+}
+
+.biller-name {
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  word-break: break-word;
+}
+
+/* Payment Form - Mobile First */
+.payment-form {
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  margin-bottom: 20px;
+}
+
+/* Input with Button - Stack on Mobile */
+.input-with-button {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.input-with-button input {
+  flex: 1;
+  padding: 12px;
+  font-size: 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input-with-button button {
+  padding: 12px;
+  font-size: 14px;
+  width: 100%;
+  white-space: nowrap;
+}
+
+/* Form Group */
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+.form-control {
+  width: 100%;
+  padding: 12px;
+  font-size: 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #8B0000;
+}
+
+/* Validated Info - Mobile First */
+.validated-info {
+  background: #e8f5e9;
+  padding: 12px;
+  border-radius: 10px;
+  margin: 16px 0;
+  border-left: 3px solid #28a745;
+}
+
+.validated-info h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: #2e7d32;
+}
+
+.validated-info p {
+  margin: 6px 0;
+  font-size: 12px;
+  word-break: break-word;
+}
+
+/* Form Row - Stack on Mobile */
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* Payment Note */
+.payment-note {
+  text-align: center;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+
+.payment-note small {
+  color: #666;
+  font-size: 10px;
+}
+
+/* Payment History - Mobile First */
+.payment-history {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 20px;
+}
+
+.history-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: #f8f9fa;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.history-header h4 {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+}
+
+.toggle-icon {
+  transition: transform 0.3s;
+  font-size: 10px;
+  color: #666;
+}
+
+.toggle-icon.open {
+  transform: rotate(180deg);
+}
+
+.history-content {
+  border-top: 1px solid #eee;
+  overflow-x: auto;
+}
+
+/* Table - Horizontal Scroll on Mobile */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.data-table {
+  width: 100%;
+  min-width: 500px;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.data-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Status Badges */
+.badge-success,
+.badge-warning,
+.badge-danger,
+.badge-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-success {
+  background: #d4edda;
+  color: #155724;
+}
+
+.badge-warning {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.badge-danger {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.badge-secondary {
+  background: #e2e3e5;
+  color: #383d41;
+}
+
+/* Bill Payment Footer */
+.bill-payment-footer {
+  text-align: center;
+  padding: 12px;
+  margin-top: 16px;
+  color: #666;
+  font-size: 10px;
+}
+
+.text-muted {
+  color: #6c757d;
+  font-size: 11px;
+}
+
+/* Button Styles */
+.btn-primary {
+  background: #8B0000;
+  color: white;
+  border: none;
+  padding: 14px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  width: 100%;
+  font-size: 14px;
+}
+
+.btn-primary:active {
+  background: #660000;
+  transform: scale(0.98);
+}
+
+.btn-primary:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid #8B0000;
+  color: #8B0000;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+  font-size: 14px;
+}
+
+.btn-outline:active {
+  background: #8B0000;
+  color: white;
+  transform: scale(0.98);
+}
+
+/* Section Header */
+.section-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.section-header h3 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 18px;
+  margin-bottom: 6px;
+  color: #1a2c3e;
+}
+
+.section-header p {
+  font-size: 12px;
+  color: #666;
+}
+
+/* Spinner Animation */
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================
+   TABLET (768px and up)
+   ============================================ */
+@media (min-width: 768px) {
+  .hubtel-badge {
+    padding: 12px 20px;
+  }
+  
+  .billers-grid {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 12px;
+  }
+  
+  .biller-card {
+    padding: 16px 12px;
+  }
+  
+  .biller-icon {
+    font-size: 28px;
+  }
+  
+  .biller-name {
+    font-size: 12px;
+  }
+  
+  .payment-form {
+    padding: 24px;
+  }
+  
+  .input-with-button {
+    flex-direction: row;
+  }
+  
+  .input-with-button button {
+    width: auto;
+    min-width: 100px;
+  }
+  
+  .form-row {
+    flex-direction: row;
+    gap: 16px;
+  }
+  
+  .form-row .form-group {
+    flex: 1;
+  }
+  
+  .btn-primary,
+  .btn-outline {
+    width: auto;
+  }
+  
+  .btn-primary.btn-block,
+  .btn-outline.btn-block {
+    width: 100%;
+  }
+  
+  .section-header h3 {
+    font-size: 20px;
+  }
+}
+
+/* ============================================
+   DESKTOP (1024px and up)
+   ============================================ */
+@media (min-width: 1024px) {
+  .billers-grid {
+    gap: 16px;
+  }
+  
+  .biller-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  
+  .btn-primary:hover {
+    background: #660000;
+  }
+  
+  .btn-outline:hover {
+    background: #8B0000;
+    color: white;
+  }
+}
+
+/* ============================================
+   SMALL MOBILE (480px and below)
+   ============================================ */
+@media (max-width: 480px) {
+  .billers-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  
+  .biller-card {
+    padding: 10px 6px;
+  }
+  
+  .biller-icon {
+    font-size: 20px;
+  }
+  
+  .biller-name {
+    font-size: 10px;
+  }
+  
+  .payment-form {
+    padding: 12px;
+  }
+  
+  .form-control,
+  .input-with-button input,
+  .input-with-button button {
+    padding: 10px;
+    font-size: 13px;
+  }
+  
+  .validated-info h4 {
+    font-size: 13px;
+  }
+  
+  .validated-info p {
+    font-size: 11px;
+  }
+  
+  .section-header h3 {
+    font-size: 16px;
+  }
+  
+  .section-header p {
+    font-size: 11px;
+  }
+  
+  .history-header {
+    padding: 12px;
+  }
+  
+  .history-header h4 {
+    font-size: 13px;
+  }
+  
+  .data-table th,
+  .data-table td {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+}
+
+/* ============================================
+   EXTRA SMALL (380px and below)
+   ============================================ */
+@media (max-width: 380px) {
+  .billers-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .biller-card {
+    flex-direction: row;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px;
+  }
+  
+  .biller-icon {
+    font-size: 18px;
+  }
+  
+  .hubtel-badge {
+    flex-direction: column;
+    gap: 6px;
+    text-align: center;
+  }
+  
+  .hubtel-text {
+    font-size: 10px;
+  }
+}
+
+/* Recurring Bills Section */
+.recurring-bills-section {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 20px;
+}
+
+.recurring-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: #f8f9fa;
+  cursor: pointer;
+   -webkit-user-select: none;
+  user-select: none;
+}
+
+.recurring-header h4 {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+}
+
+.recurring-content {
+  padding: 16px;
+  border-top: 1px solid #eee;
+}
+
+.add-recurring {
+  margin-bottom: 20px;
+}
+
+.add-recurring .btn-outline.btn-sm {
+  width: auto;
+  padding: 8px 16px;
+  font-size: 12px;
+}
+
+.recurring-form {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.billers-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+}
+
+.mini-biller-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mini-biller-btn.active {
+  border-color: #8B0000;
+  background: #fff3f0;
+  color: #8B0000;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: normal;
+}
+
+.recurring-list {
+  margin-top: 16px;
+}
+
+.recurring-list h5 {
+  font-size: 13px;
+  margin-bottom: 12px;
+  color: #333;
+}
+
+.recurring-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.recurring-info {
+  flex: 1;
+}
+
+.recurring-biller {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.recurring-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  color: #666;
+}
+
+.recurring-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggle-btn,
+.remove-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-btn {
+  color: #dc3545;
+  font-size: 14px;
+}
+
+.no-recurring {
+  text-align: center;
+  padding: 30px 20px;
+  color: #999;
+}
+
+.no-recurring svg {
+  font-size: 32px;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+
+.no-recurring p {
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+@media (max-width: 480px) {
+  .billers-mini-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .recurring-item {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+  
+  .recurring-details {
+    justify-content: center;
+  }
+}

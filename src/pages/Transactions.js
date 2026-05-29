@@ -1,7 +1,7 @@
 // src/pages/Transactions.js
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaSearch, FaFilter, FaDownload, FaEye, FaSpinner, FaCheckCircle, FaTimesCircle, FaWallet, FaCreditCard, FaMobileAlt, FaUniversity } from 'react-icons/fa';
+import { FaSearch, FaFilter, FaDownload, FaEye, FaSpinner, FaCheckCircle, FaTimesCircle, FaWallet, FaCreditCard, FaMobileAlt, FaUniversity, FaBolt, FaTint, FaTv } from 'react-icons/fa';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
@@ -74,15 +74,28 @@ const formatDateTime = (dateString) => {
   }
 };
 
+// Payment Method Icons (Receiving Money)
 const getPaymentMethodIcon = (method) => {
   const methods = {
     wallet: { icon: <FaWallet />, name: 'Roamsmart Wallet', color: '#8B0000' },
-    paystack: { icon: <FaCreditCard />, name: 'Paystack', color: '#00B3E6' },
+    paystack: { icon: <FaCreditCard />, name: 'Paystack (Card/Bank)', color: '#00B3E6' },
     momo: { icon: <FaMobileAlt />, name: 'MTN MoMo', color: '#FFC107' },
     manual: { icon: <FaUniversity />, name: 'Manual Transfer', color: '#28a745' },
     default: { icon: <FaWallet />, name: 'Roamsmart Wallet', color: '#8B0000' }
   };
   return methods[method] || methods.default;
+};
+
+// Bill Payment Icons (Paying Bills via Hubtel)
+const getBillIcon = (billerCode) => {
+  const icons = {
+    ECG: { icon: <FaBolt />, name: 'ECG Electricity', color: '#f39c12' },
+    GWCL: { icon: <FaTint />, name: 'Ghana Water', color: '#3498db' },
+    DSTV: { icon: <FaTv />, name: 'DSTV', color: '#e74c3c' },
+    GOTV: { icon: <FaTv />, name: 'GoTV', color: '#2ecc71' },
+    STARTIMES: { icon: <FaTv />, name: 'StarTimes', color: '#9b59b6' }
+  };
+  return icons[billerCode] || { icon: <FaBolt />, name: 'Bill Payment', color: '#8B0000' };
 };
 
 export default function Transactions() {
@@ -91,6 +104,7 @@ export default function Transactions() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterMethod, setFilterMethod] = useState('all');
+  const [filterType, setFilterType] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -131,9 +145,12 @@ export default function Transactions() {
     try {
       const exportData = transactions.map(order => ({
         'Order ID': order.order_id,
-        'Phone Number': order.phone,
-        'Network': order.network?.toUpperCase(),
-        'Size (GB)': order.size_gb,
+        'Type': order.type === 'bill_payment' ? 'Bill Payment (Hubtel)' : 'Data Purchase',
+        'Biller': order.biller_name || (order.type === 'bill_payment' ? order.biller_code : 'N/A'),
+        'Account Number': order.account_number || 'N/A',
+        'Phone Number': order.phone_number || order.phone,
+        'Network': order.network?.toUpperCase() || 'N/A',
+        'Size (GB)': order.size_gb || 'N/A',
         'Amount (GHS)': order.amount,
         'Payment Method': order.payment_method || 'Wallet',
         'Status': order.status,
@@ -156,19 +173,27 @@ export default function Transactions() {
   const filteredTransactions = transactions.filter(t => {
     const matchesSearch = t.order_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.phone?.includes(searchTerm) ||
-      t.network?.toLowerCase().includes(searchTerm.toLowerCase());
+      t.phone_number?.includes(searchTerm) ||
+      t.network?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.biller_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.biller_code?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = filterStatus === 'all' || t.status === filterStatus;
     const matchesMethod = filterMethod === 'all' || (t.payment_method || 'wallet') === filterMethod;
+    const matchesType = filterType === 'all' || 
+      (filterType === 'data' && t.type !== 'bill_payment') ||
+      (filterType === 'bill' && t.type === 'bill_payment');
     
-    return matchesSearch && matchesStatus && matchesMethod;
+    return matchesSearch && matchesStatus && matchesMethod && matchesType;
   });
 
   const stats = {
     total: transactions.length,
     completed: transactions.filter(t => t.status === 'completed').length,
     pending: transactions.filter(t => t.status === 'pending').length,
-    totalAmount: transactions.reduce((sum, t) => sum + (t.amount || 0), 0)
+    totalAmount: transactions.reduce((sum, t) => sum + (t.amount || 0), 0),
+    dataCount: transactions.filter(t => t.type !== 'bill_payment').length,
+    billCount: transactions.filter(t => t.type === 'bill_payment').length
   };
 
   if (loading && transactions.length === 0) return (
@@ -186,8 +211,8 @@ export default function Transactions() {
     >
       <div className="page-header">
         <div>
-          <h1>Data Orders on {COMPANY.shortName}</h1>
-          <p>View your purchase history and transaction status</p>
+          <h1>Transactions on {COMPANY.shortName}</h1>
+          <p>View your data purchases and bill payment history</p>
         </div>
         <button className="btn-outline" onClick={exportToExcel} disabled={exporting}>
           <FaDownload /> {exporting ? 'Exporting...' : 'Export to Excel'}
@@ -201,8 +226,12 @@ export default function Transactions() {
           <strong>{stats.total}</strong>
         </div>
         <div className="stat-card small success">
-          <span>Completed</span>
-          <strong>{stats.completed}</strong>
+          <span>📱 Data Purchases</span>
+          <strong>{stats.dataCount}</strong>
+        </div>
+        <div className="stat-card small info">
+          <span>💡 Bill Payments (Hubtel)</span>
+          <strong>{stats.billCount}</strong>
         </div>
         <div className="stat-card small warning">
           <span>Pending</span>
@@ -220,10 +249,18 @@ export default function Transactions() {
           <FaSearch />
           <input 
             type="text" 
-            placeholder="Search by Order ID, Phone or Network..." 
+            placeholder="Search by Order ID, Phone, Network or Biller..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+        </div>
+        <div className="filter-box">
+          <FaFilter />
+          <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="filter-select">
+            <option value="all">All Types</option>
+            <option value="data">📱 Data Purchases</option>
+            <option value="bill">💡 Bill Payments (Hubtel)</option>
+          </select>
         </div>
         <div className="filter-box">
           <FaFilter />
@@ -240,7 +277,7 @@ export default function Transactions() {
           <select value={filterMethod} onChange={(e) => setFilterMethod(e.target.value)} className="filter-select">
             <option value="all">All Payment Methods</option>
             <option value="wallet">Roamsmart Wallet</option>
-            <option value="paystack">Paystack</option>
+            <option value="paystack">Paystack (Card/Bank)</option>
             <option value="momo">MTN MoMo</option>
             <option value="manual">Manual Transfer</option>
           </select>
@@ -254,8 +291,8 @@ export default function Transactions() {
             <thead>
               <tr>
                 <th>Order ID</th>
-                <th>Phone</th>
-                <th>Product</th>
+                <th>Type</th>
+                <th>Details</th>
                 <th>Amount</th>
                 <th>Payment Method</th>
                 <th>Status</th>
@@ -266,11 +303,37 @@ export default function Transactions() {
             <tbody>
               {filteredTransactions.map(order => {
                 const paymentInfo = getPaymentMethodIcon(order.payment_method || 'wallet');
+                const isBillPayment = order.type === 'bill_payment';
+                const billInfo = isBillPayment ? getBillIcon(order.biller_code) : null;
+                
                 return (
                   <tr key={order.order_id}>
                     <td className="order-id">#{order.order_id} on Roamsmart</td>
-                    <td>{order.phone}</td>
-                    <td>{order.network?.toUpperCase()} {order.size_gb}GB</td>
+                    <td>
+                      {isBillPayment ? (
+                        <span className="type-badge bill" style={{ color: billInfo.color }}>
+                          {billInfo.icon} Bill Payment
+                        </span>
+                      ) : (
+                        <span className="type-badge data">
+                          <FaMobileAlt /> Data
+                        </span>
+                      )}
+                    </td>
+                    <td className="details">
+                      {isBillPayment ? (
+                        <div>
+                          <div><strong>{billInfo.name}</strong></div>
+                          <small>Account: {order.account_number}</small>
+                          {order.customer_name && <div><small>Customer: {order.customer_name}</small></div>}
+                        </div>
+                      ) : (
+                        <div>
+                          <strong>{order.network?.toUpperCase()} {order.size_gb}GB</strong>
+                          <div><small>Phone: {order.phone || order.phone_number}</small></div>
+                        </div>
+                      )}
+                    </td>
                     <td className="amount">₵{order.amount}</td>
                     <td>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: paymentInfo.color }}>
@@ -337,9 +400,32 @@ export default function Transactions() {
               
               <div className="details-grid">
                 <div className="detail-item"><label>Order ID:</label><span>#{selectedOrder.order_id}</span></div>
-                <div className="detail-item"><label>Phone Number:</label><span>{selectedOrder.phone}</span></div>
-                <div className="detail-item"><label>Network:</label><span>{selectedOrder.network?.toUpperCase()}</span></div>
-                <div className="detail-item"><label>Size:</label><span>{selectedOrder.size_gb}GB</span></div>
+                <div className="detail-item"><label>Type:</label>
+                  <span>
+                    {selectedOrder.type === 'bill_payment' ? (
+                      <>💡 Bill Payment (Hubtel)</>
+                    ) : (
+                      <>📱 Data Purchase</>
+                    )}
+                  </span>
+                </div>
+                
+                {selectedOrder.type === 'bill_payment' ? (
+                  <>
+                    <div className="detail-item"><label>Biller:</label><span>{selectedOrder.biller_name || selectedOrder.biller_code}</span></div>
+                    <div className="detail-item"><label>Account Number:</label><span>{selectedOrder.account_number}</span></div>
+                    {selectedOrder.customer_name && (
+                      <div className="detail-item"><label>Customer Name:</label><span>{selectedOrder.customer_name}</span></div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="detail-item"><label>Network:</label><span>{selectedOrder.network?.toUpperCase()}</span></div>
+                    <div className="detail-item"><label>Size:</label><span>{selectedOrder.size_gb}GB</span></div>
+                    <div className="detail-item"><label>Phone Number:</label><span>{selectedOrder.phone || selectedOrder.phone_number}</span></div>
+                  </>
+                )}
+                
                 <div className="detail-item"><label>Amount:</label><span className="amount">₵{selectedOrder.amount}</span></div>
                 <div className="detail-item"><label>Status:</label><span>{getStatusBadge(selectedOrder.status)}</span></div>
                 <div className="detail-item"><label>Date:</label><span>{formatDateTime(selectedOrder.created_at)}</span></div>
@@ -349,6 +435,9 @@ export default function Transactions() {
                     {getPaymentMethodIcon(selectedOrder.payment_method || 'wallet').name}
                   </span>
                 </div>
+                {selectedOrder.provider_reference && (
+                  <div className="detail-item"><label>Transaction Ref:</label><span>{selectedOrder.provider_reference}</span></div>
+                )}
               </div>
               
               <div className="modal-actions">

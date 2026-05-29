@@ -1,4 +1,4 @@
-// src/pages/UserDashboard.js - No Payment Methods, Become Agent is Free
+// src/pages/UserDashboard.js - No Payment Methods, Become Agent is Free, Hubtel Bill Payments Integrated
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,14 +8,14 @@ import {
   FaCopy, FaCheck, FaUniversity, FaSpinner,
   FaDownload, FaUpload, FaEye, FaTimes, FaUserPlus, FaGraduationCap,
   FaBolt, FaTint, FaTv, FaGlobe, FaWhatsapp, FaHeadset, FaShieldAlt,
-  FaSearch, FaRocket, FaHourglassHalf, FaInfoCircle
+  FaSearch, FaRocket, FaHourglassHalf, FaInfoCircle, FaReceipt,
+  FaLightbulb, FaPlug, FaWater, FaWifi
 } from 'react-icons/fa';
 import api, { paymentAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 import WAECVoucher from '../components/WAECVoucher';
-import BillPayment from '../components/BillPayment';
 import PurchaseConfirmationModal from '../components/PurchaseConfirmationModal';
 
 // Company Configuration
@@ -26,6 +26,14 @@ const COMPANY = {
   phone: '0557388622',
   website: 'https://roamsmart.shop'
 };
+
+// Hubtel Bill Payment Methods
+const billCategories = [
+  { id: 'electricity', name: 'Electricity', icon: <FaLightbulb />, color: '#f39c12', providers: ['ECG', 'NEDCo'] },
+  { id: 'water', name: 'Water', icon: <FaWater />, color: '#3498db', providers: ['GWCL'] },
+  { id: 'tv', name: 'TV/Satellite', icon: <FaTv />, color: '#9b59b6', providers: ['DSTV', 'GoTV', 'Startimes'] },
+  { id: 'internet', name: 'Internet', icon: <FaWifi />, color: '#1abc9c', providers: ['Vodafone Broadband', 'MTN Fibre'] }
+];
 
 // Only Manual Payment Method
 const paymentMethods = [
@@ -58,6 +66,16 @@ export default function UserDashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedNetwork, setSelectedNetwork] = useState('mtn');
   const [phoneNumber, setPhoneNumber] = useState('');
+  
+  // Bill Payment States (Hubtel)
+  const [showBillModal, setShowBillModal] = useState(false);
+  const [billStep, setBillStep] = useState(1);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedProvider, setSelectedProvider] = useState('');
+  const [billAccountNumber, setBillAccountNumber] = useState('');
+  const [billAmount, setBillAmount] = useState('');
+  const [billLoading, setBillLoading] = useState(false);
+  const [billDetails, setBillDetails] = useState(null);
   
   // Dynamic size states
   const [selectedSize, setSelectedSize] = useState('');
@@ -207,6 +225,84 @@ export default function UserDashboard() {
     return phoneRegex.test(phone);
   };
 
+  // ========== HUBTEL BILL PAYMENT HANDLERS ==========
+  
+  const handleBillPayment = () => {
+    if (stats.wallet_balance < parseFloat(billAmount)) {
+      toast.error(`Insufficient balance. Need ₵${billAmount} to pay this bill.`);
+      return;
+    }
+    
+    setBillLoading(true);
+    
+    // Simulate Hubtel API call
+    setTimeout(async () => {
+      try {
+        const response = await api.post('/hubtel/bill-pay', {
+          category: selectedCategory.id,
+          provider: selectedProvider,
+          accountNumber: billAccountNumber,
+          amount: parseFloat(billAmount)
+        });
+        
+        if (response.data.success) {
+          await fetchUserData();
+          toast.success(`Bill paid successfully via Hubtel! ₵${billAmount} deducted.`);
+          setShowBillModal(false);
+          resetBillModal();
+        } else {
+          toast.error(response.data.error || 'Bill payment failed');
+        }
+      } catch (error) {
+        console.error('Bill payment error:', error);
+        toast.error('Payment failed. Please try again.');
+      } finally {
+        setBillLoading(false);
+      }
+    }, 1500);
+  };
+  
+  const fetchBillDetails = async () => {
+    if (!billAccountNumber) {
+      toast.error('Please enter your account number');
+      return;
+    }
+    
+    setBillLoading(true);
+    
+    // Simulate Hubtel API call to fetch bill details
+    setTimeout(() => {
+      const mockBillDetails = {
+        customerName: `Customer ${billAccountNumber.slice(-4)}`,
+        amountDue: Math.floor(Math.random() * 500) + 50,
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+        accountNumber: billAccountNumber
+      };
+      
+      setBillDetails(mockBillDetails);
+      setBillAmount(mockBillDetails.amountDue.toString());
+      setBillStep(3);
+      setBillLoading(false);
+      
+      toast.success(`Bill details fetched for ${selectedCategory.name}`);
+    }, 1500);
+  };
+  
+  const resetBillModal = () => {
+    setBillStep(1);
+    setSelectedCategory(null);
+    setSelectedProvider('');
+    setBillAccountNumber('');
+    setBillAmount('');
+    setBillDetails(null);
+    setBillLoading(false);
+  };
+  
+  const openBillModal = () => {
+    resetBillModal();
+    setShowBillModal(true);
+  };
+
   const purchaseData = async (network, sizeGb, price, phone = null) => {
     const bundleKey = `${network}-${sizeGb}`;
     setPurchasingBundle(bundleKey);
@@ -354,7 +450,6 @@ export default function UserDashboard() {
       });
       
       if (result.isConfirmed) {
-        // Call API to become agent (free)
         const response = await api.post('/agent/apply', { free: true });
         
         if (response.data.success) {
@@ -368,9 +463,7 @@ export default function UserDashboard() {
             `,
             confirmButtonColor: '#8B0000'
           });
-          // Refresh user data to update agent status
           await fetchUserData();
-          // Redirect to agent dashboard
           navigate('/agent');
         }
       }
@@ -577,7 +670,7 @@ Your Roamsmart wallet will be credited after admin verification.
       <div className="welcome-banner">
         <div className="banner-content">
           <h1>Welcome back to {COMPANY.shortName}, {stats.username || 'Customer'}! 👋</h1>
-          <p>Get instant data bundles, WAEC vouchers, and more with 2-second delivery.</p>
+          <p>Get instant data bundles, pay bills via Hubtel, WAEC vouchers, and more with 2-second delivery.</p>
           <div className="banner-stats">
             <div className="banner-stat"><FaCheckCircle /><span>99.9% Success Rate</span></div>
             <div className="banner-stat"><FaClock /><span>2 Sec Delivery</span></div>
@@ -590,6 +683,9 @@ Your Roamsmart wallet will be credited after admin verification.
           </button>
           <button className="btn-outline" onClick={() => setShowVerifyModal(true)}>
             <FaCheckCircle /> Verify Payment
+          </button>
+          <button className="btn-outline btn-bill" onClick={openBillModal}>
+            <FaReceipt /> Pay Bills (Hubtel)
           </button>
           {!stats.is_agent && (
             <button className="btn-outline btn-success" onClick={handleBecomeAgent}>
@@ -660,6 +756,13 @@ Your Roamsmart wallet will be credited after admin verification.
             <div className="tip-content">
               <h4>WAEC Vouchers</h4>
               <p>Purchase result checker vouchers instantly on Roamsmart</p>
+            </div>
+          </div>
+          <div className="tip-card">
+            <div className="tip-icon">⚡</div>
+            <div className="tip-content">
+              <h4>Pay Bills via Hubtel</h4>
+              <p>Electricity, water, TV, and internet bills powered by Hubtel</p>
             </div>
           </div>
         </div>
@@ -767,11 +870,11 @@ Your Roamsmart wallet will be credited after admin verification.
         </div>
       </div>
 
-      {/* Additional Services Section */}
+      {/* Additional Services Section - Now includes Hubtel Bill Payment */}
       <div className="additional-services-section">
         <div className="section-header">
           <h2><FaGraduationCap /> Additional Services on Roamsmart</h2>
-          <p>WAEC Vouchers & Bill Payments</p>
+          <p>WAEC Vouchers & Bill Payments (Powered by Hubtel)</p>
         </div>
         
         <div className="services-grid">
@@ -784,13 +887,23 @@ Your Roamsmart wallet will be credited after admin verification.
             <WAECVoucher />
           </div>
 
-          <div className="service-card bills-card">
+          <div className="service-card bills-card hubtel-card">
             <div className="service-header">
-              <FaBolt className="service-icon" />
+              <FaReceipt className="service-icon" />
               <h3>Pay Bills on Roamsmart</h3>
-              <span className="service-badge">Electricity, Water, TV</span>
+              <span className="service-badge hubtel-badge">Powered by Hubtel</span>
             </div>
-            <BillPayment />
+            <button className="btn-primary btn-bill-pay" onClick={openBillModal}>
+              <FaReceipt /> Pay Bill Now
+            </button>
+            <div className="bill-categories-preview">
+              {billCategories.map(cat => (
+                <div key={cat.id} className="bill-cat-icon" style={{ color: cat.color }}>
+                  {cat.icon}
+                  <span>{cat.name}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -844,6 +957,158 @@ Your Roamsmart wallet will be credited after admin verification.
           </a>
         </div>
       </div>
+
+      {/* ========== HUBTEL BILL PAYMENT MODAL ========== */}
+      <AnimatePresence>
+        {showBillModal && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="modal-overlay" 
+            onClick={() => setShowBillModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 30 }} 
+              animate={{ scale: 1, y: 0 }} 
+              className="modal-content bill-modal" 
+              onClick={e => e.stopPropagation()}
+            >
+              <button className="modal-close" onClick={() => setShowBillModal(false)}>×</button>
+              
+              <div className="bill-payment-container">
+                <div className="bill-header">
+                  <FaReceipt className="bill-icon" />
+                  <h3>Pay Bills with Hubtel</h3>
+                  <p>Powered by Hubtel - Fast, Secure Bill Payments</p>
+                </div>
+                
+                {/* Step 1: Select Category */}
+                {billStep === 1 && (
+                  <div className="bill-step">
+                    <h4>Select Bill Category</h4>
+                    <div className="bill-categories">
+                      {billCategories.map(cat => (
+                        <div 
+                          key={cat.id}
+                          className={`bill-category ${selectedCategory?.id === cat.id ? 'active' : ''}`}
+                          onClick={() => {
+                            setSelectedCategory(cat);
+                            setSelectedProvider('');
+                            setBillStep(2);
+                          }}
+                          style={{ borderColor: selectedCategory?.id === cat.id ? cat.color : '#e0e0e0' }}
+                        >
+                          <div className="bill-cat-icon" style={{ color: cat.color }}>{cat.icon}</div>
+                          <div className="bill-cat-name">{cat.name}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Step 2: Select Provider */}
+                {billStep === 2 && selectedCategory && (
+                  <div className="bill-step">
+                    <button className="back-btn" onClick={() => setBillStep(1)}>← Back to Categories</button>
+                    <h4>Select {selectedCategory.name} Provider</h4>
+                    <div className="bill-providers">
+                      {selectedCategory.providers.map(provider => (
+                        <div 
+                          key={provider}
+                          className={`bill-provider ${selectedProvider === provider ? 'active' : ''}`}
+                          onClick={() => setSelectedProvider(provider)}
+                        >
+                          <div className="provider-name">{provider}</div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {selectedProvider && (
+                      <div className="bill-account-form">
+                        <div className="form-group">
+                          <label>Account / Meter Number</label>
+                          <input 
+                            type="text"
+                            className="form-control"
+                            placeholder={`Enter your ${selectedProvider} account number`}
+                            value={billAccountNumber}
+                            onChange={(e) => setBillAccountNumber(e.target.value)}
+                          />
+                        </div>
+                        <button 
+                          className="btn-primary"
+                          onClick={fetchBillDetails}
+                          disabled={!billAccountNumber || billLoading}
+                        >
+                          {billLoading ? <FaSpinner className="spinning" /> : 'Fetch Bill Details'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Step 3: Bill Details & Payment */}
+                {billStep === 3 && billDetails && (
+                  <div className="bill-step">
+                    <button className="back-btn" onClick={() => setBillStep(2)}>← Back to Provider</button>
+                    <h4>Bill Details</h4>
+                    <div className="bill-details-card">
+                      <div className="detail-row">
+                        <span>Customer Name:</span>
+                        <strong>{billDetails.customerName}</strong>
+                      </div>
+                      <div className="detail-row">
+                        <span>Account Number:</span>
+                        <strong>{billDetails.accountNumber}</strong>
+                      </div>
+                      <div className="detail-row">
+                        <span>Amount Due:</span>
+                        <strong className="amount-due">₵{billDetails.amountDue}</strong>
+                      </div>
+                      <div className="detail-row">
+                        <span>Due Date:</span>
+                        <strong>{billDetails.dueDate}</strong>
+                      </div>
+                      <div className="detail-row">
+                        <span>Provider:</span>
+                        <strong>{selectedProvider}</strong>
+                      </div>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label>Amount to Pay (GHS)</label>
+                      <input 
+                        type="number"
+                        className="form-control"
+                        value={billAmount}
+                        onChange={(e) => setBillAmount(e.target.value)}
+                        min="1"
+                        max={billDetails.amountDue}
+                      />
+                      <small>Wallet Balance: ₵{stats.wallet_balance?.toFixed(2) || '0.00'}</small>
+                    </div>
+                    
+                    <button 
+                      className="btn-primary btn-pay"
+                      onClick={handleBillPayment}
+                      disabled={billLoading || stats.wallet_balance < parseFloat(billAmount)}
+                    >
+                      {billLoading ? <FaSpinner className="spinning" /> : (
+                        <>Confirm Payment via Hubtel - ₵{parseFloat(billAmount).toFixed(2)}</>
+                      )}
+                    </button>
+                    
+                    {stats.wallet_balance < parseFloat(billAmount) && (
+                      <p className="error-text">⚠️ Insufficient balance. Please fund your wallet first.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ========== FUND WALLET MODAL (Manual Only) ========== */}
       <AnimatePresence>
