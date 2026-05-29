@@ -1,14 +1,14 @@
-// src/pages/UserDashboard.js - No Commission/Profit, Only Actual Data Prices
+// src/pages/UserDashboard.js - No Payment Methods, Become Agent is Free
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaWallet, FaShoppingCart, FaChartLine, FaUsers, FaGift, 
   FaMobileAlt, FaClock, FaCheckCircle, FaDatabase, FaHistory, 
-  FaCopy, FaCheck, FaUniversity, FaCreditCard, FaSpinner,
+  FaCopy, FaCheck, FaUniversity, FaSpinner,
   FaDownload, FaUpload, FaEye, FaTimes, FaUserPlus, FaGraduationCap,
   FaBolt, FaTint, FaTv, FaGlobe, FaWhatsapp, FaHeadset, FaShieldAlt,
-  FaSearch, FaRocket, FaHourglassHalf
+  FaSearch, FaRocket, FaHourglassHalf, FaInfoCircle
 } from 'react-icons/fa';
 import api, { paymentAPI } from '../services/api';
 import toast from 'react-hot-toast';
@@ -27,11 +27,11 @@ const COMPANY = {
   website: 'https://roamsmart.shop'
 };
 
-// Payment Methods Configuration (all activated)
+// Only Manual Payment Method
 const paymentMethods = [
   { 
     id: 'manual', 
-    name: 'Manual Top-up', 
+    name: 'Manual Transfer', 
     fee: 'No fees', 
     min: 10, 
     max: 100000, 
@@ -39,28 +39,6 @@ const paymentMethods = [
     description: 'Admin approval required',
     time: '5-30 minutes',
     color: '#8B0000'
-  },
-  { 
-    id: 'paystack', 
-    name: 'Paystack', 
-    fee: '2.5% + ₵0.50', 
-    min: 1, 
-    max: 100000, 
-    icon: <FaCreditCard />,
-    description: 'Instant top-up via card or bank',
-    time: 'Instant',
-    color: '#00B3E6'
-  },
-  { 
-    id: 'momo', 
-    name: 'MTN MoMo', 
-    fee: '1%', 
-    min: 10, 
-    max: 10000, 
-    icon: <FaMobileAlt />,
-    description: 'Instant payment via mobile money',
-    time: 'Instant',
-    color: '#FFC107'
   }
 ];
 
@@ -89,7 +67,7 @@ export default function UserDashboard() {
   const [showCustomSize, setShowCustomSize] = useState(false);
   const [customSizeInput, setCustomSizeInput] = useState('');
   
-  // Payment States
+  // Payment States (Manual only)
   const [showFundModal, setShowFundModal] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [fundStep, setFundStep] = useState(1);
@@ -100,7 +78,6 @@ export default function UserDashboard() {
   const [uploadingProof, setUploadingProof] = useState(false);
   const [proofFile, setProofFile] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [processingPayment, setProcessingPayment] = useState(false);
   
   // Verification States
   const [verifyReference, setVerifyReference] = useState('');
@@ -122,14 +99,12 @@ export default function UserDashboard() {
   }, []);
 
   useEffect(() => {
-    // Fetch available sizes when network changes
     if (bundles[selectedNetwork]) {
       const sizes = Object.keys(bundles[selectedNetwork]).map(Number).sort((a, b) => a - b);
       setAvailableSizes(sizes);
     }
   }, [selectedNetwork, bundles]);
 
-  // ========== BACKEND API CALLS ==========
   const refreshPrices = async () => {
     try {
       const pricesRes = await api.get('/prices');
@@ -139,7 +114,6 @@ export default function UserDashboard() {
     }
   };
 
-  // Fetch available sizes for selected network
   const fetchAvailableSizes = async (network) => {
     try {
       const res = await api.get('/prices');
@@ -153,7 +127,6 @@ export default function UserDashboard() {
     }
   };
 
-  // Handle network change
   const handleNetworkChange = async (network) => {
     setSelectedNetwork(network);
     setSelectedSize('');
@@ -163,7 +136,6 @@ export default function UserDashboard() {
     await fetchAvailableSizes(network);
   };
 
-  // Handle size selection from chips
   const handleSizeSelect = (size) => {
     setSelectedSize(size);
     setShowCustomSize(false);
@@ -172,7 +144,6 @@ export default function UserDashboard() {
     setSelectedPrice(price);
   };
 
-  // Handle custom size input (checks if price exists)
   const handleCustomSize = async (e) => {
     const size = parseInt(e.target.value);
     setSelectedSize(e.target.value);
@@ -356,11 +327,60 @@ export default function UserDashboard() {
     }
   };
 
-  const handleBecomeAgent = () => {
-    navigate('/become-agent');
+  // FREE: Become an agent - no payment required
+  const handleBecomeAgent = async () => {
+    try {
+      const result = await Swal.fire({
+        title: 'Become a Roamsmart Agent!',
+        html: `
+          <div style="text-align: left;">
+            <p><strong>✅ FREE Registration!</strong></p>
+            <p>As a Roamsmart Agent, you'll enjoy:</p>
+            <ul style="text-align: left;">
+              <li>💰 Competitive commission rates up to 25%</li>
+              <li>🏪 Your own branded store page</li>
+              <li>📊 Access to wholesale prices</li>
+              <li>💸 Instant withdrawals</li>
+              <li>🎓 Agent training and support</li>
+            </ul>
+            <p>No payment required. Just confirm to become an agent.</p>
+          </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        confirmButtonText: 'Yes, Become Agent for Free!',
+        cancelButtonText: 'No, Thanks'
+      });
+      
+      if (result.isConfirmed) {
+        // Call API to become agent (free)
+        const response = await api.post('/agent/apply', { free: true });
+        
+        if (response.data.success) {
+          await Swal.fire({
+            icon: 'success',
+            title: '🎉 Welcome to Roamsmart Agent Program!',
+            html: `
+              <p>Your application has been submitted/approved.</p>
+              <p>You can now start selling data bundles at wholesale prices!</p>
+              <p>Your agent dashboard will be activated shortly.</p>
+            `,
+            confirmButtonColor: '#8B0000'
+          });
+          // Refresh user data to update agent status
+          await fetchUserData();
+          // Redirect to agent dashboard
+          navigate('/agent');
+        }
+      }
+    } catch (error) {
+      console.error('Become agent error:', error);
+      toast.error(error.response?.data?.error || 'Failed to become agent. Please try again.');
+    }
   };
 
-  // ========== PAYMENT HANDLERS (ALL ACTIVATED) ==========
+  // ========== MANUAL PAYMENT HANDLERS ==========
   
   const closeFundModal = () => {
     setShowFundModal(false);
@@ -372,167 +392,23 @@ export default function UserDashboard() {
     resetVerifyModal();
   };
   
-  const handleMethodSelect = (methodId) => {
-    setSelectedMethod(methodId);
-  };
-
-  // ========== PAYSTACK PAYMENT HANDLER ==========
-  // Update the initializePaystackPayment function
-const initializePaystackPayment = async (amount, email, phone) => {
-  setProcessingPayment(true);
-  try {
-    const response = await api.post('/payment/paystack/initialize', {
-      amount: amount,
-      email: email,
-      phone: phone,
-      reference: `ROAMSMART_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    });
+  const handleAmountSubmit = async () => {
+    const amountNum = parseFloat(fundAmount);
+    const method = paymentMethods.find(m => m.id === selectedMethod);
     
-    const { authorization_url, reference } = response.data.data;
-    
-    // Open Paystack popup
-    const paystackPopup = window.open(authorization_url, '_blank', 'width=600,height=700');
-    
-    // Poll for payment verification
-    const checkPaymentInterval = setInterval(async () => {
-      try {
-        const verifyResponse = await api.get(`/payment/paystack/verify/${reference}`);
-        if (verifyResponse.data.data.status === 'success') {
-          clearInterval(checkPaymentInterval);
-          paystackPopup?.close();
-          
-          await Swal.fire({
-            icon: 'success',
-            title: 'Payment Successful!',
-            html: `₵${amount} has been added to your Roamsmart wallet.`,
-            confirmButtonColor: '#8B0000'
-          });
-          
-          await fetchUserData();
-          setProcessingPayment(false);
-        }
-      } catch (error) {
-        console.error('Verification error:', error);
-      }
-    }, 5000);
-    
-    // Stop checking after 5 minutes
-    setTimeout(() => {
-      clearInterval(checkPaymentInterval);
-      if (processingPayment) {
-        setProcessingPayment(false);
-      }
-    }, 300000);
-    
-  } catch (error) {
-    console.error('Paystack initialization error:', error);
-    toast.error(error.response?.data?.error || 'Payment initialization failed. Please try again.');
-    setProcessingPayment(false);
-  }
-};
-
-  // ========== MTN MOMO PAYMENT HANDLER ==========
-  const initializeMomoPayment = async (amount, phone, name) => {
-    setProcessingPayment(true);
-    try {
-      if (!validatePhone(phone)) {
-        toast.error('Please enter a valid MTN mobile money number');
-        setProcessingPayment(false);
-        return;
-      }
-      
-      const response = await api.post('/payment/momo/initialize', {
-        amount: amount,
-        phone: phone,
-        name: name,
-        reference: `ROAMSMART_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      });
-      
-      const { paymentReference, checkoutRequestId } = response.data.data;
-      
-      Swal.fire({
-        title: 'Payment Initiated',
-        text: 'Please check your phone and authorize the payment.',
-        icon: 'info',
-        confirmButtonColor: '#8B0000',
-        allowOutsideClick: false,
-        willClose: () => {
-          verifyMomoPayment(paymentReference, amount);
-        }
-      });
-      
-    } catch (error) {
-      console.error('MoMo initialization error:', error);
-      toast.error(error.response?.data?.error || 'Payment initialization failed. Please try again.');
-      setProcessingPayment(false);
+    if (!fundAmount || isNaN(amountNum)) {
+      toast.error('Please enter a valid amount');
+      return;
     }
-  };
-
-  const verifyMomoPayment = async (reference, amount) => {
-    setProcessingPayment(true);
-    try {
-      let attempts = 0;
-      const maxAttempts = 60;
-      
-      const checkInterval = setInterval(async () => {
-        attempts++;
-        try {
-          const verifyResponse = await api.get(`/payment/momo/verify/${reference}`);
-          
-          if (verifyResponse.data.data.status === 'success') {
-            clearInterval(checkInterval);
-            await Swal.fire({
-              icon: 'success',
-              title: 'Payment Successful!',
-              html: `₵${amount} has been added to your Roamsmart wallet.`,
-              confirmButtonColor: '#8B0000'
-            });
-            await fetchUserData();
-            closeFundModal();
-            setProcessingPayment(false);
-          } else if (verifyResponse.data.data.status === 'failed') {
-            clearInterval(checkInterval);
-            toast.error('Payment failed. Please try again.');
-            setProcessingPayment(false);
-          }
-        } catch (error) {
-          console.error('Verification error:', error);
-        }
-        
-        if (attempts >= maxAttempts) {
-          clearInterval(checkInterval);
-          toast.warning('Payment verification timeout. Please check your wallet balance or contact support.');
-          setProcessingPayment(false);
-        }
-      }, 3000);
-      
-    } catch (error) {
-      console.error('MoMo verification error:', error);
-      toast.error('Payment verification failed. Please contact support.');
-      setProcessingPayment(false);
+    if (amountNum < method.min) {
+      toast.error(`Minimum amount is ₵${method.min}`);
+      return;
     }
-  };
+    if (amountNum > method.max) {
+      toast.error(`Maximum amount is ₵${method.max.toLocaleString()}`);
+      return;
+    }
 
-  
-
-const handleAmountSubmit = async () => {
-  const amountNum = parseFloat(fundAmount);
-  const method = paymentMethods.find(m => m.id === selectedMethod);
-  
-  if (!fundAmount || isNaN(amountNum)) {
-    toast.error('Please enter a valid amount');
-    return;
-  }
-  if (amountNum < method.min) {
-    toast.error(`Minimum amount is ₵${method.min}`);
-    return;
-  }
-  if (amountNum > method.max) {
-    toast.error(`Maximum amount is ₵${method.max.toLocaleString()}`);
-    return;
-  }
-
-  if (selectedMethod === 'manual') {
     setLoadingRequest(true);
     try {
       const res = await paymentAPI.createManualRequest(amountNum, stats.phone || phoneNumber);
@@ -545,85 +421,7 @@ const handleAmountSubmit = async () => {
     } finally {
       setLoadingRequest(false);
     }
-  } else if (selectedMethod === 'paystack') {
-    // Close the modal first
-    closeFundModal();
-    
-    setTimeout(async () => {
-      const { value: email } = await Swal.fire({
-        title: 'Enter Your Email',
-        input: 'email',
-        inputPlaceholder: 'you@example.com',
-        showCancelButton: true,
-        confirmButtonColor: '#00B3E6',
-        confirmButtonText: 'Proceed to Paystack',
-        preConfirm: (emailValue) => {
-          if (!emailValue) {
-            Swal.showValidationMessage('Email is required');
-          }
-          return emailValue;
-        }
-      });
-      
-      if (email) {
-        await initializePaystackPayment(amountNum, email, stats.phone || phoneNumber);
-      }
-    }, 300);
-    
-  } else if (selectedMethod === 'momo') {
-    // Close the modal first for MoMo as well
-    closeFundModal();
-    
-    setTimeout(async () => {
-      const { value: customerName } = await Swal.fire({
-        title: 'Enter Your Name',
-        input: 'text',
-        inputPlaceholder: 'John Doe',
-        showCancelButton: true,
-        confirmButtonColor: '#FFC107',
-        confirmButtonText: 'Proceed to MTN MoMo',
-        preConfirm: (name) => {
-          if (!name) {
-            Swal.showValidationMessage('Name is required');
-          }
-          return name;
-        }
-      });
-      
-      if (customerName) {
-        let momoPhone = stats.phone || phoneNumber;
-        
-        if (!momoPhone || !validatePhone(momoPhone)) {
-          const { value: phone } = await Swal.fire({
-            title: 'Enter MTN MoMo Number',
-            input: 'tel',
-            inputPlaceholder: '024XXXXXXX',
-            showCancelButton: true,
-            confirmButtonColor: '#FFC107',
-            confirmButtonText: 'Proceed',
-            preConfirm: (phoneValue) => {
-              if (!phoneValue) {
-                Swal.showValidationMessage('Phone number is required');
-              } else if (!validatePhone(phoneValue)) {
-                Swal.showValidationMessage('Please enter a valid MTN number');
-              }
-              return phoneValue;
-            }
-          });
-          
-          if (phone) {
-            momoPhone = phone;
-          } else {
-            setProcessingPayment(false);
-            return;
-          }
-        }
-        
-        await initializeMomoPayment(amountNum, momoPhone, customerName);
-      }
-    }, 300);
-  }
-};
+  };
 
   const handleCopyReference = () => {
     if (manualRequest?.reference) {
@@ -794,14 +592,14 @@ Your Roamsmart wallet will be credited after admin verification.
             <FaCheckCircle /> Verify Payment
           </button>
           {!stats.is_agent && (
-            <button className="btn-outline" onClick={handleBecomeAgent}>
-              <FaUserPlus /> Become Roamsmart Agent
+            <button className="btn-outline btn-success" onClick={handleBecomeAgent}>
+              <FaUserPlus /> Become Agent (FREE)
             </button>
           )}
         </div>
       </div>
 
-      {/* Stats Cards - No commission, only actual data */}
+      {/* Stats Cards */}
       <div className="stats-grid">
         <motion.div whileHover={{ y: -5 }} className="stat-card">
           <div className="stat-icon"><FaWallet /></div>
@@ -867,7 +665,7 @@ Your Roamsmart wallet will be credited after admin verification.
         </div>
       </div>
 
-      {/* Data Bundles Section - Showing actual prices from database */}
+      {/* Data Bundles Section */}
       <div className="section-header">
         <h2><FaDatabase /> Data Bundles on Roamsmart</h2>
         <div className="network-tabs">
@@ -939,7 +737,7 @@ Your Roamsmart wallet will be credited after admin verification.
         </div>
       </div>
 
-      {/* Predefined Bundles Grid - Showing actual prices only */}
+      {/* Predefined Bundles Grid */}
       <div className="bundles-grid">
         <h3 className="bundles-subtitle">Popular Bundles</h3>
         <div className="bundles-grid-container">
@@ -997,7 +795,7 @@ Your Roamsmart wallet will be credited after admin verification.
         </div>
       </div>
 
-      {/* Recent Orders - Showing actual amounts only */}
+      {/* Recent Orders */}
       <div className="section-header">
         <h2><FaHistory /> Recent Orders on Roamsmart</h2>
       </div>
@@ -1047,7 +845,7 @@ Your Roamsmart wallet will be credited after admin verification.
         </div>
       </div>
 
-      {/* ========== FUND WALLET MODAL ========== */}
+      {/* ========== FUND WALLET MODAL (Manual Only) ========== */}
       <AnimatePresence>
         {showFundModal && (
           <motion.div 
@@ -1076,7 +874,7 @@ Your Roamsmart wallet will be credited after admin verification.
                       <div 
                         key={method.id}
                         className={`method-card ${selectedMethod === method.id ? 'active' : ''}`}
-                        onClick={() => handleMethodSelect(method.id)}
+                        onClick={() => setSelectedMethod(method.id)}
                       >
                         <div className="method-icon" style={{ color: method.color }}>{method.icon}</div>
                         <div className="method-name">{method.name}</div>
@@ -1112,20 +910,6 @@ Your Roamsmart wallet will be credited after admin verification.
                     <small>Min: ₵{paymentMethods.find(m => m.id === selectedMethod)?.min} · Max: ₵{paymentMethods.find(m => m.id === selectedMethod)?.max.toLocaleString()}</small>
                   </div>
                   
-                  {selectedMethod === 'manual' && (
-                    <div className="form-group">
-                      <label>Phone Number (Optional)</label>
-                      <input 
-                        type="tel" 
-                        className="form-control" 
-                        placeholder="024XXXXXXX" 
-                        value={phoneNumber}
-                        onChange={e => setPhoneNumber(e.target.value)}
-                      />
-                      <small>For payment confirmation SMS from Roamsmart</small>
-                    </div>
-                  )}
-                  
                   <div className="quick-amounts">
                     {quickAmounts.map(qAmount => (
                       <button key={qAmount} className="quick-amount" onClick={() => setFundAmount(qAmount.toString())}>
@@ -1137,9 +921,9 @@ Your Roamsmart wallet will be credited after admin verification.
                   <button 
                     className="btn-primary btn-block" 
                     onClick={handleAmountSubmit} 
-                    disabled={loadingRequest || processingPayment}
+                    disabled={loadingRequest}
                   >
-                    {(loadingRequest || processingPayment) ? <FaSpinner className="spinning" /> : 'Proceed to Payment'}
+                    {loadingRequest ? <FaSpinner className="spinning" /> : 'Proceed to Payment'}
                   </button>
                 </div>
               )}
