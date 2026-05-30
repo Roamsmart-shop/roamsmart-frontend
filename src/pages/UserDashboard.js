@@ -526,31 +526,52 @@ export default function UserDashboard() {
   };
 
   const handleFileUpload = async () => {
-    if (!proofFile) {
-      toast.error('Please select a payment screenshot');
-      return;
-    }
+  if (!proofFile) {
+    toast.error('Please select a payment screenshot');
+    return;
+  }
 
-    setUploadingProof(true);
-    try {
-      await paymentAPI.uploadProof(manualRequest.id, proofFile);
-      toast.success('Payment proof uploaded to Roamsmart! Admin will verify shortly.');
+  if (!manualRequest?.id) {
+    toast.error('No payment request found');
+    return;
+  }
+
+  setUploadingProof(true);
+  
+  // Create FormData - this MUST match the backend field names
+  const formData = new FormData();
+  formData.append('request_id', manualRequest.id);  // Note: 'request_id' not 'reference'
+  formData.append('proof', proofFile);
+
+  try {
+    const response = await api.post('/payment/upload-proof', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    
+    if (response.data.success) {
+      toast.success(response.data.message || 'Proof uploaded successfully!');
       closeFundModal();
       await fetchUserData();
       
       Swal.fire({
         icon: 'success',
-        title: 'Proof Uploaded to Roamsmart!',
-        html: 'Your payment proof has been submitted. <br/> Admin will verify and credit your wallet within 5-30 minutes.',
+        title: 'Proof Uploaded!',
+        html: response.data.message || 'Your payment proof has been submitted. Admin will verify within 5-30 minutes.',
         confirmButtonColor: '#8B0000'
       });
-    } catch (error) {
-      console.error('Upload proof error:', error);
-      toast.error(error.response?.data?.error || 'Upload failed');
-    } finally {
-      setUploadingProof(false);
+    } else {
+      toast.error(response.data.error || 'Upload failed');
     }
-  };
+  } catch (error) {
+    console.error('Upload error:', error);
+    const errorMsg = error.response?.data?.error || 'Upload failed. Please try again.';
+    toast.error(errorMsg);
+  } finally {
+    setUploadingProof(false);
+  }
+};
 
   const downloadInstructions = () => {
     if (!manualRequest) return;

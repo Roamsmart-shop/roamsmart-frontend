@@ -1,10 +1,11 @@
-// src/components/BillPayment.js - Hubtel Bill Payment Integration with Recurring Bills
+// src/components/BillPayment.js - Complete with Manual Payment Upload
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaBolt, FaTint, FaTv, FaCheckCircle, FaSpinner, FaSearch, 
   FaHistory, FaMoneyBillWave, FaWater, FaCalendarAlt, FaBell, 
-  FaPlus, FaTrash, FaClock, FaToggleOn, FaToggleOff 
+  FaPlus, FaTrash, FaClock, FaToggleOn, FaToggleOff, FaCopy,
+  FaDownload, FaUpload, FaTimes, FaCheck
 } from 'react-icons/fa';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -69,6 +70,15 @@ export default function BillPayment({ isAgent = false }) {
     maxAmount: 0
   });
   const [addingRecurring, setAddingRecurring] = useState(false);
+  
+  // Manual Payment States
+  const [showManualPaymentModal, setShowManualPaymentModal] = useState(false);
+  const [manualRequest, setManualRequest] = useState(null);
+  const [proofFile, setProofFile] = useState(null);
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const [manualAmount, setManualAmount] = useState('');
+  const [fundStep, setFundStep] = useState(1);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetchPaymentHistory();
@@ -179,27 +189,6 @@ export default function BillPayment({ isAgent = false }) {
       if (res.data.success) {
         toast.success(`Bill paid successfully on ${COMPANY.shortName}!`);
         
-        // Ask if user wants to set up recurring payment
-        const setupRecurring = await Swal.fire({
-          title: 'Set Up Recurring Payment?',
-          html: `
-            <p>Would you like to set up automatic payments for this bill?</p>
-            <p><small>You can manage this anytime in the recurring bills section.</small></p>
-          `,
-          icon: 'question',
-          showCancelButton: true,
-          confirmButtonText: 'Yes, Set Up',
-          cancelButtonText: 'Not Now'
-        });
-        
-        if (setupRecurring.isConfirmed) {
-          setSelectedBiller(selectedBiller);
-          setAccountNumber(accountNumber);
-          setNewRecurring({ ...newRecurring, enabled: true });
-          setShowRecurring(true);
-          setAddingRecurring(true);
-        }
-        
         // Reset form
         setAccountNumber('');
         setAmount('');
@@ -229,6 +218,131 @@ export default function BillPayment({ isAgent = false }) {
       toast.error(error.response?.data?.error || 'Payment failed. Please try again.');
     } finally {
       setPaying(false);
+    }
+  };
+
+  // ========== MANUAL PAYMENT HANDLERS ==========
+  
+  const generateManualReference = async (amount, phone) => {
+    try {
+      const res = await api.post('/wallet/generate-reference', { amount, phone });
+      if (res.data.success) {
+        setManualRequest(res.data.data);
+        setFundStep(3);
+        toast.success('Manual payment request created!');
+      }
+    } catch (error) {
+      console.error('Generate reference error:', error);
+      toast.error(error.response?.data?.error || 'Failed to create request');
+    }
+  };
+
+  const handleManualAmountSubmit = async () => {
+    const amountNum = parseFloat(manualAmount);
+    if (!manualAmount || amountNum < 10) {
+      toast.error('Minimum amount is ₵10');
+      return;
+    }
+    
+    setUploadingProof(true);
+    await generateManualReference(amountNum, customerPhone);
+    setUploadingProof(false);
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setProofFile(file);
+    }
+  };
+
+  const handleFileUpload = async () => {
+    if (!proofFile) {
+      toast.error('Please select a payment screenshot');
+      return;
+    }
+
+    if (!manualRequest?.reference) {
+      toast.error('No payment reference found');
+      return;
+    }
+
+    setUploadingProof(true);
+    
+    const formData = new FormData();
+    formData.append('reference', manualRequest.reference);
+    formData.append('proof', proofFile);
+
+    try {
+      const res = await api.post('/payment/upload-proof', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      if (res.data.success) {
+        toast.success('Proof uploaded! Admin will verify.');
+        setShowManualPaymentModal(false);
+        resetManualPayment();
+        fetchPaymentHistory();
+      } else {
+        toast.error(res.data.error || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error(error.response?.data?.error || 'Upload failed');
+    } finally {
+      setUploadingProof(false);
+    }
+  };
+
+  const resetManualPayment = () => {
+    setManualRequest(null);
+    setProofFile(null);
+    setManualAmount('');
+    setFundStep(1);
+    setCopied(false);
+  };
+
+  const downloadInstructions = () => {
+    if (!manualRequest) return;
+    
+    const instructions = `
+${COMPANY.name.toUpperCase()} - MANUAL PAYMENT INSTRUCTIONS
+
+Amount: ₵${manualRequest.amount}
+Reference ID: ${manualRequest.reference}
+Date: ${new Date().toLocaleString()}
+
+PAYMENT DETAILS:
+Recipient: ${COMPANY.name}
+Phone: ${COMPANY.phone}
+
+INSTRUCTIONS:
+1. Go to your mobile money wallet
+2. Select "Send Money" or "Transfer"
+3. Enter recipient: ${COMPANY.phone}
+4. Enter amount: ₵${manualRequest.amount}
+5. Enter Reference: ${manualRequest.reference}
+6. Complete the transaction
+7. Take a screenshot of the confirmation
+8. Upload the screenshot using the upload button
+`;
+    
+    const blob = new Blob([instructions], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `roamsmart_payment_instructions_${manualRequest.reference}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Instructions downloaded');
+  };
+
+  const handleCopyReference = () => {
+    if (manualRequest?.reference) {
+      navigator.clipboard.writeText(manualRequest.reference);
+      setCopied(true);
+      toast.success('Reference copied!');
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -338,6 +452,17 @@ export default function BillPayment({ isAgent = false }) {
 
   return (
     <div className="bill-payment-section">
+      {/* Fund Wallet Button */}
+      <div className="fund-wallet-button" style={{ marginBottom: '20px' }}>
+        <button 
+          className="btn-primary" 
+          onClick={() => setShowManualPaymentModal(true)}
+          style={{ width: '100%' }}
+        >
+          <FaMoneyBillWave /> Fund Wallet (Manual Payment)
+        </button>
+      </div>
+
       {/* Hubtel Powered By Badge */}
       <div className="hubtel-badge">
         <HubtelLogo />
@@ -678,6 +803,127 @@ export default function BillPayment({ isAgent = false }) {
       <div className="bill-payment-footer">
         <small>🔒 Secure payments via Hubtel • Instant processing • 24/7 support</small>
       </div>
+
+      {/* ========== MANUAL PAYMENT MODAL ========== */}
+      <AnimatePresence>
+        {showManualPaymentModal && (
+          <motion.div 
+            className="modal-overlay" 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowManualPaymentModal(false)}
+          >
+            <motion.div 
+              className="modal-content fund-wallet-modal" 
+              initial={{ scale: 0.9, y: 30 }}
+              animate={{ scale: 1, y: 0 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <button className="modal-close" onClick={() => setShowManualPaymentModal(false)}>×</button>
+              
+              {fundStep === 1 && (
+                <div className="fund-step">
+                  <h3>Fund Your Roamsmart Wallet</h3>
+                  <p>Enter amount to add to your wallet via manual transfer</p>
+                  
+                  <div className="form-group">
+                    <label>Amount (GHS)</label>
+                    <input 
+                      type="number" 
+                      className="form-control amount-input" 
+                      placeholder="Enter amount (min. ₵10)" 
+                      min="10"
+                      step="10"
+                      value={manualAmount} 
+                      onChange={e => setManualAmount(e.target.value)} 
+                    />
+                    <small>Minimum amount: ₵10</small>
+                  </div>
+                  
+                  <button 
+                    className="btn-primary btn-block" 
+                    onClick={handleManualAmountSubmit} 
+                    disabled={uploadingProof}
+                  >
+                    {uploadingProof ? <FaSpinner className="spinning" /> : 'Proceed to Payment'}
+                  </button>
+                </div>
+              )}
+              
+              {fundStep === 3 && manualRequest && (
+                <div className="fund-step instructions-step">
+                  <h3>Roamsmart Payment Instructions</h3>
+                  
+                  <div className="payment-details-card">
+                    <div className="detail-row">
+                      <span className="detail-label">Amount to Pay:</span>
+                      <span className="detail-value amount">₵{manualRequest.amount?.toFixed(2)}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="detail-label">Recipient Name:</span>
+                      <span className="detail-value">{COMPANY.name}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="detail-label">Phone Number:</span>
+                      <span className="detail-value">{COMPANY.phone}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="detail-label">Reference ID:</span>
+                      <div className="reference-box">
+                        <code>{manualRequest.reference}</code>
+                        <button onClick={handleCopyReference} className="copy-btn">
+                          {copied ? <FaCheck /> : <FaCopy />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="how-it-works">
+                    <h4>📋 How to pay:</h4>
+                    <ol>
+                      <li>Go to your mobile money wallet</li>
+                      <li>Send ₵{manualRequest.amount?.toFixed(2)} to <strong>{COMPANY.phone}</strong></li>
+                      <li>Use reference: <strong>{manualRequest.reference}</strong></li>
+                      <li>Take a screenshot of the confirmation</li>
+                      <li>Upload the screenshot below</li>
+                    </ol>
+                  </div>
+                  
+                  <div className="upload-section">
+                    <h4>Upload Payment Proof</h4>
+                    <div className="upload-area">
+                      <input 
+                        type="file" 
+                        id="proof-upload"
+                        accept="image/*,.pdf"
+                        onChange={handleFileSelect}
+                        style={{ display: 'none' }}
+                      />
+                      <label htmlFor="proof-upload" className="upload-label">
+                        {proofFile ? <><FaCheck /> {proofFile.name}</> : <><FaUpload /> Click to upload screenshot</>}
+                      </label>
+                    </div>
+                    
+                    <div className="instruction-actions">
+                      <button onClick={downloadInstructions} className="btn-outline">
+                        <FaDownload /> Download Instructions
+                      </button>
+                      <button 
+                        onClick={handleFileUpload} 
+                        className="btn-primary"
+                        disabled={uploadingProof || !proofFile}
+                      >
+                        {uploadingProof ? <FaSpinner className="spinning" /> : 'Submit Payment Proof'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
