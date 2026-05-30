@@ -1,4 +1,4 @@
-// src/pages/UserDashboard.js - No Payment Methods, Become Agent is Free, Hubtel Bill Payments Integrated
+// src/pages/UserDashboard.js - With Paystack Payment Method Added
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,7 +9,7 @@ import {
   FaDownload, FaUpload, FaEye, FaTimes, FaUserPlus, FaGraduationCap,
   FaBolt, FaTint, FaTv, FaGlobe, FaWhatsapp, FaHeadset, FaShieldAlt,
   FaSearch, FaRocket, FaHourglassHalf, FaInfoCircle, FaReceipt,
-  FaLightbulb, FaPlug, FaWater, FaWifi
+  FaLightbulb, FaPlug, FaWater, FaWifi, FaCreditCard
 } from 'react-icons/fa';
 import api, { paymentAPI } from '../services/api';
 import toast from 'react-hot-toast';
@@ -35,8 +35,19 @@ const billCategories = [
   { id: 'internet', name: 'Internet', icon: <FaWifi />, color: '#1abc9c', providers: ['Vodafone Broadband', 'MTN Fibre'] }
 ];
 
-// Only Manual Payment Method
+// Payment Methods - ADDED PAYSTACK
 const paymentMethods = [
+  { 
+    id: 'paystack', 
+    name: 'Paystack', 
+    fee: '2.5% + ₵0.50', 
+    min: 10, 
+    max: 100000, 
+    icon: <FaCreditCard />,
+    description: 'Instant top-up via card or bank transfer',
+    time: 'Instant',
+    color: '#00B3E6'
+  },
   { 
     id: 'manual', 
     name: 'Manual Transfer', 
@@ -85,17 +96,18 @@ export default function UserDashboard() {
   const [showCustomSize, setShowCustomSize] = useState(false);
   const [customSizeInput, setCustomSizeInput] = useState('');
   
-  // Payment States (Manual only)
+  // Payment States - ADDED processingPayment for Paystack
   const [showFundModal, setShowFundModal] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [fundStep, setFundStep] = useState(1);
-  const [selectedMethod, setSelectedMethod] = useState('manual');
+  const [selectedMethod, setSelectedMethod] = useState('paystack');
   const [fundAmount, setFundAmount] = useState('');
   const [manualRequest, setManualRequest] = useState(null);
   const [loadingRequest, setLoadingRequest] = useState(false);
   const [uploadingProof, setUploadingProof] = useState(false);
   const [proofFile, setProofFile] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
   
   // Verification States
   const [verifyReference, setVerifyReference] = useState('');
@@ -223,6 +235,66 @@ export default function UserDashboard() {
   const validatePhone = (phone) => {
     const phoneRegex = /^(024|025|026|027|028|020|054|055|059|050|057|053|056)[0-9]{7}$/;
     return phoneRegex.test(phone);
+  };
+
+  // ========== PAYSTACK PAYMENT HANDLER ==========
+  const initializePaystackPayment = async (amount, email) => {
+    setProcessingPayment(true);
+    try {
+      const response = await api.post('/payment/paystack/initialize', {
+        amount: amount,
+        email: email,
+        phone: stats.phone || phoneNumber,
+        metadata: {
+          type: 'wallet_funding',
+          user_id: stats.id,
+          user_name: stats.username
+        }
+      });
+      
+      const { authorization_url, reference } = response.data.data;
+      
+      // Open Paystack popup
+      const paystackPopup = window.open(authorization_url, '_blank', 'width=600,height=700');
+      
+      // Poll for payment verification
+      const checkPaymentInterval = setInterval(async () => {
+        try {
+          const verifyResponse = await api.get(`/payment/paystack/verify/${reference}`);
+          if (verifyResponse.data.data.status === 'success') {
+            clearInterval(checkPaymentInterval);
+            paystackPopup?.close();
+            
+            await Swal.fire({
+              icon: 'success',
+              title: 'Payment Successful!',
+              html: `₵${amount} has been added to your Roamsmart wallet.`,
+              confirmButtonColor: '#8B0000'
+            });
+            
+            await fetchUserData();
+            setShowFundModal(false);
+            resetFundModal();
+            setProcessingPayment(false);
+          }
+        } catch (error) {
+          console.error('Verification error:', error);
+        }
+      }, 5000);
+      
+      // Stop checking after 5 minutes
+      setTimeout(() => {
+        clearInterval(checkPaymentInterval);
+        if (processingPayment) {
+          setProcessingPayment(false);
+        }
+      }, 300000);
+      
+    } catch (error) {
+      console.error('Paystack initialization error:', error);
+      toast.error(error.response?.data?.error || 'Payment initialization failed');
+      setProcessingPayment(false);
+    }
   };
 
   // ========== HUBTEL BILL PAYMENT HANDLERS ==========
@@ -473,7 +545,7 @@ export default function UserDashboard() {
     }
   };
 
-  // ========== MANUAL PAYMENT HANDLERS ==========
+  // ========== PAYMENT HANDLERS (Updated for Paystack) ==========
   
   const closeFundModal = () => {
     setShowFundModal(false);
@@ -485,6 +557,7 @@ export default function UserDashboard() {
     resetVerifyModal();
   };
   
+  // UPDATED: handleAmountSubmit with Paystack support
   const handleAmountSubmit = async () => {
     const amountNum = parseFloat(fundAmount);
     const method = paymentMethods.find(m => m.id === selectedMethod);
@@ -502,17 +575,45 @@ export default function UserDashboard() {
       return;
     }
 
-    setLoadingRequest(true);
-    try {
-      const res = await paymentAPI.createManualRequest(amountNum, stats.phone || phoneNumber);
-      setManualRequest(res.data.data);
-      setFundStep(3);
-      toast.success('Manual payment request created on Roamsmart!');
-    } catch (error) {
-      console.error('Create manual request error:', error);
-      toast.error(error.response?.data?.error || 'Failed to create request');
-    } finally {
-      setLoadingRequest(false);
+    if (selectedMethod === 'paystack') {
+      // Close the modal first
+      closeFundModal();
+      
+      // Small delay to ensure modal is closed before opening Paystack
+      setTimeout(async () => {
+        const { value: email } = await Swal.fire({
+          title: 'Enter Your Email',
+          input: 'email',
+          inputPlaceholder: 'you@example.com',
+          showCancelButton: true,
+          confirmButtonColor: '#00B3E6',
+          confirmButtonText: 'Proceed to Paystack',
+          preConfirm: (emailValue) => {
+            if (!emailValue) {
+              Swal.showValidationMessage('Email is required');
+            }
+            return emailValue;
+          }
+        });
+        
+        if (email) {
+          await initializePaystackPayment(amountNum, email);
+        }
+      }, 300);
+      
+    } else if (selectedMethod === 'manual') {
+      setLoadingRequest(true);
+      try {
+        const res = await paymentAPI.createManualRequest(amountNum, stats.phone || phoneNumber);
+        setManualRequest(res.data.data);
+        setFundStep(3);
+        toast.success('Manual payment request created on Roamsmart!');
+      } catch (error) {
+        console.error('Create manual request error:', error);
+        toast.error(error.response?.data?.error || 'Failed to create request');
+      } finally {
+        setLoadingRequest(false);
+      }
     }
   };
 
@@ -526,52 +627,51 @@ export default function UserDashboard() {
   };
 
   const handleFileUpload = async () => {
-  if (!proofFile) {
-    toast.error('Please select a payment screenshot');
-    return;
-  }
-
-  if (!manualRequest?.id) {
-    toast.error('No payment request found');
-    return;
-  }
-
-  setUploadingProof(true);
-  
-  // Create FormData - this MUST match the backend field names
-  const formData = new FormData();
-  formData.append('request_id', manualRequest.id);  // Note: 'request_id' not 'reference'
-  formData.append('proof', proofFile);
-
-  try {
-    const response = await api.post('/payment/upload-proof', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-    
-    if (response.data.success) {
-      toast.success(response.data.message || 'Proof uploaded successfully!');
-      closeFundModal();
-      await fetchUserData();
-      
-      Swal.fire({
-        icon: 'success',
-        title: 'Proof Uploaded!',
-        html: response.data.message || 'Your payment proof has been submitted. Admin will verify within 5-30 minutes.',
-        confirmButtonColor: '#8B0000'
-      });
-    } else {
-      toast.error(response.data.error || 'Upload failed');
+    if (!proofFile) {
+      toast.error('Please select a payment screenshot');
+      return;
     }
-  } catch (error) {
-    console.error('Upload error:', error);
-    const errorMsg = error.response?.data?.error || 'Upload failed. Please try again.';
-    toast.error(errorMsg);
-  } finally {
-    setUploadingProof(false);
-  }
-};
+
+    if (!manualRequest?.id) {
+      toast.error('No payment request found');
+      return;
+    }
+
+    setUploadingProof(true);
+    
+    const formData = new FormData();
+    formData.append('request_id', manualRequest.id);
+    formData.append('proof', proofFile);
+
+    try {
+      const response = await api.post('/payment/upload-proof', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      if (response.data.success) {
+        toast.success(response.data.message || 'Proof uploaded successfully!');
+        closeFundModal();
+        await fetchUserData();
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Proof Uploaded!',
+          html: response.data.message || 'Your payment proof has been submitted. Admin will verify within 5-30 minutes.',
+          confirmButtonColor: '#8B0000'
+        });
+      } else {
+        toast.error(response.data.error || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      const errorMsg = error.response?.data?.error || 'Upload failed. Please try again.';
+      toast.error(errorMsg);
+    } finally {
+      setUploadingProof(false);
+    }
+  };
 
   const downloadInstructions = () => {
     if (!manualRequest) return;
@@ -613,7 +713,7 @@ Your Roamsmart wallet will be credited after admin verification.
   const resetFundModal = () => {
     setFundStep(1);
     setFundAmount('');
-    setSelectedMethod('manual');
+    setSelectedMethod('paystack');
     setManualRequest(null);
     setProofFile(null);
     setCopied(false);
@@ -891,7 +991,7 @@ Your Roamsmart wallet will be credited after admin verification.
         </div>
       </div>
 
-      {/* Additional Services Section - Now includes Hubtel Bill Payment */}
+      {/* Additional Services Section */}
       <div className="additional-services-section">
         <div className="section-header">
           <h2><FaGraduationCap /> Additional Services on Roamsmart</h2>
@@ -1131,7 +1231,7 @@ Your Roamsmart wallet will be credited after admin verification.
         )}
       </AnimatePresence>
 
-      {/* ========== FUND WALLET MODAL (Manual Only) ========== */}
+      {/* ========== FUND WALLET MODAL (With Paystack & Manual) ========== */}
       <AnimatePresence>
         {showFundModal && (
           <motion.div 
@@ -1207,9 +1307,9 @@ Your Roamsmart wallet will be credited after admin verification.
                   <button 
                     className="btn-primary btn-block" 
                     onClick={handleAmountSubmit} 
-                    disabled={loadingRequest}
+                    disabled={loadingRequest || processingPayment}
                   >
-                    {loadingRequest ? <FaSpinner className="spinning" /> : 'Proceed to Payment'}
+                    {(loadingRequest || processingPayment) ? <FaSpinner className="spinning" /> : 'Proceed to Payment'}
                   </button>
                 </div>
               )}
