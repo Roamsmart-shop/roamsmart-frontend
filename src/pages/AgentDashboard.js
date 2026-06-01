@@ -1,4 +1,4 @@
-// src/pages/AgentDashboard.js - With Commission Removed (No profit/commission display)
+// src/pages/AgentDashboard.js - With Verification Options & Delivery Status
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,7 +13,8 @@ import {
   FaWhatsapp, FaTelegram, FaShareAlt, FaFileExcel, FaPlus,
   FaTrash, FaShoppingBag, FaStore, FaCrown, FaArrowUp,
   FaGraduationCap, FaBolt, FaTint, FaTv, FaGlobe, FaQrcode,
-  FaSearch, FaArrowRight, FaArrowLeft, FaInfoCircle
+  FaSearch, FaArrowRight, FaArrowLeft, FaInfoCircle, FaRegClock,
+  FaFileInvoice, FaSync
 } from 'react-icons/fa';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -88,20 +89,18 @@ const paymentMethods = [
 export default function AgentDashboard() {
   const { user } = useAuth();
   
-  // State Management - REMOVED commission-related fields
+  // State Management
   const [stats, setStats] = useState({ 
     wallet_balance: 0, 
     total_sales: 0, 
     total_orders: 0, 
     agent_savings: 0,
-    // REMOVED: total_commission, pending_commission
     today_sales: 0,
     this_week_sales: 0,
     this_month_sales: 0,
     total_customers: 0,
     agent_tier: 'Bronze',
     next_tier_sales: 500,
-    // REMOVED: commission_rate
     rank: 0,
     username: ''
   });
@@ -116,6 +115,7 @@ export default function AgentDashboard() {
   // Payment States
   const [showFundModal, setShowFundModal] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyOption, setVerifyOption] = useState('auto'); // 'auto' or 'manual'
   const [fundStep, setFundStep] = useState(1);
   const [selectedMethod, setSelectedMethod] = useState('paystack');
   const [fundAmount, setFundAmount] = useState('');
@@ -127,13 +127,20 @@ export default function AgentDashboard() {
   const [processingPayment, setProcessingPayment] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState(stats?.phone || user?.phone || '');
   
-  // Verification States
+  // Auto Verification States
   const [verifyReference, setVerifyReference] = useState('');
   const [verifyTransactionId, setVerifyTransactionId] = useState('');
   const [verifySenderName, setVerifySenderName] = useState('');
   const [verifySenderPhone, setVerifySenderPhone] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [pendingTopups, setPendingTopups] = useState([]);
+  
+  // Manual Verification States (Upload Proof)
+  const [manualVerifyReference, setManualVerifyReference] = useState('');
+  const [manualVerifyAmount, setManualVerifyAmount] = useState('');
+  const [manualVerifyProof, setManualVerifyProof] = useState(null);
+  const [manualVerifyUploading, setManualVerifyUploading] = useState(false);
+  const [pendingPayments, setPendingPayments] = useState([]);
   
   // Dynamic size states
   const [selectedSize, setSelectedSize] = useState('');
@@ -159,8 +166,6 @@ export default function AgentDashboard() {
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkPreview, setBulkPreview] = useState([]);
   const [processingBulk, setProcessingBulk] = useState(false);
-  
-  // REMOVED: earnings & withdrawal states (no commission)
   
   // Purchase Confirmation
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -194,11 +199,11 @@ export default function AgentDashboard() {
 
   useEffect(() => {
     fetchData();
-    // REMOVED: fetchWithdrawals()
     fetchCustomers();
     fetchStoreSettings();
     fetchPrices();
     fetchPendingTopups();
+    fetchPendingPayments();
   }, []);
 
   // Update available sizes when network changes
@@ -224,13 +229,23 @@ export default function AgentDashboard() {
     };
   }, []);
 
-  // Fetch pending topups for verification
+  // Fetch pending topups for auto verification
   const fetchPendingTopups = async () => {
     try {
       const res = await api.get('/wallet/pending-topups');
       setPendingTopups(res.data.data || []);
     } catch (error) {
       console.error('Failed to fetch pending topups');
+    }
+  };
+
+  // Fetch pending manual payment submissions
+  const fetchPendingPayments = async () => {
+    try {
+      const res = await api.get('/user/pending-payments');
+      setPendingPayments(res.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch pending payments:', error);
     }
   };
 
@@ -244,7 +259,6 @@ export default function AgentDashboard() {
       const wholesalePrices = res.data.data;
       setAgentBundles(wholesalePrices);
       
-      // Calculate suggested retail prices based on store markup
       const markup = storeSettings.markup || 15;
       const retailPrices = {};
       for (const [network, bundles] of Object.entries(wholesalePrices)) {
@@ -257,7 +271,6 @@ export default function AgentDashboard() {
       
     } catch (error) {
       console.error('Failed to fetch agent prices:', error);
-      // Fallback to default values
       const fallbackPrices = {
         mtn: { '1': 5.50, '2': 10.00, '5': 22.00, '10': 42.00, '20': 80.00 },
         telecel: { '1': 5.00, '2': 9.00, '5': 20.00, '10': 38.00, '20': 75.00 },
@@ -311,8 +324,63 @@ export default function AgentDashboard() {
       setLoading(false);
     }
   };
-
-  // REMOVED: fetchWithdrawals function
+  
+  const fetchOrdersWithRealTimeStatus = async () => {
+  try {
+    // First get orders from your database
+    const response = await api.get('/agent/orders');
+    const orders = response.data.data || [];
+    
+    // Then fetch live status for processing/pending orders
+    const ordersToCheck = orders.filter(
+      o => o.delivery_status === 'processing' || o.delivery_status === 'pending'
+    );
+    
+    if (ordersToCheck.length > 0) {
+      const identifiers = ordersToCheck.map(o => o.provider_order_id || o.order_id);
+      
+      try {
+        const statusResponse = await api.post('/digimall/bulk-status', { identifiers });
+        
+        if (statusResponse.data.success) {
+          const statusMap = {};
+          statusResponse.data.results.forEach(r => {
+            statusMap[r.identifier] = r.status;
+          });
+          
+          // Update orders with live status
+          orders.forEach(order => {
+            const identifier = order.provider_order_id || order.order_id;
+            const liveStatus = statusMap[identifier];
+            if (liveStatus && liveStatus !== order.delivery_status) {
+              order.delivery_status = liveStatus;
+            }
+          });
+        }
+      } catch (bulkError) {
+        console.warn('Bulk status check failed, trying individual checks...');
+        // Fallback to individual checks
+        for (const order of ordersToCheck) {
+          try {
+            const identifier = order.provider_order_id || order.order_id;
+            const singleResponse = await api.get(`/digimall/order-status/${identifier}`);
+            if (singleResponse.data.success && singleResponse.data.status) {
+              order.delivery_status = singleResponse.data.status;
+            }
+          } catch (e) {
+            console.error(`Failed to check status for ${order.order_id}:`, e);
+          }
+        }
+      }
+    }
+    
+    setOrders(orders);
+    
+  } catch (error) {
+    console.error('Failed to fetch orders:', error);
+    toast.error('Failed to load orders');
+  }
+};
 
   const fetchCustomers = async () => {
     try {
@@ -334,7 +402,6 @@ export default function AgentDashboard() {
     }
   };
 
-  // Validate Ghana phone number
   const validatePhone = (phone) => {
     const phoneRegex = /^(024|025|026|027|028|020|054|055|059|050|057|053|056)[0-9]{7}$/;
     return phoneRegex.test(phone);
@@ -372,10 +439,8 @@ export default function AgentDashboard() {
       
       const { authorization_url, reference } = response.data.data;
       
-      // Open Paystack popup
       const paystackPopup = window.open(authorization_url, '_blank', 'width=600,height=700');
       
-      // Poll for payment verification
       const checkPaymentInterval = setInterval(async () => {
         try {
           const verifyResponse = await api.get(`/payment/paystack/verify/${reference}`);
@@ -401,7 +466,6 @@ export default function AgentDashboard() {
         }
       }, 5000);
       
-      // Stop checking after 5 minutes
       setTimeout(() => {
         clearInterval(checkPaymentInterval);
         if (processingPayment) {
@@ -415,6 +479,70 @@ export default function AgentDashboard() {
       setProcessingPayment(false);
     }
   };
+
+// Add with your other state
+
+const [statusFilter, setStatusFilter] = useState('all');
+
+// Filter orders
+const filteredOrders = orders.filter(order => {
+  const matchesSearch = 
+    order.order_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.customer_name?.toLowerCase().includes(searchTerm.toLowerCase());
+  
+  const matchesStatus = statusFilter === 'all' || 
+    (order.delivery_status || order.status) === statusFilter;
+  
+  return matchesSearch && matchesStatus;
+});
+
+// View order details
+const viewOrderDetails = (order) => {
+  Swal.fire({
+    title: 'Order Details',
+    html: `
+      <div style="text-align: left;">
+        <p><strong>Order ID:</strong> ${order.order_id}</p>
+        <p><strong>Customer:</strong> ${order.customer_name || 'N/A'}</p>
+        <p><strong>Phone:</strong> ${order.phone}</p>
+        <p><strong>Network:</strong> ${order.network?.toUpperCase()}</p>
+        <p><strong>Size:</strong> ${order.size_gb}GB</p>
+        <p><strong>Customer Paid:</strong> ₵${order.customer_paid?.toFixed(2)}</p>
+        <p><strong>Your Cost:</strong> ₵${order.amount_deducted?.toFixed(2)}</p>
+        <p><strong>Your Profit:</strong> ₵${order.profit?.toFixed(2)}</p>
+        <p><strong>Status:</strong> ${order.delivery_status || order.status}</p>
+        <p><strong>Created:</strong> ${new Date(order.created_at).toLocaleString()}</p>
+        ${order.provider_order_id ? `<p><strong>Provider Order:</strong> ${order.provider_order_id}</p>` : ''}
+      </div>
+    `,
+    confirmButtonColor: '#8B0000'
+  });
+};
+
+// Retry failed order
+const retryOrder = async (order) => {
+  const result = await Swal.fire({
+    title: 'Retry Order?',
+    text: `Retry delivering ${order.size_gb}GB to ${order.phone}?`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#28a745',
+    confirmButtonText: 'Yes, Retry'
+  });
+  
+  if (result.isConfirmed) {
+    try {
+      const res = await api.post('/agent/retry-order', { order_id: order.order_id });
+      if (res.data.success) {
+        toast.success('Order retried successfully!');
+        fetchData();
+      }
+    } catch (error) {
+      toast.error('Failed to retry order');
+    }
+  }
+};
 
   // Initialize MoMo Payment Handler
   const initializeMomoPayment = async (amount, phone, customerName) => {
@@ -433,10 +561,8 @@ export default function AgentDashboard() {
       
       const { payment_url, reference } = response.data.data;
       
-      // Open MoMo payment page
       const momoPopup = window.open(payment_url, '_blank', 'width=600,height=700');
       
-      // Poll for payment verification
       const checkPaymentInterval = setInterval(async () => {
         try {
           const verifyResponse = await api.get(`/payment/momo/verify/${reference}`);
@@ -462,7 +588,6 @@ export default function AgentDashboard() {
         }
       }, 5000);
       
-      // Stop checking after 5 minutes
       setTimeout(() => {
         clearInterval(checkPaymentInterval);
         if (processingPayment) {
@@ -477,27 +602,108 @@ export default function AgentDashboard() {
     }
   };
 
-  // Manual Payment Handler
-  const handleManualPayment = async () => {
-    setLoadingRequest(true);
+  // ========== VERIFICATION HANDLERS ==========
+  
+  // Auto Verification
+  const handleAutoVerifyPayment = async () => {
+    if (!verifyReference || !verifyTransactionId) {
+      toast.error('Please enter reference ID and transaction ID');
+      return;
+    }
+
+    setVerifying(true);
     try {
-      const res = await api.post('/wallet/generate-reference', {
-        amount: parseFloat(fundAmount),
-        payment_method: 'manual'
+      const res = await api.post('/wallet/verify-payment', {
+        reference: verifyReference.toUpperCase(),
+        transaction_id: verifyTransactionId,
+        sender_name: verifySenderName,
+        sender_phone: verifySenderPhone
       });
       
-      setManualRequest(res.data.data);
-      setFundStep(3);
-      toast.success('Payment reference generated!');
+      if (res.data.success) {
+        toast.success(res.data.message);
+        setShowVerifyModal(false);
+        resetVerifyModal();
+        await fetchData();
+        await fetchPendingTopups();
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Wallet Credited!',
+          html: `₵${res.data.data?.amount} has been added to your Roamsmart wallet.`,
+          confirmButtonColor: '#8B0000'
+        });
+      }
     } catch (error) {
-      console.error('Create manual request error:', error);
-      toast.error(error.response?.data?.error || 'Failed to create request');
+      console.error('Verify payment error:', error);
+      toast.error(error.response?.data?.error || 'Verification failed');
     } finally {
-      setLoadingRequest(false);
+      setVerifying(false);
     }
   };
 
-  // UPDATED handleAmountSubmit function
+  // Manual Verification (Upload Proof)
+  const handleManualVerifyPayment = async () => {
+  if (!manualVerifyReference) {
+    toast.error('Please enter your payment reference');
+    return;
+  }
+  
+  if (!manualVerifyProof) {
+    toast.error('Please upload your payment proof/screenshot');
+    return;
+  }
+  
+  setManualVerifyUploading(true);
+  
+  const formData = new FormData();
+  // OLD FLOW: Use 'request_id' (not 'reference')
+  formData.append('request_id', manualVerifyReference);
+  formData.append('proof', manualVerifyProof);
+  
+  try {
+    // OLD FLOW: Use '/payment/upload-proof' endpoint
+    const response = await api.post('/payment/upload-proof', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    
+    if (response.data.success) {
+      toast.success(response.data.message || 'Payment proof submitted for admin approval!');
+      setShowVerifyModal(false);
+      resetVerifyModal();
+      await fetchPendingPayments();
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Proof Submitted!',
+        html: `Your payment proof for reference <strong>${manualVerifyReference}</strong> has been submitted.<br><br>Admin will review and credit your wallet within 5-30 minutes.`,
+        confirmButtonColor: '#8B0000'
+      });
+      
+      setManualVerifyReference('');
+      setManualVerifyAmount('');
+      setManualVerifyProof(null);
+    } else {
+      toast.error(response.data.error || 'Submission failed');
+    }
+  } catch (error) {
+    console.error('Manual verification error:', error);
+    toast.error(error.response?.data?.error || 'Failed to submit proof. Please try again.');
+  } finally {
+    setManualVerifyUploading(false);
+  }
+};
+
+  const copyReferenceToVerify = (ref) => {
+    navigator.clipboard.writeText(ref);
+    setVerifyReference(ref);
+    toast.success('Reference copied to verification field!');
+  };
+
+  // ========== FUND WALLET HANDLERS ==========
+  
   const handleAmountSubmit = async () => {
     const amountNum = parseFloat(fundAmount);
     const method = paymentMethods.find(m => m.id === selectedMethod);
@@ -532,10 +738,8 @@ export default function AgentDashboard() {
         setLoadingRequest(false);
       }
     } else if (selectedMethod === 'paystack') {
-      // Close the modal first
       closeFundModal();
       
-      // Small delay to ensure modal is closed before opening Paystack
       setTimeout(async () => {
         const { value: email } = await Swal.fire({
           title: 'Enter Your Email',
@@ -558,7 +762,6 @@ export default function AgentDashboard() {
       }, 300);
       
     } else if (selectedMethod === 'momo') {
-      // Close the modal first for MoMo as well
       closeFundModal();
       
       setTimeout(async () => {
@@ -627,95 +830,50 @@ export default function AgentDashboard() {
   };
 
   const handleFileUpload = async () => {
-  if (!proofFile) {
-    toast.error('Please select a payment screenshot');
-    return;
-  }
-
-  if (!manualRequest?.id) {
-    toast.error('No payment request found');
-    return;
-  }
-
-  setUploadingProof(true);
-  
-  // Create FormData - this MUST match the backend field names
-  const formData = new FormData();
-  formData.append('request_id', manualRequest.id);  // Note: 'request_id' not 'reference'
-  formData.append('proof', proofFile);
-
-  try {
-    const response = await api.post('/payment/upload-proof', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-    
-    if (response.data.success) {
-      toast.success(response.data.message || 'Proof uploaded successfully!');
-      closeFundModal();
-      await fetchData();
-      
-      Swal.fire({
-        icon: 'success',
-        title: 'Proof Uploaded!',
-        html: response.data.message || 'Your payment proof has been submitted. Admin will verify within 5-30 minutes.',
-        confirmButtonColor: '#8B0000'
-      });
-    } else {
-      toast.error(response.data.error || 'Upload failed');
-    }
-  } catch (error) {
-    console.error('Upload error:', error);
-    const errorMsg = error.response?.data?.error || 'Upload failed. Please try again.';
-    toast.error(errorMsg);
-  } finally {
-    setUploadingProof(false);
-  }
-};
-
-  // Verify Payment by Reference
-  const handleVerifyPayment = async () => {
-    if (!verifyReference || !verifyTransactionId) {
-      toast.error('Please enter reference ID and transaction ID');
+    if (!proofFile) {
+      toast.error('Please select a payment screenshot');
       return;
     }
 
-    setVerifying(true);
+    if (!manualRequest?.id) {
+      toast.error('No payment request found');
+      return;
+    }
+
+    setUploadingProof(true);
+    
+    const formData = new FormData();
+    formData.append('request_id', manualRequest.id);
+    formData.append('proof', proofFile);
+
     try {
-      const res = await api.post('/wallet/verify-payment', {
-        reference: verifyReference.toUpperCase(),
-        transaction_id: verifyTransactionId,
-        sender_name: verifySenderName,
-        sender_phone: verifySenderPhone
+      const response = await api.post('/payment/upload-proof', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
       });
       
-      if (res.data.success) {
-        toast.success(res.data.message);
-        setShowVerifyModal(false);
-        resetVerifyModal();
+      if (response.data.success) {
+        toast.success(response.data.message || 'Proof uploaded successfully!');
+        closeFundModal();
         await fetchData();
-        await fetchPendingTopups();
         
         Swal.fire({
           icon: 'success',
-          title: 'Wallet Credited!',
-          html: `₵${res.data.data?.amount} has been added to your Roamsmart wallet.`,
+          title: 'Proof Uploaded!',
+          html: response.data.message || 'Your payment proof has been submitted. Admin will verify within 5-30 minutes.',
           confirmButtonColor: '#8B0000'
         });
+      } else {
+        toast.error(response.data.error || 'Upload failed');
       }
     } catch (error) {
-      console.error('Verify payment error:', error);
-      toast.error(error.response?.data?.error || 'Verification failed');
+      console.error('Upload error:', error);
+      const errorMsg = error.response?.data?.error || 'Upload failed. Please try again.';
+      toast.error(errorMsg);
     } finally {
-      setVerifying(false);
+      setUploadingProof(false);
     }
-  };
-
-  const copyReferenceToVerify = (ref) => {
-    navigator.clipboard.writeText(ref);
-    setVerifyReference(ref);
-    toast.success('Reference copied to verification field!');
   };
 
   const resetFundModal = () => {
@@ -732,6 +890,10 @@ export default function AgentDashboard() {
     setVerifyTransactionId('');
     setVerifySenderName('');
     setVerifySenderPhone('');
+    setManualVerifyReference('');
+    setManualVerifyAmount('');
+    setManualVerifyProof(null);
+    setVerifyOption('auto');
   };
 
   // Handle network change for dynamic sizes
@@ -744,7 +906,6 @@ export default function AgentDashboard() {
     setShowCustomSize(false);
   };
 
-  // Handle size selection from chips
   const handleSizeSelect = (size) => {
     setSelectedSize(size);
     setShowCustomSize(false);
@@ -759,7 +920,6 @@ export default function AgentDashboard() {
     }
   };
 
-  // Handle custom size input
   const handleCustomSize = async (e) => {
     const size = parseInt(e.target.value);
     setSelectedSize(e.target.value);
@@ -801,16 +961,33 @@ export default function AgentDashboard() {
 
   // ========== SELL DATA FUNCTION ==========
   const sellData = async (network, sizeGb, wholesalePrice, phone, customerNameValue) => {
-    if (!validatePhone(phone)) {
-      toast.error('Please enter a valid Ghana phone number (e.g., 024XXXXXXX)');
-      setSellingBundle(null);
-      return;
-    }
-    
+  // Validate phone number
+  if (!validatePhone(phone)) {
+    toast.error('Please enter a valid Ghana phone number (e.g., 024XXXXXXX)');
+    setSellingBundle(null);
+    return;
+  }
+  
+  // Validate network and size
+  if (!network || !sizeGb) {
+    toast.error('Please select a network and data size');
+    setSellingBundle(null);
+    return;
+  }
+  
+  // Validate wholesale price
+  if (!wholesalePrice || wholesalePrice <= 0) {
+    toast.error('Invalid price. Please try again.');
+    setSellingBundle(null);
+    return;
+  }
+  
+  try {
     const markup = storeSettings.markup || 15;
     const sellingPrice = wholesalePrice * (1 + markup / 100);
     const profit = sellingPrice - wholesalePrice;
     
+    // Check wallet balance
     if (stats.wallet_balance < wholesalePrice) {
       const result = await Swal.fire({
         icon: 'warning',
@@ -834,6 +1011,7 @@ export default function AgentDashboard() {
       return;
     }
     
+    // Set pending purchase
     setPendingPurchase({
       network,
       sizeGb,
@@ -846,55 +1024,105 @@ export default function AgentDashboard() {
     
     setShowConfirmModal(true);
     setSellingBundle(null);
-  };
+    
+  } catch (error) {
+    console.error('Error in sellData:', error);
+    toast.error('An unexpected error occurred. Please try again.');
+    setSellingBundle(null);
+  }
+};
 
   const confirmSale = async () => {
-    if (!pendingPurchase) return;
+  if (!pendingPurchase) return;
+  
+  setConfirmLoading(true);
+  setShowConfirmModal(false);
+  
+  const loadingToast = toast.loading('Processing your sale...');
+  
+  try {
+    const res = await api.post('/agent/sell', { 
+      network: pendingPurchase.network, 
+      size_gb: pendingPurchase.sizeGb, 
+      phone: pendingPurchase.phone, 
+      customer_name: pendingPurchase.customerName,
+      selling_price: pendingPurchase.sellingPrice
+    });
     
-    setConfirmLoading(true);
-    setShowConfirmModal(false);
+    toast.dismiss(loadingToast);
     
-    try {
-      const res = await api.post('/agent/sell', { 
-        network: pendingPurchase.network, 
-        size_gb: pendingPurchase.sizeGb, 
-        phone: pendingPurchase.phone, 
-        customer_name: pendingPurchase.customerName,
-        selling_price: pendingPurchase.sellingPrice
+    if (res.data.success) {
+      await fetchData();
+      await fetchCustomers();
+      await fetchPrices();
+      
+      await Swal.fire({
+        icon: 'success',
+        title: 'Sale Complete on Roamsmart!',
+        html: `
+          <p>✅ Sold ${pendingPurchase.sizeGb}GB ${pendingPurchase.network.toUpperCase()} to ${pendingPurchase.phone}</p>
+          <p>💰 Your Profit: ₵${pendingPurchase.profit.toFixed(2)}</p>
+          <p class="text-muted">New Balance: ₵${res.data.data?.balance || (stats.wallet_balance - pendingPurchase.wholesalePrice)}</p>
+        `,
+        confirmButtonColor: '#8B0000'
       });
       
-      if (res.data.success) {
-        await Swal.fire({
-          icon: 'success',
-          title: 'Sale Complete on Roamsmart!',
-          html: `
-            <p>✅ Sold ${pendingPurchase.sizeGb}GB ${pendingPurchase.network.toUpperCase()} to ${pendingPurchase.phone}</p>
-            <p>💰 Your Profit: ₵${pendingPurchase.profit.toFixed(2)}</p>
-            <p class="text-muted">New Balance: ₵${res.data.data?.new_balance || (stats.wallet_balance - pendingPurchase.wholesalePrice)}</p>
-          `,
-          confirmButtonColor: '#8B0000'
-        });
-        
-        await fetchData();
-        await fetchCustomers();
-        await fetchPrices();
-        
-        setCustomerPhone('');
-        setCustomerName('');
-        setSelectedSize('');
-        setSelectedWholesalePrice(null);
-        setSelectedSellingPrice(null);
-        setSelectedProfit(null);
-        setPendingPurchase(null);
-      }
-    } catch (error) {
-      console.error('Sale error:', error);
-      toast.error(error.response?.data?.error || 'Sale failed');
-    } finally {
-      setConfirmLoading(false);
+      setCustomerPhone('');
+      setCustomerName('');
+      setSelectedSize('');
+      setSelectedWholesalePrice(null);
+      setSelectedSellingPrice(null);
+      setSelectedProfit(null);
+      setPendingPurchase(null);
+      
+    } else {
+      toast.error(res.data.error || 'Sale failed. Please try again.');
+      
+      await Swal.fire({
+        icon: 'error',
+        title: 'Sale Failed',
+        text: res.data.error || 'Sale failed. Please try again.',
+        confirmButtonColor: '#8B0000'
+      });
     }
-  };
-
+    
+  } catch (error) {
+    toast.dismiss(loadingToast);
+    console.error('Confirm sale error:', error);
+    
+    let errorMessage = 'Sale failed. Please try again.';
+    
+    if (error.code === 'ECONNABORTED') {
+      errorMessage = 'Request timed out. Please check your connection and try again.';
+    } else if (error.response) {
+      if (error.response.status === 401) {
+        errorMessage = 'Session expired. Please login again.';
+        // Clear local storage and reload instead of navigate
+        localStorage.removeItem('token');
+        localStorage.removeItem('roamsmart_token');
+        window.location.href = '/login';
+      } else if (error.response.status === 500) {
+        errorMessage = 'Server error. Our team has been notified. Please try again later.';
+      } else {
+        errorMessage = error.response.data?.error || 'Sale failed. Please try again.';
+      }
+    } else if (error.request) {
+      errorMessage = 'Network error. Please check your internet connection.';
+    }
+    
+    toast.error(errorMessage);
+    
+    await Swal.fire({
+      icon: 'error',
+      title: 'Sale Failed',
+      text: errorMessage,
+      confirmButtonColor: '#8B0000'
+    });
+    
+  } finally {
+    setConfirmLoading(false);
+  }
+};
   // ========== CART FUNCTIONS ==========
   const addToCart = (network, sizeGb, price) => {
     const existingItem = cart.find(item => item.network === network && item.size === sizeGb);
@@ -1031,8 +1259,6 @@ export default function AgentDashboard() {
     }
   };
 
-  // REMOVED: requestWithdrawal function
-
   // ========== SAVE STORE SETTINGS ==========
   const saveStoreSettings = async () => {
     if (!storeSettings.store_name) {
@@ -1119,9 +1345,7 @@ export default function AgentDashboard() {
     };
   };
 
-  // REMOVED commission chart - replaced with product sales chart
   const getProductChartData = () => {
-    // Show what's actually in the database (admin configured bundles)
     const productData = {};
     for (const [network, bundles] of Object.entries(agentBundles)) {
       for (const [size, price] of Object.entries(bundles)) {
@@ -1182,7 +1406,7 @@ export default function AgentDashboard() {
         </div>
       </div>
 
-      {/* Quick Action Buttons - Payment Actions Prominently Displayed */}
+      {/* Quick Action Buttons */}
       <div className="quick-actions-bar" style={{ marginBottom: '20px', display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
         <button className="action-btn btn-primary" onClick={() => setShowFundModal(true)} style={{ background: '#8B0000', color: 'white' }}>
           <FaCreditCard /> Fund Wallet
@@ -1211,6 +1435,19 @@ export default function AgentDashboard() {
         </div>
       )}
 
+      {/* Pending Manual Submissions Notice */}
+      {pendingPayments.length > 0 && (
+        <div className="notice-box" style={{ background: '#e3f2fd', borderLeft: '4px solid #2196f3', marginBottom: '20px', padding: '12px 15px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="notice-icon">📋</div>
+          <div className="notice-content" style={{ flex: 1 }}>
+            <strong>Manual Payment Submissions:</strong> You have {pendingPayments.length} pending submission(s) awaiting admin approval.
+            <button onClick={() => setShowVerifyModal(true)} style={{ background: 'none', border: 'none', color: '#2196f3', cursor: 'pointer', fontWeight: 'bold', marginLeft: '5px' }}>
+              Check status →
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="agent-tabs">
         <button className={`tab ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
           <FaChartLine /> Dashboard
@@ -1223,7 +1460,7 @@ export default function AgentDashboard() {
         </button>
       </div>
 
-      {/* Dashboard Tab - REMOVED commission displays */}
+      {/* Dashboard Tab */}
       {activeTab === 'dashboard' && (
         <>
           <div className="stats-grid">
@@ -1251,8 +1488,6 @@ export default function AgentDashboard() {
               <div className="stat-label">Your Savings</div>
             </motion.div>
           </div>
-
-          {/* REMOVED commission stats row */}
 
           <div className="stats-grid">
             <motion.div whileHover={{ y: -5 }} className="stat-card">
@@ -1358,7 +1593,7 @@ export default function AgentDashboard() {
             </div>
           </div>
 
-          {/* Dynamic Size Input Section - NO PROFIT */}
+          {/* Dynamic Size Input Section */}
           <div className="custom-size-section-agent">
             <div className="custom-size-input-agent">
               <h3>Enter Custom Data Size</h3>
@@ -1379,12 +1614,10 @@ export default function AgentDashboard() {
               
               {selectedWholesalePrice !== null && !loadingPrice && (
                 <div className="price-display-agent">
-                  {/* Only show database price - NO wholesale, NO profit */}
                   <div className="price-row">
                     <span>Price:</span>
                     <strong>₵{selectedWholesalePrice.toFixed(2)}</strong>
                   </div>
-                  {/* REMOVED: suggested selling price and profit display */}
                   <button 
                     className="btn-primary btn-block"
                     onClick={() => {
@@ -1426,7 +1659,7 @@ export default function AgentDashboard() {
             </div>
           </div>
 
-          {/* Predefined Bundles Grid - NO PROFIT DISPLAY */}
+          {/* Predefined Bundles Grid */}
           <div className="bundles-grid-agent">
             <h3 className="bundles-subtitle-agent">Popular Bundles</h3>
             <div className="bundles-grid-container-agent">
@@ -1441,7 +1674,6 @@ export default function AgentDashboard() {
                     className="bundle-card-agent"
                   >
                     <div className="bundle-size">{size}GB</div>
-                    {/* Only show database price - NO wholesale, NO profit */}
                     <div className="bundle-price">₵{wholesalePrice}</div>
                     <div className="bundle-actions">
                       <button 
@@ -1485,8 +1717,6 @@ export default function AgentDashboard() {
           </div>
         </>
       )}
-
-      {/* REMOVED Earnings Tab - No commission available */}
 
       {/* Customers Tab */}
       {activeTab === 'customers' && (
@@ -1582,41 +1812,132 @@ export default function AgentDashboard() {
         </div>
       </div>
 
-      {/* Recent Orders */}
-      <div className="section-header">
-        <h2><FaHistory /> Recent Sales on Roamsmart</h2>
-      </div>
-      <div className="orders-table">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Order ID</th>
-              <th>Customer</th>
-              <th>Product</th>
-              <th>Amount</th>
-              <th>Your Profit</th>
-              <th>Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.slice(0, 10).map(order => (
-              <tr key={order.order_id || order.id}>
-                <td className="order-id">{order.order_id || order.id}</td>
-                <td>{order.customer_phone || order.phone || order.customer_phone}</td>
-                <td>{order.network} {order.size_gb}GB</td>
-                <td className="amount">₵{order.amount || order.selling_price}</td>
-                <td className="profit">+₵{order.profit || (order.commission_amount || 0)}</td>
-                <td className="date">{new Date(order.created_at || order.date).toLocaleDateString()}</td>
-              </tr>
-            ))}
-            {orders.length === 0 && (
-              <tr>
-                <td colSpan="6" className="text-center">No sales yet. Start selling on Roamsmart!</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* Recent Orders with Enhanced Details */}
+<div className="section-header">
+  <h2><FaHistory /> Order History</h2>
+  <div className="order-filters">
+    <input 
+      type="text" 
+      placeholder="Search orders..." 
+      className="search-input"
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+    />
+    <select className="filter-select" onChange={(e) => setStatusFilter(e.target.value)}>
+      <option value="all">All Status</option>
+      <option value="pending">Pending</option>
+      <option value="processing">Processing</option>
+      <option value="delivered">Delivered</option>
+      <option value="failed">Failed</option>
+    </select>
+    <button className="btn-primary btn-sm" onClick={() => fetchOrdersWithRealTimeStatus()}>
+      <FaSync /> Refresh Status
+    </button>
+  </div>
+</div>
+
+<div className="orders-table">
+  <div className="table-responsive">
+    <table className="data-table">
+      <thead>
+        <tr>
+          <th>Order ID</th>
+          <th>Size</th>
+          <th>Recipient</th>
+          <th>Network</th>
+          <th>Status</th>
+          <th>Source</th>
+          <th>Paid</th>
+          <th>Bal. Before</th>
+          <th>Amount</th>
+          <th>Bal. After</th>
+          <th>Date</th>
+          <th>Updated</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {filteredOrders.map(order => (
+          <tr key={order.order_id}>
+            <td className="order-id">
+              <code>{order.order_id}</code>
+            </td>
+            <td>
+              <strong>{order.size_gb}GB</strong>
+            </td>
+            <td>
+              {/* FIXED: Use customer_phone or phone or fallback */}
+              {order.customer_phone || order.phone || '—'}
+            </td>
+            <td>
+              <span className={`network-badge ${order.network}`}>
+                {order.network?.toUpperCase()}
+              </span>
+            </td>
+            <td>
+              <span className={`status-badge ${order.delivery_status || order.status}`}>
+                {order.delivery_status === 'pending' && '⏳ Pending'}
+                {order.delivery_status === 'queued' && '📋 Queued'}
+                {order.delivery_status === 'processing' && '🔄 Processing'}
+                {order.delivery_status === 'delivered' && '✅ Delivered'}
+                {order.delivery_status === 'failed' && '❌ Failed'}
+                {(!order.delivery_status && order.status === 'completed') && '✅ Completed'}
+              </span>
+            </td>
+            <td>
+              <span className="source-badge">
+                {order.source || (order.agent_id ? 'Agent' : 'User')}
+              </span>
+            </td>
+            <td className="amount">
+              ₵{(order.customer_paid || order.amount)?.toFixed(2)}
+            </td>
+            <td className="amount">
+              ₵{(order.balance_before || 0).toFixed(2)}
+            </td>
+            <td className="amount text-danger">
+              -₵{(order.amount_deducted || order.cost || order.amount || 0).toFixed(2)}
+            </td>
+            <td className="amount">
+              ₵{(order.balance_after || 0).toFixed(2)}
+            </td>
+            <td>
+              {order.created_at_display || (order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A')}
+            </td>
+            <td>
+              {order.delivery_status_updated_at ? new Date(order.delivery_status_updated_at).toLocaleString() : 'N/A'}
+            </td>
+            <td className="actions">
+              <button 
+                className="btn-sm btn-info" 
+                onClick={() => viewOrderDetails(order)}
+                title="View Details"
+              >
+                <FaEye />
+              </button>
+              {order.delivery_status === 'failed' && (
+                <button 
+                  className="btn-sm btn-warning" 
+                  onClick={() => retryOrder(order)}
+                  title="Retry"
+                >
+                  <FaSync />
+                </button>
+              )}
+            </td>
+          </tr>
+        ))}
+        {filteredOrders.length === 0 && (
+          <tr>
+            <td colSpan="13" className="text-center">
+              No orders found
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</div>
 
       {/* Cart Modal */}
       <AnimatePresence>
@@ -1723,106 +2044,139 @@ export default function AgentDashboard() {
         )}
       </AnimatePresence>
 
-      {/* REMOVED Withdrawal Modal */}
-
-      {/* Store Settings Modal */}
-      <AnimatePresence>
-        {showStoreModal && (
-          <motion.div className="modal-overlay" onClick={() => setShowStoreModal(false)}>
-            <motion.div className="modal-content store-modal" onClick={e => e.stopPropagation()}>
-              <button className="modal-close" onClick={() => setShowStoreModal(false)}>×</button>
-              <h3><FaStore /> Your Roamsmart Store Setup</h3>
-              
-              <div className="form-group">
-                <label>Store Name</label>
-                <input 
-                  type="text" 
-                  value={storeSettings.store_name}
-                  onChange={(e) => setStoreSettings({...storeSettings, store_name: e.target.value})}
-                  placeholder="My Awesome Store"
-                  className="form-control"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Store URL Slug</label>
-                <input 
-                  type="text" 
-                  value={storeSettings.store_slug}
-                  onChange={(e) => setStoreSettings({...storeSettings, store_slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')})}
-                  placeholder="my-store"
-                  className="form-control"
-                />
-                <small>Your Roamsmart store: roamsmart.shop/store/{storeSettings.store_slug || 'my-store'}</small>
-              </div>
-              
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Contact Phone</label>
-                  <input 
-                    type="tel" 
-                    value={storeSettings.contact_phone}
-                    onChange={(e) => setStoreSettings({...storeSettings, contact_phone: e.target.value})}
-                    placeholder="024XXXXXXX"
-                    className="form-control"
-                  />
+      {/* Store Settings Modal - Updated with Price Management */}
+<AnimatePresence>
+  {showStoreModal && (
+    <motion.div className="modal-overlay" onClick={() => setShowStoreModal(false)}>
+      <motion.div className="modal-content store-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+        <button className="modal-close" onClick={() => setShowStoreModal(false)}>×</button>
+        <h3><FaStore /> Your Roamsmart Store Setup</h3>
+        
+        <div className="form-group">
+          <label>Store Name</label>
+          <input 
+            type="text" 
+            value={storeSettings.store_name}
+            onChange={(e) => setStoreSettings({...storeSettings, store_name: e.target.value})}
+            placeholder="My Awesome Store"
+            className="form-control"
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Store URL Slug</label>
+          <input 
+            type="text" 
+            value={storeSettings.store_slug}
+            onChange={(e) => setStoreSettings({...storeSettings, store_slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')})}
+            placeholder="my-store"
+            className="form-control"
+          />
+          <small>Your store URL: {window.location.origin}/store/{storeSettings.store_slug || 'my-store'}</small>
+        </div>
+        
+        <div className="form-row">
+          <div className="form-group">
+            <label>Contact Phone</label>
+            <input 
+              type="tel" 
+              value={storeSettings.contact_phone}
+              onChange={(e) => setStoreSettings({...storeSettings, contact_phone: e.target.value})}
+              placeholder="024XXXXXXX"
+              className="form-control"
+            />
+          </div>
+          <div className="form-group">
+            <label>Contact Email</label>
+            <input 
+              type="email" 
+              value={storeSettings.contact_email}
+              onChange={(e) => setStoreSettings({...storeSettings, contact_email: e.target.value})}
+              placeholder="store@example.com"
+              className="form-control"
+            />
+          </div>
+        </div>
+        
+        <div className="form-group">
+          <label>Store Description</label>
+          <textarea 
+            value={storeSettings.store_description}
+            onChange={(e) => setStoreSettings({...storeSettings, store_description: e.target.value})}
+            placeholder="Tell customers about your Roamsmart store..."
+            className="form-control"
+            rows="3"
+          />
+        </div>
+        
+        {/* Price Management Section */}
+        <div className="price-management-section">
+          <h4>💰 Your Prices (Markup %)</h4>
+          <div className="form-group">
+            <label>Default Markup (%)</label>
+            <input 
+              type="number" 
+              value={storeSettings.markup}
+              onChange={(e) => setStoreSettings({...storeSettings, markup: parseInt(e.target.value)})}
+              placeholder="15"
+              className="form-control"
+              min="0"
+              max="100"
+            />
+            <small>Example: 15% markup means you sell ₵100 product for ₵115</small>
+          </div>
+          
+          <div className="custom-prices">
+            <label>Custom Prices (Optional)</label>
+            <div className="custom-prices-list">
+              {Object.entries(agentBundles).map(([network, bundles]) => (
+                <div key={network} className="network-price-group">
+                  <h5>{network.toUpperCase()}</h5>
+                  {Object.entries(bundles).slice(0, 5).map(([size, wholesalePrice]) => {
+                    const currentPrice = storeSettings.custom_prices?.[network]?.[size] || wholesalePrice * (1 + storeSettings.markup / 100);
+                    return (
+                      <div key={size} className="custom-price-row">
+                        <span>{size}GB</span>
+                        <input 
+                          type="number"
+                          step="0.5"
+                          value={currentPrice}
+                          onChange={(e) => {
+                            const newCustomPrices = {...storeSettings.custom_prices};
+                            if (!newCustomPrices[network]) newCustomPrices[network] = {};
+                            newCustomPrices[network][size] = parseFloat(e.target.value);
+                            setStoreSettings({...storeSettings, custom_prices: newCustomPrices});
+                          }}
+                          className="price-input"
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="form-group">
-                  <label>Contact Email</label>
-                  <input 
-                    type="email" 
-                    value={storeSettings.contact_email}
-                    onChange={(e) => setStoreSettings({...storeSettings, contact_email: e.target.value})}
-                    placeholder="store@example.com"
-                    className="form-control"
-                  />
-                </div>
-              </div>
-              
-              <div className="form-group">
-                <label>Store Description</label>
-                <textarea 
-                  value={storeSettings.store_description}
-                  onChange={(e) => setStoreSettings({...storeSettings, store_description: e.target.value})}
-                  placeholder="Tell customers about your Roamsmart store..."
-                  className="form-control"
-                  rows="3"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Your Markup (%)</label>
-                <input 
-                  type="number" 
-                  value={storeSettings.markup}
-                  onChange={(e) => setStoreSettings({...storeSettings, markup: parseInt(e.target.value)})}
-                  placeholder="15"
-                  className="form-control"
-                  min="0"
-                  max="100"
-                />
-                <small>Current markup: {storeSettings.markup}% (You earn this on every Roamsmart sale)</small>
-              </div>
-              
-              <div className="modal-actions">
-                <button className="btn-secondary" onClick={() => setShowStoreModal(false)}>Cancel</button>
-                <button className="btn-primary" onClick={saveStoreSettings} disabled={savingStore}>
-                  {savingStore ? <FaSpinner className="spinning" /> : 'Save Roamsmart Store'}
-                </button>
-              </div>
-              
-              <div className="store-share">
-                <button className="btn-outline" onClick={copyShareLink}>
-                  {copied ? <FaCheck /> : <FaCopy />} {copied ? 'Copied!' : 'Copy Store Link'}
-                </button>
-                <button className="btn-outline" onClick={() => shareWhatsApp({ network: '', size: '', selling_price: '' })}>
-                  <FaWhatsapp /> Share Store
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              ))}
+            </div>
+          </div>
+        </div>
+        
+        <div className="modal-actions">
+          <button className="btn-secondary" onClick={() => setShowStoreModal(false)}>Cancel</button>
+          <button className="btn-primary" onClick={saveStoreSettings} disabled={savingStore}>
+            {savingStore ? <FaSpinner className="spinning" /> : 'Save Roamsmart Store'}
+          </button>
+        </div>
+        
+        <div className="store-share">
+          <button className="btn-outline" onClick={copyShareLink}>
+            {copied ? <FaCheck /> : <FaCopy />} {copied ? 'Copied!' : 'Copy Store Link'}
+          </button>
+          <button className="btn-outline" onClick={() => shareWhatsApp({ network: '', size: '', selling_price: '' })}>
+            <FaWhatsapp /> Share Store
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
 
       {/* Customer Details Modal */}
       <AnimatePresence>
@@ -1872,14 +2226,13 @@ export default function AgentDashboard() {
         loading={confirmLoading}
       />
 
-      {/* ========== FUND WALLET MODAL (Enhanced with Paystack) ========== */}
+      {/* FUND WALLET MODAL */}
       <AnimatePresence>
         {showFundModal && (
           <motion.div className="modal-overlay" onClick={() => { setShowFundModal(false); resetFundModal(); }}>
             <motion.div className="modal-content fund-wallet-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '550px' }}>
               <button className="modal-close" onClick={() => { setShowFundModal(false); resetFundModal(); }}>×</button>
               
-              {/* Step 1: Select Payment Method */}
               {fundStep === 1 && (
                 <div className="fund-step">
                   <h3><FaWallet /> Fund Your Roamsmart Wallet</h3>
@@ -1908,7 +2261,6 @@ export default function AgentDashboard() {
                 </div>
               )}
               
-              {/* Step 2: Enter Amount */}
               {fundStep === 2 && (
                 <div className="fund-step">
                   <button className="back-btn" onClick={() => setFundStep(1)}><FaArrowLeft /> Back</button>
@@ -1959,7 +2311,6 @@ export default function AgentDashboard() {
                 </div>
               )}
               
-              {/* Step 3: Manual Payment Instructions */}
               {fundStep === 3 && manualRequest && (
                 <div className="fund-step instructions-step">
                   <button className="back-btn" onClick={() => setFundStep(2)}><FaArrowLeft /> Back</button>
@@ -2026,87 +2377,203 @@ export default function AgentDashboard() {
         )}
       </AnimatePresence>
 
-      {/* ========== VERIFY PAYMENT MODAL ========== */}
+      {/* VERIFY PAYMENT MODAL - WITH TWO OPTIONS */}
       <AnimatePresence>
         {showVerifyModal && (
           <motion.div className="modal-overlay" onClick={() => { setShowVerifyModal(false); resetVerifyModal(); }}>
-            <motion.div className="modal-content verify-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <motion.div className="modal-content verify-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '550px' }}>
               <button className="modal-close" onClick={() => { setShowVerifyModal(false); resetVerifyModal(); }}>×</button>
               
               <div className="verify-payment">
-                <h3><FaCheckCircle /> Verify Your Payment</h3>
-                <p>Enter your payment details to auto-credit your Roamsmart wallet</p>
+                <h3><FaCheckCircle /> Verify Your Roamsmart Payment</h3>
+                <p>Choose how you want to verify your payment</p>
                 
-                {pendingTopups.length > 0 && (
-                  <div className="pending-references">
-                    <h4>Your Pending References:</h4>
-                    <div className="ref-list">
-                      {pendingTopups.map(p => (
-                        <div key={p.id} className="ref-item" onClick={() => copyReferenceToVerify(p.reference)} style={{ cursor: 'pointer' }}>
-                          <code>{p.reference}</code>
-                          <small>₵{p.amount} - {new Date(p.created_at).toLocaleDateString()}</small>
-                          <button className="copy-ref-btn"><FaCopy /> Copy</button>
+                {/* Toggle between Auto and Manual Verification */}
+                <div className="verify-tabs">
+                  <button 
+                    className={`verify-tab ${verifyOption === 'auto' ? 'active' : ''}`}
+                    onClick={() => setVerifyOption('auto')}
+                  >
+                    <FaQrcode /> Auto Verification
+                  </button>
+                  <button 
+                    className={`verify-tab ${verifyOption === 'manual' ? 'active' : ''}`}
+                    onClick={() => setVerifyOption('manual')}
+                  >
+                    <FaUpload /> Manual Verification
+                  </button>
+                </div>
+                
+                {/* OPTION 1: AUTO VERIFICATION */}
+                {verifyOption === 'auto' && (
+                  <div className="verify-auto">
+                    <p className="verify-desc">Enter your payment details to auto-credit your Roamsmart wallet instantly.</p>
+                    
+                    {pendingTopups.length > 0 && (
+                      <div className="pending-references">
+                        <h4>Your Pending References:</h4>
+                        <div className="ref-list">
+                          {pendingTopups.map(p => (
+                            <div key={p.id} className="ref-item" onClick={() => copyReferenceToVerify(p.reference)} style={{ cursor: 'pointer' }}>
+                              <code>{p.reference}</code>
+                              <small>₵{p.amount} - {new Date(p.created_at).toLocaleDateString()}</small>
+                              <button className="copy-ref-btn"><FaCopy /> Copy</button>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      </div>
+                    )}
+                    
+                    <div className="form-group">
+                      <label>Payment Reference *</label>
+                      <input 
+                        type="text"
+                        value={verifyReference}
+                        onChange={(e) => setVerifyReference(e.target.value.toUpperCase())}
+                        placeholder="e.g., RS-123-20241201-ABCD"
+                        className="form-control"
+                      />
+                      <small>Enter the reference you received when initiating payment</small>
                     </div>
+                    
+                    <div className="form-group">
+                      <label>Transaction ID / Reference *</label>
+                      <input 
+                        type="text"
+                        value={verifyTransactionId}
+                        onChange={(e) => setVerifyTransactionId(e.target.value)}
+                        placeholder="e.g., MTC123456789"
+                        className="form-control"
+                      />
+                      <small>Enter the transaction ID from your mobile money app</small>
+                    </div>
+                    
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Sender Name (Optional)</label>
+                        <input 
+                          type="text"
+                          value={verifySenderName}
+                          onChange={(e) => setVerifySenderName(e.target.value)}
+                          placeholder="Your full name"
+                          className="form-control"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Sender Phone (Optional)</label>
+                        <input 
+                          type="tel"
+                          value={verifySenderPhone}
+                          onChange={(e) => setVerifySenderPhone(e.target.value)}
+                          placeholder="024XXXXXXX"
+                          className="form-control"
+                        />
+                      </div>
+                    </div>
+                    
+                    <button onClick={handleAutoVerifyPayment} className="btn-primary btn-block" disabled={verifying}>
+                      {verifying ? <FaSpinner className="spinning" /> : <FaCheckCircle />}
+                      {verifying ? ' Verifying on Roamsmart...' : ' Verify Payment & Credit Wallet'}
+                    </button>
                   </div>
                 )}
                 
-                <div className="form-group">
-                  <label>Payment Reference *</label>
-                  <input 
-                    type="text"
-                    value={verifyReference}
-                    onChange={(e) => setVerifyReference(e.target.value.toUpperCase())}
-                    placeholder="e.g., RS-123-20241201-ABCD"
-                    className="form-control"
-                  />
-                  <small>Enter the reference you received when initiating payment</small>
-                </div>
-                
-                <div className="form-group">
-                  <label>Transaction ID / Reference *</label>
-                  <input 
-                    type="text"
-                    value={verifyTransactionId}
-                    onChange={(e) => setVerifyTransactionId(e.target.value)}
-                    placeholder="e.g., MTC123456789"
-                    className="form-control"
-                  />
-                  <small>Enter the transaction ID from your mobile money app</small>
-                </div>
-                
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Sender Name (Optional)</label>
-                    <input 
-                      type="text"
-                      value={verifySenderName}
-                      onChange={(e) => setVerifySenderName(e.target.value)}
-                      placeholder="Your full name"
-                      className="form-control"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Sender Phone (Optional)</label>
-                    <input 
-                      type="tel"
-                      value={verifySenderPhone}
-                      onChange={(e) => setVerifySenderPhone(e.target.value)}
-                      placeholder="024XXXXXXX"
-                      className="form-control"
-                    />
-                  </div>
-                </div>
-                
-                <button onClick={handleVerifyPayment} className="btn-primary btn-block" disabled={verifying}>
-                  {verifying ? <FaSpinner className="spinning" /> : <FaCheckCircle />}
-                  {verifying ? ' Verifying on Roamsmart...' : ' Verify Payment & Credit Wallet'}
-                </button>
-                
-                <div className="verify-note">
-                  <p>⚠️ <strong>Note:</strong> Please ensure you have actually sent the payment before verifying. False verifications may lead to account suspension.</p>
-                </div>
+                {/* OPTION 2: MANUAL VERIFICATION (Upload Proof) */}
+{verifyOption === 'manual' && (
+  <div className="verify-manual">
+    <p className="verify-desc">
+      You have pending payment requests. Select one below and upload your payment proof.
+      Admin will review and credit your wallet within 5-30 minutes.
+    </p>
+    
+    {/* Show pending payments that need proof */}
+    {pendingPayments.length > 0 ? (
+      <>
+        <div className="form-group">
+          <label>Select Payment Request *</label>
+          <select 
+            className="form-control"
+            value={manualVerifyReference}
+            onChange={(e) => {
+              const selected = pendingPayments.find(p => p.reference === e.target.value);
+              setManualVerifyReference(selected?.reference || '');
+              setManualVerifyAmount(selected?.amount || '');
+            }}
+            required
+          >
+            <option value="">-- Select a payment request --</option>
+            {pendingPayments.map((payment, idx) => (
+              <option key={idx} value={payment.reference}>
+                {payment.reference} - ₵{payment.amount} ({new Date(payment.created_at).toLocaleDateString()})
+              </option>
+            ))}
+          </select>
+          <small>Select the payment request you made</small>
+        </div>
+        
+        <div className="form-group">
+          <label>Amount Paid (GHS)</label>
+          <input 
+            type="number"
+            value={manualVerifyAmount}
+            readOnly
+            className="form-control"
+            style={{ backgroundColor: '#f5f5f5' }}
+          />
+          <small>Amount is pre-filled from your payment request</small>
+        </div>
+        
+        <div className="form-group">
+          <label>Payment Proof / Screenshot *</label>
+          <div className="upload-area-manual">
+            <input 
+              type="file" 
+              id="manual-proof-upload"
+              accept="image/*,.pdf"
+              onChange={(e) => setManualVerifyProof(e.target.files[0])}
+              style={{ display: 'none' }}
+            />
+            <label htmlFor="manual-proof-upload" className="upload-label-manual">
+              {manualVerifyProof ? (
+                <><FaCheck /> {manualVerifyProof.name}</>
+              ) : (
+                <><FaUpload /> Click to upload payment screenshot</>
+              )}
+            </label>
+          </div>
+          <small>Upload a screenshot of your payment confirmation (PNG, JPG, or PDF)</small>
+        </div>
+        
+        <button 
+          onClick={handleManualVerifyPayment} 
+          className="btn-primary btn-block" 
+          disabled={manualVerifyUploading || !manualVerifyReference || !manualVerifyProof}
+        >
+          {manualVerifyUploading ? <FaSpinner className="spinning" /> : <FaUpload />}
+          {manualVerifyUploading ? ' Submitting for Approval...' : ' Submit Payment Proof'}
+        </button>
+      </>
+    ) : (
+      <div className="no-pending-payments">
+        <p>⚠️ You don't have any pending payment requests.</p>
+        <p>Please go to <strong>Fund Wallet</strong> and select <strong>Manual Transfer</strong> to create a payment request first.</p>
+        <button 
+          className="btn-primary" 
+          onClick={() => {
+            setShowVerifyModal(false);
+            setShowFundModal(true);
+          }}
+        >
+          Fund Wallet Now
+        </button>
+      </div>
+    )}
+    
+    <div className="verify-note">
+      <p>⚠️ <strong>Note:</strong> Please ensure you have actually sent the payment before submitting. False submissions may lead to account suspension.</p>
+    </div>
+  </div>
+)}
               </div>
             </motion.div>
           </motion.div>

@@ -1,0 +1,600 @@
+/* ============================================
+   PUBLIC STORE STYLES - Mobile First
+   ============================================ */
+
+.public-store {
+  min-height: 100vh;
+  background: #f5f7fa;
+}
+
+/* Store Header - Mobile First */
+.store-header {
+  background: linear-gradient(135deg, #8B0000, #D2691E);
+  color: white;
+  padding: 40px 16px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.store-header::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.store-header-content {
+  max-width: 800px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.store-avatar {
+  width: 70px;
+  height: 70px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 15px;
+  font-size: 2rem;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.store-header h1 {
+  font-size: 1.6rem;
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.store-header p {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  margin-bottom: 15px;
+  line-height: 1.4;
+}
+
+.store-contact {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+.contact-link {
+  color: white;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 30px;
+  transition: all 0.2s;
+  font-size: 0.8rem;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.contact-link:active {
+  transform: scale(0.96);
+}
+
+/* Network Tabs - Mobile First */
+.store-network-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.network-tab {
+  padding: 8px 20px;
+  border: none;
+  background: #f0f2f5;
+  border-radius: 30px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  font-size: 0.85rem;
+  flex: 0 1 auto;
+  min-width: 90px;
+}
+
+.network-tab:active {
+  transform: scale(0.96);
+}
+
+.network-tab.active {
+  background: #8B0000;
+  color: white;
+}
+
+/* Bundles Section - Mobile First */
+.store-bundles {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px 16px;
+}
+
+.store-bundles h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #1a2c3e;
+  font-size: 1.4rem;
+}
+
+.bundles-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+/* Bundle Card - Mobile First */
+.bundle-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.bundle-card:active {
+  transform: scale(0.98);
+}
+
+.bundle-size {
+  font-size: 1.6rem;
+  font-weight: bold;
+  color: #8B0000;
+  margin-bottom: 8px;
+}
+
+.bundle-price {
+  font-size: 1.6rem;
+  font-weight: bold;
+  color: #28a745;
+  margin-bottom: 15px;
+}
+
+.bundle-price::before {
+  content: '₵';
+  font-size: 1rem;
+}
+
+.bundle-features {
+  margin: 15px 0;
+  text-align: left;
+}
+
+.bundle-features span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #666;
+  margin-bottom: 6px;
+}
+
+.btn-buy {
+  width: 100%;
+  padding: 12px;
+  background: #8B0000;
+  color: white;
+  border: none;
+  border-radius: 30px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 1rem;
+}
+
+.btn-buy:active {
+  transform: scale(0.97);
+  background: #660000;
+}
+
+/* About Section - Mobile First */
+.store-about {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 30px 16px;
+  text-align: center;
+  border-top: 1px solid #e0e0e0;
+}
+
+.store-about h3 {
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+  color: #1a2c3e;
+}
+
+.store-about p {
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.5;
+}
+
+.store-features {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #28a745;
+  font-size: 0.8rem;
+}
+
+/* Order Modal - Mobile First */
+.order-modal {
+  max-width: 450px;
+  width: 90%;
+  margin: 20px auto;
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+}
+
+.order-summary {
+  background: #f8f9fa;
+  padding: 12px;
+  border-radius: 12px;
+  margin: 15px 0;
+}
+
+.order-summary p {
+  margin: 8px 0;
+  font-size: 0.9rem;
+}
+
+.order-note {
+  margin-top: 15px;
+  padding: 10px;
+  background: #fff3cd;
+  border-radius: 8px;
+  color: #856404;
+  font-size: 0.8rem;
+}
+
+/* Loading State */
+.public-store-loading {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #8B0000;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Not Found State */
+.public-store-not-found {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+}
+
+.public-store-not-found h1 {
+  font-size: 1.8rem;
+  color: #8B0000;
+  margin-bottom: 10px;
+}
+
+/* ============================================
+   TABLET BREAKPOINT (768px and up)
+   ============================================ */
+@media (min-width: 768px) {
+  .store-header {
+    padding: 60px 20px;
+  }
+  
+  .store-avatar {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 20px;
+  }
+  
+  .store-header h1 {
+    font-size: 2rem;
+  }
+  
+  .store-header p {
+    font-size: 1rem;
+  }
+  
+  .contact-link {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+  }
+  
+  .network-tab {
+    padding: 10px 30px;
+    font-size: 1rem;
+    min-width: auto;
+  }
+  
+  .store-bundles {
+    padding: 40px 20px;
+  }
+  
+  .store-bundles h2 {
+    font-size: 1.8rem;
+    margin-bottom: 30px;
+  }
+  
+  .bundles-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 25px;
+  }
+  
+  .bundle-card {
+    padding: 25px;
+  }
+  
+  .bundle-size {
+    font-size: 2rem;
+  }
+  
+  .bundle-price {
+    font-size: 1.8rem;
+  }
+  
+  .store-about {
+    padding: 40px 20px;
+  }
+  
+  .store-about h3 {
+    font-size: 1.5rem;
+  }
+  
+  .feature {
+    font-size: 0.9rem;
+  }
+}
+
+/* ============================================
+   DESKTOP BREAKPOINT (1024px and up)
+   ============================================ */
+@media (min-width: 1024px) {
+  .store-header h1 {
+    font-size: 2.5rem;
+  }
+  
+  .bundles-grid {
+    gap: 30px;
+  }
+  
+  .bundle-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  }
+  
+  .btn-buy:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/* ============================================
+   LARGE DESKTOP (1440px and up)
+   ============================================ */
+@media (min-width: 1440px) {
+  .store-bundles {
+    padding: 50px 30px;
+  }
+  
+  .bundles-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+}
+
+/* ============================================
+   SMALL PHONE (480px and down)
+   ============================================ */
+@media (max-width: 480px) {
+  .store-header {
+    padding: 30px 12px;
+  }
+  
+  .store-avatar {
+    width: 55px;
+    height: 55px;
+    font-size: 1.5rem;
+  }
+  
+  .store-header h1 {
+    font-size: 1.3rem;
+  }
+  
+  .store-header p {
+    font-size: 0.8rem;
+  }
+  
+  .contact-link {
+    padding: 5px 10px;
+    font-size: 0.7rem;
+    gap: 4px;
+  }
+  
+  .network-tab {
+    padding: 6px 16px;
+    font-size: 0.75rem;
+  }
+  
+  .store-network-tabs {
+    gap: 6px;
+    padding: 10px 12px;
+  }
+  
+  .store-bundles {
+    padding: 20px 12px;
+  }
+  
+  .store-bundles h2 {
+    font-size: 1.2rem;
+    margin-bottom: 15px;
+  }
+  
+  .bundles-grid {
+    gap: 12px;
+  }
+  
+  .bundle-card {
+    padding: 15px;
+  }
+  
+  .bundle-size {
+    font-size: 1.3rem;
+  }
+  
+  .bundle-price {
+    font-size: 1.3rem;
+  }
+  
+  .bundle-features span {
+    font-size: 0.7rem;
+  }
+  
+  .btn-buy {
+    padding: 10px;
+    font-size: 0.9rem;
+  }
+  
+  .store-features {
+    gap: 10px;
+  }
+  
+  .feature {
+    font-size: 0.7rem;
+  }
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+.text-center {
+  text-align: center;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 20px;
+  max-width: 90%;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  background: #f0f2f5;
+  border: none;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.form-control {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.btn-primary {
+  background: #8B0000;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 30px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
+}

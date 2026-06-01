@@ -1,11 +1,12 @@
 // src/pages/AgentStoreDashboard.js
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FaStore, FaShoppingCart, FaUsers, FaMoneyBillWave, FaChartLine, FaEye, FaDatabase, FaShareAlt, FaQrcode, FaCheckCircle, FaSpinner, FaExclamationTriangle } from 'react-icons/fa';
+import { FaStore, FaShoppingCart, FaUsers, FaMoneyBillWave, FaChartLine, FaEye, FaDatabase, FaShareAlt, FaQrcode, FaCheckCircle, FaSpinner, FaExclamationTriangle, FaSync, FaClock, FaCheck, FaTimes } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import './AgentStoreDashboard.css';
+
 // Company Configuration
 const COMPANY = {
   name: 'Roamsmart Digital Service',
@@ -28,9 +29,15 @@ export default function AgentStoreDashboard() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState(null);
+  const [syncingOrders, setSyncingOrders] = useState({});
 
   useEffect(() => {
     fetchStoreData();
+    // Auto-refresh orders every 30 seconds
+    const interval = setInterval(() => {
+      fetchStoreOrders();
+    }, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchStoreData = async () => {
@@ -46,16 +53,14 @@ export default function AgentStoreDashboard() {
         setStore(storeData);
       } catch (err) {
         console.error('Store fetch error:', err);
-        // Store might not exist yet, that's okay
       }
       
-      // Fetch store stats (might 404 if not implemented)
+      // Fetch store stats
       try {
         const statsRes = await api.get('/agent/store/stats');
         setStats(prev => ({ ...prev, ...statsRes.data.data }));
       } catch (err) {
         console.error('Stats fetch error:', err);
-        // Use default stats if endpoint fails
         setStats({
           total_visitors: 0,
           total_orders: 0,
@@ -66,14 +71,8 @@ export default function AgentStoreDashboard() {
         });
       }
       
-      // Fetch recent orders
-      try {
-        const ordersRes = await api.get('/agent/store/orders');
-        setRecentOrders(ordersRes.data.data || []);
-      } catch (err) {
-        console.error('Orders fetch error:', err);
-        setRecentOrders([]);
-      }
+      // Fetch recent orders with real-time status
+      await fetchStoreOrders();
       
     } catch (error) {
       console.error('Fetch store data error:', error);
@@ -81,6 +80,83 @@ export default function AgentStoreDashboard() {
       toast.error('Failed to load Roamsmart store data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStoreOrders = async () => {
+    try {
+      const ordersRes = await api.get('/agent/store/orders');
+      let orders = ordersRes.data.data || [];
+      
+      // Fetch real-time status from Digimall for pending/processing orders
+      const ordersToCheck = orders.filter(
+        o => o.delivery_status === 'processing' || o.delivery_status === 'pending'
+      );
+      
+      if (ordersToCheck.length > 0) {
+        const identifiers = ordersToCheck.map(o => o.provider_order_id || o.order_id);
+        
+        try {
+          const statusResponse = await api.post('/digimall/bulk-status', { identifiers });
+          
+          if (statusResponse.data.success) {
+            const statusMap = {};
+            statusResponse.data.results.forEach(r => {
+              statusMap[r.identifier] = r.status;
+            });
+            
+            // Update orders with live status
+            orders = orders.map(order => {
+              const identifier = order.provider_order_id || order.order_id;
+              const liveStatus = statusMap[identifier];
+              if (liveStatus && liveStatus !== order.delivery_status) {
+                return { ...order, delivery_status: liveStatus };
+              }
+              return order;
+            });
+          }
+        } catch (bulkError) {
+          console.warn('Bulk status check failed:', bulkError);
+        }
+      }
+      
+      setRecentOrders(orders);
+    } catch (err) {
+      console.error('Orders fetch error:', err);
+      setRecentOrders([]);
+    }
+  };
+
+  const syncSingleOrderStatus = async (order) => {
+    setSyncingOrders(prev => ({ ...prev, [order.order_id]: true }));
+    
+    try {
+      const identifier = order.provider_order_id || order.order_id;
+      const response = await api.get(`/digimall/order-status/${identifier}`);
+      
+      if (response.data.success && response.data.status) {
+        const newStatus = response.data.status;
+        if (newStatus !== order.delivery_status) {
+          // Update local order status
+          setRecentOrders(prev => prev.map(o => 
+            o.order_id === order.order_id 
+              ? { ...o, delivery_status: newStatus }
+              : o
+          ));
+          toast.success(`Order ${order.order_id} status updated to: ${newStatus}`);
+          // Refresh stats
+          fetchStoreData();
+        } else {
+          toast.info(`Order ${order.order_id} status is: ${newStatus}`);
+        }
+      } else {
+        toast.error('Failed to fetch order status');
+      }
+    } catch (error) {
+      console.error('Sync order error:', error);
+      toast.error('Failed to sync order status');
+    } finally {
+      setSyncingOrders(prev => ({ ...prev, [order.order_id]: false }));
     }
   };
 
@@ -96,6 +172,18 @@ export default function AgentStoreDashboard() {
     const link = `${COMPANY.website}/store/${store?.store_slug || 'mystore'}`;
     const message = `🛍️ *Check out my Roamsmart Digital Service Store!* 🛍️\n\n${store?.store_name || 'My Roamsmart Store'}\n${store?.store_description || 'Buy data bundles, WAEC vouchers, and more!'}\n\nVisit: ${link}\n\nPowered by ${COMPANY.name}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  const getStatusDisplay = (status) => {
+    const statusMap = {
+      'pending': { text: '⏳ Pending', class: 'pending', icon: <FaClock /> },
+      'queued': { text: '📋 Queued', class: 'queued', icon: <FaSpinner /> },
+      'processing': { text: '🔄 Processing', class: 'processing', icon: <FaSpinner className="spinning" /> },
+      'delivered': { text: '✅ Delivered', class: 'delivered', icon: <FaCheck /> },
+      'failed': { text: '❌ Failed', class: 'failed', icon: <FaTimes /> },
+      'completed': { text: '✅ Completed', class: 'completed', icon: <FaCheckCircle /> }
+    };
+    return statusMap[status] || { text: status || 'Pending', class: 'pending', icon: <FaClock /> };
   };
 
   if (loading) return (
@@ -157,7 +245,7 @@ export default function AgentStoreDashboard() {
               <FaEye /> Edit Store
             </Link>
             <button className="btn-outline btn-sm" onClick={fetchStoreData}>
-              <FaSpinner className={loading ? 'spinning' : ''} /> Refresh
+              <FaSync className={loading ? 'spinning' : ''} /> Refresh
             </button>
           </div>
         </div>
@@ -206,32 +294,37 @@ export default function AgentStoreDashboard() {
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="quick-actions">
-        <h3>Quick Actions - Roamsmart Store</h3>
-        <div className="actions-grid">
-          <Link to="/store/products" className="action-card">
-            <FaDatabase /> Manage Products
-            <small>Update prices and markups</small>
-          </Link>
-          <Link to="/store/orders" className="action-card">
-            <FaShoppingCart /> View Orders
-            <small>Track customer orders</small>
-          </Link>
-          <Link to="/store/clients" className="action-card">
-            <FaUsers /> View Customers
-            <small>See your customer base</small>
-          </Link>
-          <Link to="/inventory" className="action-card">
-            <FaChartLine /> Inventory
-            <small>Manage data stock</small>
-          </Link>
-        </div>
-      </div>
+      {/* Quick Actions - Fixed for Agent Store */}
+<div className="quick-actions">
+  <h3>Quick Actions - Roamsmart Store</h3>
+  <div className="actions-grid">
+    <Link to="/agent/store/products" className="action-card">
+      <FaDatabase /> Manage Products
+      <small>Update prices and markups</small>
+    </Link>
+    <Link to="/agent/orders" className="action-card">
+      <FaShoppingCart /> View Orders
+      <small>Track customer orders</small>
+    </Link>
+    <Link to="/agent/customers" className="action-card">
+      <FaUsers /> View Customers
+      <small>See your customer base</small>
+    </Link>
+    <Link to="/store/setup" className="action-card">
+      <FaStore /> Store Settings
+      <small>Customize your store</small>
+    </Link>
+  </div>
+</div>
 
-      {/* Recent Orders */}
+      {/* Recent Orders with Delivery Status */}
       <div className="recent-orders">
-        <h3>Recent Orders from Your Roamsmart Store</h3>
+        <div className="section-header">
+          <h3>Recent Orders from Your Roamsmart Store</h3>
+          <button className="btn-outline btn-sm" onClick={fetchStoreOrders}>
+            <FaSync /> Refresh Status
+          </button>
+        </div>
         <div className="table-responsive">
           <table className="data-table">
             <thead>
@@ -240,29 +333,43 @@ export default function AgentStoreDashboard() {
                 <th>Customer</th>
                 <th>Product</th>
                 <th>Amount</th>
-                <th>Status</th>
+                <th>Delivery Status</th>
                 <th>Date</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {recentOrders.length > 0 ? (
-                recentOrders.map(order => (
-                  <tr key={order.id || order.order_id}>
-                    <td className="order-id">#{order.order_id || order.id} on Roamsmart</td>
-                    <td>{order.customer_name || order.customer_phone || order.phone_number || 'Customer'}</td>
-                    <td>{order.network?.toUpperCase()} {order.size_gb}GB</td>
-                    <td className="amount">₵{order.amount || order.selling_price}</td>
-                    <td>
-                      <span className={`status ${order.status === 'completed' ? 'completed' : 'pending'}`}>
-                        {order.status === 'completed' ? 'Delivered' : order.status || 'Pending'}
-                      </span>
-                    </td>
-                    <td className="date">{new Date(order.created_at || order.date).toLocaleDateString()}</td>
-                  </tr>
-                ))
+                recentOrders.map(order => {
+                  const statusInfo = getStatusDisplay(order.delivery_status || order.status);
+                  return (
+                    <tr key={order.id || order.order_id}>
+                      <td className="order-id">#{order.order_id || order.id} on Roamsmart</td>
+                      <td>{order.customer_name || order.customer_phone || order.phone_number || 'Customer'}</td>
+                      <td>{order.network?.toUpperCase()} {order.size_gb}GB</td>
+                      <td className="amount">₵{order.amount || order.selling_price}</td>
+                      <td>
+                        <span className={`status-badge ${statusInfo.class}`}>
+                          {statusInfo.icon} {statusInfo.text}
+                        </span>
+                      </td>
+                      <td className="date">{new Date(order.created_at || order.date).toLocaleDateString()}</td>
+                      <td className="actions">
+                        <button 
+                          className="btn-sm btn-info" 
+                          onClick={() => syncSingleOrderStatus(order)}
+                          disabled={syncingOrders[order.order_id]}
+                          title="Check Status from Digimall"
+                        >
+                          {syncingOrders[order.order_id] ? <FaSpinner className="spinning" /> : <FaSync />}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan="6" className="text-center">
+                  <td colSpan="7" className="text-center">
                     No orders yet from your Roamsmart store. Start selling!
                   </td>
                 </tr>

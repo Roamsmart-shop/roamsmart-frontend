@@ -23,7 +23,8 @@ import AdminPriceManagement from './pages/AdminPriceManagement';
 import AdminDashboard from './pages/AdminDashboard';
 import BecomeAgent from './pages/BecomeAgent';
 import BillPayment from './components/BillPayment';
-
+import PublicStore from './pages/PublicStore';
+import AgentStoreProducts from './pages/AgentStoreProducts';
 // Lazy load pages for better performance
 const Landing = lazy(() => import('./pages/Landingpages'));
 const Login = lazy(() => import('./pages/Login'));
@@ -196,9 +197,6 @@ function AppContent() {
     return <Navigate to={redirectPath} replace />;
   }
   
-  // ========== DETERMINE IF SIDEBAR SHOULD BE SHOWN ==========
-  // Sidebar only shows on dashboard routes when user is authenticated
-  // UPDATED: Added '/bills' to dashboard routes
   const isDashboardRoute = location.pathname.startsWith('/admin') || 
                           location.pathname.startsWith('/agent') || 
                           location.pathname.startsWith('/dashboard') ||
@@ -356,7 +354,7 @@ function AppContent() {
                     <UserDashboard />
                   </PrivateRoute>
                 } />
-                
+                <Route path="/store/:slug" element={<PublicStore />} />
                 {/* BILL PAYMENT ROUTES - ADDED */}
                 <Route path="/bills" element={
                   <PrivateRoute>
@@ -454,6 +452,13 @@ function AppContent() {
                     <AgentOrders />
                   </PrivateRoute>
                 } />
+               
+                {/* ADD THIS NEW ROUTE - Agent Store Products Management */}
+<Route path="/agent/store/products" element={
+  <PrivateRoute allowedRoles={['agent']}>
+    <AgentStoreProducts />
+  </PrivateRoute>
+} />
 
                 <Route path="/agent" element={
                   <PrivateRoute allowedRoles={['agent', 'admin']}>

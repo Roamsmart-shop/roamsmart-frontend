@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaSearch, FaFilter, FaEye, FaCheckCircle, FaSpinner, 
   FaMobileAlt, FaClock, FaDownload, FaSync, FaBell,
-  FaWhatsapp, FaEnvelope, FaPrint, FaExclamationTriangle
+  FaWhatsapp, FaEnvelope, FaPrint, FaExclamationTriangle,
+  FaCheck, FaTimes, FaHourglassHalf
 } from 'react-icons/fa';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -28,23 +29,21 @@ export default function AgentOrders() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [liveUpdates, setLiveUpdates] = useState([]);
-  const [liveStats, setLiveStats] = useState({}); // ADD THIS
-  const [adminRole] = useState('agent'); // ADD THIS - set to 'agent' since this is agent orders
+  const [liveStats, setLiveStats] = useState({});
+  const [syncingOrders, setSyncingOrders] = useState({});
+  const [adminRole] = useState('agent');
   const socketRef = useRef(null);
 
   // Connect to WebSocket for real-time updates
   useEffect(() => {
-    // Use the production backend URL for Socket.IO
     const socketUrl = process.env.REACT_APP_SOCKET_URL || 'https://roamsmart-backend-production.up.railway.app';
-    
-    // Only initialize socket if we have a token
     const token = localStorage.getItem('roamsmart_token');
     if (!token) return;
     
     socketRef.current = io(socketUrl, {
       path: '/socket.io',
-      transports: ['polling'], // Use polling instead of websocket for better reliability
-      reconnection: false, // Don't auto-reconnect to prevent errors
+      transports: ['polling'],
+      reconnection: false,
       autoConnect: true,
       timeout: 10000
     });
@@ -65,7 +64,7 @@ export default function AgentOrders() {
     socketRef.current.on('new_order', (order) => {
       if (order) {
         showOrderNotification(order);
-        fetchOrders();
+        fetchOrdersWithRealTimeStatus();
       }
     });
     
@@ -77,12 +76,50 @@ export default function AgentOrders() {
     };
   }, [adminRole]);
 
-  // Fetch orders function
-  const fetchOrders = useCallback(async () => {
+  // Fetch orders with real-time status from Digimall
+  const fetchOrdersWithRealTimeStatus = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/agent/orders');
-      setOrders(res.data.data || []);
+      let ordersData = res.data.data || [];
+      
+      // Fetch real-time status from Digimall for pending/processing orders
+      const ordersToCheck = ordersData.filter(
+        o => o.delivery_status === 'processing' || o.delivery_status === 'pending' || o.status === 'processing'
+      );
+      
+      if (ordersToCheck.length > 0) {
+        const identifiers = ordersToCheck.map(o => o.provider_order_id || o.order_id);
+        
+        try {
+          const statusResponse = await api.post('/digimall/bulk-status', { identifiers });
+          
+          if (statusResponse.data.success) {
+            const statusMap = {};
+            statusResponse.data.results.forEach(r => {
+              statusMap[r.identifier] = r.status;
+            });
+            
+            // Update orders with live status
+            ordersData = ordersData.map(order => {
+              const identifier = order.provider_order_id || order.order_id;
+              const liveStatus = statusMap[identifier];
+              if (liveStatus && liveStatus !== (order.delivery_status || order.status)) {
+                return { 
+                  ...order, 
+                  delivery_status: liveStatus,
+                  status: liveStatus === 'delivered' ? 'completed' : liveStatus
+                };
+              }
+              return order;
+            });
+          }
+        } catch (bulkError) {
+          console.warn('Bulk status check failed:', bulkError);
+        }
+      }
+      
+      setOrders(ordersData);
     } catch (error) {
       console.error('Failed to fetch orders:', error);
       toast.error('Failed to load orders from Roamsmart');
@@ -91,7 +128,100 @@ export default function AgentOrders() {
     }
   }, []);
 
-  // Show order notification
+  // Sync single order status with Digimall
+  const syncOrderStatus = async (order) => {
+    setSyncingOrders(prev => ({ ...prev, [order.order_id]: true }));
+    
+    try {
+      const identifier = order.provider_order_id || order.order_id;
+      const response = await api.get(`/digimall/order-status/${identifier}`);
+      
+      if (response.data.success && response.data.status) {
+        const newStatus = response.data.status;
+        const displayStatus = newStatus === 'delivered' ? 'completed' : newStatus;
+        
+        if (newStatus !== (order.delivery_status || order.status)) {
+          // Update local order
+          setOrders(prev => prev.map(o => 
+            o.order_id === order.order_id 
+              ? { ...o, delivery_status: newStatus, status: displayStatus }
+              : o
+          ));
+          toast.success(`Order #${order.order_id} status updated to: ${newStatus}`);
+          
+          // If delivered, send notification
+          if (newStatus === 'delivered') {
+            await api.post('/agent/order/notify-customer', {
+              order_id: order.order_id,
+              phone: order.customer_phone,
+              message: `✅ Your data bundle (${order.network} ${order.size_gb}GB) has been delivered! Thank you for choosing ${COMPANY.name}.`
+            });
+          }
+        } else {
+          toast.info(`Order #${order.order_id} status is: ${newStatus}`);
+        }
+      } else {
+        toast.error('Failed to fetch order status from Digimall');
+      }
+    } catch (error) {
+      console.error('Sync order error:', error);
+      toast.error('Failed to sync order status');
+    } finally {
+      setSyncingOrders(prev => ({ ...prev, [order.order_id]: false }));
+    }
+  };
+
+  // Bulk sync all pending orders
+  const bulkSyncOrders = async () => {
+    const pendingOrders = orders.filter(
+      o => o.delivery_status === 'processing' || o.status === 'processing' || o.status === 'pending'
+    );
+    
+    if (pendingOrders.length === 0) {
+      toast.info('No pending orders to sync');
+      return;
+    }
+    
+    toast.loading(`Syncing ${pendingOrders.length} orders...`);
+    
+    try {
+      const identifiers = pendingOrders.map(o => o.provider_order_id || o.order_id);
+      const response = await api.post('/digimall/bulk-status', { identifiers });
+      
+      if (response.data.success) {
+        const statusMap = {};
+        response.data.results.forEach(r => {
+          statusMap[r.identifier] = r.status;
+        });
+        
+        let updatedCount = 0;
+        setOrders(prev => prev.map(order => {
+          const identifier = order.provider_order_id || order.order_id;
+          const liveStatus = statusMap[identifier];
+          if (liveStatus && liveStatus !== (order.delivery_status || order.status)) {
+            updatedCount++;
+            return { 
+              ...order, 
+              delivery_status: liveStatus,
+              status: liveStatus === 'delivered' ? 'completed' : liveStatus
+            };
+          }
+          return order;
+        }));
+        
+        toast.dismiss();
+        toast.success(`Synced ${updatedCount} orders successfully`);
+      }
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Failed to bulk sync orders');
+    }
+  };
+
+  const fetchOrders = useCallback(async () => {
+    await fetchOrdersWithRealTimeStatus();
+  }, [fetchOrdersWithRealTimeStatus]);
+
   const showOrderNotification = (order) => {
     setLiveUpdates(prev => [{
       order_id: order.order_id,
@@ -104,27 +234,24 @@ export default function AgentOrders() {
     });
   };
 
-  // Add notification
-  const addNotification = (notification) => {
-    setLiveUpdates(prev => [{
-      ...notification,
-      timestamp: new Date()
-    }, ...prev].slice(0, 10));
-  };
-
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    fetchOrdersWithRealTimeStatus();
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchOrdersWithRealTimeStatus();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchOrdersWithRealTimeStatus]);
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
       const res = await api.put(`/agent/orders/${orderId}/status`, { status: newStatus });
       if (res.data.success) {
         toast.success(`Order #${orderId} updated to ${newStatus} on Roamsmart`);
-        fetchOrders();
+        fetchOrdersWithRealTimeStatus();
         
         if (newStatus === 'completed') {
-          const order = orders.find(o => o.id === orderId);
+          const order = orders.find(o => o.order_id === orderId);
           if (order) {
             await api.post('/agent/order/notify-customer', {
               order_id: orderId,
@@ -146,7 +273,7 @@ export default function AgentOrders() {
   const notifyCustomer = async (order) => {
     try {
       await api.post('/agent/order/notify-customer', {
-        order_id: order.id,
+        order_id: order.order_id,
         phone: order.customer_phone,
         message: `📱 Your order #${order.order_id} on ${COMPANY.name} is now ${order.status}. Track your delivery status in your dashboard. Contact support at ${COMPANY.email} if you have questions.`
       });
@@ -157,34 +284,57 @@ export default function AgentOrders() {
   };
 
   const sendWhatsAppUpdate = (order) => {
-    const message = `🛒 *Order Update from ${COMPANY.name}* 🛒\n\nOrder #: ${order.order_id}\nStatus: ${order.status.toUpperCase()}\nProduct: ${order.network?.toUpperCase()} ${order.size_gb}GB\n\nThank you for choosing ${COMPANY.name}!`;
-    window.open(`https://wa.me/${order.customer_phone.replace(/^0/, '233')}?text=${encodeURIComponent(message)}`, '_blank');
+    const message = `🛒 *Order Update from ${COMPANY.name}* 🛒\n\nOrder #: ${order.order_id}\nStatus: ${order.status?.toUpperCase() || 'PROCESSING'}\nProduct: ${order.network?.toUpperCase()} ${order.size_gb}GB\n\nThank you for choosing ${COMPANY.name}!`;
+    window.open(`https://wa.me/${order.customer_phone?.replace(/^0/, '233')}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, deliveryStatus) => {
+    const actualStatus = deliveryStatus || status;
     const badges = {
       pending: 'badge-warning',
+      queued: 'badge-info',
       processing: 'badge-info',
       sending: 'badge-primary',
+      delivered: 'badge-success',
       completed: 'badge-success',
-      failed: 'badge-danger'
+      failed: 'badge-danger',
+      cancelled: 'badge-secondary'
     };
-    return `status-badge ${badges[status] || 'badge-secondary'}`;
+    return `status-badge ${badges[actualStatus] || 'badge-secondary'}`;
   };
 
-  const getStatusIcon = (status) => {
-    switch(status) {
-      case 'pending': return <FaClock />;
+  const getStatusIcon = (status, deliveryStatus) => {
+    const actualStatus = deliveryStatus || status;
+    switch(actualStatus) {
+      case 'pending': return <FaHourglassHalf />;
+      case 'queued': return <FaClock />;
       case 'processing': return <FaSpinner className="spinning" />;
       case 'sending': return <FaMobileAlt />;
+      case 'delivered': return <FaCheckCircle />;
       case 'completed': return <FaCheckCircle />;
       case 'failed': return <FaExclamationTriangle />;
+      case 'cancelled': return <FaTimes />;
       default: return <FaClock />;
     }
   };
 
+  const getStatusDisplayText = (status, deliveryStatus) => {
+    const actualStatus = deliveryStatus || status;
+    const statusMap = {
+      pending: 'Pending',
+      queued: 'Queued',
+      processing: 'Processing',
+      sending: 'Sending',
+      delivered: 'Delivered',
+      completed: 'Completed',
+      failed: 'Failed',
+      cancelled: 'Cancelled'
+    };
+    return statusMap[actualStatus] || actualStatus || 'Pending';
+  };
+
   const filteredOrders = orders.filter(order => {
-    const matchesStatus = filterStatus === 'all' || order.status === filterStatus;
+    const matchesStatus = filterStatus === 'all' || order.status === filterStatus || order.delivery_status === filterStatus;
     const matchesSearch = order.order_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           order.customer_phone?.includes(searchTerm) ||
                           order.customer_name?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -193,11 +343,11 @@ export default function AgentOrders() {
 
   const stats = {
     total: orders.length,
-    pending: orders.filter(o => o.status === 'pending').length,
-    processing: orders.filter(o => o.status === 'processing').length,
+    pending: orders.filter(o => o.status === 'pending' || o.delivery_status === 'pending').length,
+    processing: orders.filter(o => o.status === 'processing' || o.delivery_status === 'processing').length,
     sending: orders.filter(o => o.status === 'sending').length,
-    completed: orders.filter(o => o.status === 'completed').length,
-    failed: orders.filter(o => o.status === 'failed').length,
+    completed: orders.filter(o => o.status === 'completed' || o.delivery_status === 'delivered').length,
+    failed: orders.filter(o => o.status === 'failed' || o.delivery_status === 'failed').length,
     today: orders.filter(o => new Date(o.created_at).toDateString() === new Date().toDateString()).length
   };
 
@@ -213,11 +363,16 @@ export default function AgentOrders() {
       <div className="page-header">
         <div>
           <h1>📦 Order Management on {COMPANY.shortName}</h1>
-          <p>Track and manage all customer orders in real-time</p>
+          <p>Track and manage all customer orders in real-time with Digimall status</p>
         </div>
-        <button className="btn-outline" onClick={fetchOrders}>
-          <FaSync /> Refresh Orders
-        </button>
+        <div className="header-actions">
+          <button className="btn-outline" onClick={bulkSyncOrders}>
+            <FaSync /> Sync All Pending
+          </button>
+          <button className="btn-outline" onClick={fetchOrdersWithRealTimeStatus}>
+            <FaSync /> Refresh Orders
+          </button>
+        </div>
       </div>
 
       {/* Live Updates Panel */}
@@ -289,6 +444,7 @@ export default function AgentOrders() {
           <option value="pending">Pending</option>
           <option value="processing">Processing</option>
           <option value="sending">Sending</option>
+          <option value="delivered">Delivered</option>
           <option value="completed">Completed</option>
           <option value="failed">Failed</option>
         </select>
@@ -303,92 +459,95 @@ export default function AgentOrders() {
               <th>Customer</th>
               <th>Product</th>
               <th>Amount</th>
-              <th>Status</th>
+              <th>Delivery Status</th>
               <th>Progress</th>
               <th>Date</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredOrders.map(order => (
-              <tr key={order.id}>
-                <td className="order-id">#{order.order_id} on Roamsmart</td>
-                <td>
-                  <div className="customer-info">
-                    <strong>{order.customer_name || 'Customer'}</strong>
-                    <small>{order.customer_phone}</small>
-                  </div>
-                </td>
-                <td>{order.network?.toUpperCase()} {order.size_gb}GB</td>
-                <td className="amount">₵{order.amount}</td>
-                <td>
-                  <span className={getStatusBadge(order.status)}>
-                    {getStatusIcon(order.status)} {order.status}
-                  </span>
-                </td>
-                <td>
-                  <div className="progress-indicator">
-                    <div className="progress-bar-small">
-                      <div 
-                        className="progress-fill-small"
-                        style={{ 
-                          width: order.status === 'pending' ? '25%' : 
-                                 order.status === 'processing' ? '50%' : 
-                                 order.status === 'sending' ? '75%' : 
-                                 order.status === 'completed' ? '100%' : '0%'
-                        }}
-                      ></div>
+            {filteredOrders.map(order => {
+              const displayStatus = order.delivery_status || order.status;
+              return (
+                <tr key={order.id || order.order_id}>
+                  <td className="order-id">#{order.order_id || order.id} on Roamsmart</td>
+                  <td>
+                    <div className="customer-info">
+                      <strong>{order.customer_name || 'Customer'}</strong>
+                      <small>{order.customer_phone || order.phone}</small>
                     </div>
-                    <span className="progress-text">
-                      {order.status === 'pending' ? 'Order Received' :
-                       order.status === 'processing' ? 'Processing on Roamsmart' :
-                       order.status === 'sending' ? 'Sending Data' :
-                       order.status === 'completed' ? 'Delivered' : 
-                       order.status === 'failed' ? 'Failed - Contact Support' : 'Pending'}
+                  </td>
+                  <td>{order.network?.toUpperCase()} {order.size_gb}GB</td>
+                  <td className="amount">₵{order.amount}</td>
+                  <td>
+                    <span className={getStatusBadge(order.status, order.delivery_status)}>
+                      {getStatusIcon(order.status, order.delivery_status)} {getStatusDisplayText(order.status, order.delivery_status)}
                     </span>
-                  </div>
-                </td>
-                <td>{new Date(order.created_at).toLocaleString()}</td>
-                <td className="actions">
-                  <button 
-                    className="btn-info btn-sm" 
-                    onClick={() => {
-                      setSelectedOrder(order);
-                      setShowDetailsModal(true);
-                    }}
-                    title="View Details"
-                  >
-                    <FaEye />
-                  </button>
-                  <button 
-                    className="btn-success btn-sm" 
-                    onClick={() => notifyCustomer(order)}
-                    title="SMS Customer"
-                  >
-                    <FaEnvelope />
-                  </button>
-                  <button 
-                    className="btn-primary btn-sm" 
-                    onClick={() => sendWhatsAppUpdate(order)}
-                    title="WhatsApp Customer"
-                  >
-                    <FaWhatsapp />
-                  </button>
-                  {order.status !== 'completed' && order.status !== 'failed' && (
+                  </td>
+                  <td>
+                    <div className="progress-indicator">
+                      <div className="progress-bar-small">
+                        <div 
+                          className="progress-fill-small"
+                          style={{ 
+                            width: displayStatus === 'pending' ? '25%' : 
+                                   displayStatus === 'queued' ? '35%' :
+                                   displayStatus === 'processing' ? '50%' : 
+                                   displayStatus === 'sending' ? '75%' : 
+                                   displayStatus === 'delivered' ? '100%' : 
+                                   displayStatus === 'completed' ? '100%' : '0%'
+                          }}
+                        ></div>
+                      </div>
+                      <span className="progress-text">
+                        {displayStatus === 'pending' ? 'Order Received' :
+                         displayStatus === 'queued' ? 'Queued for Processing' :
+                         displayStatus === 'processing' ? 'Processing on Roamsmart' :
+                         displayStatus === 'sending' ? 'Sending Data' :
+                         displayStatus === 'delivered' ? 'Delivered Successfully' :
+                         displayStatus === 'completed' ? 'Completed' : 
+                         displayStatus === 'failed' ? 'Failed - Contact Support' : 'Pending'}
+                      </span>
+                    </div>
+                  </td>
+                  <td>{new Date(order.created_at).toLocaleString()}</td>
+                  <td className="actions">
                     <button 
-                      className="btn-warning btn-sm" 
+                      className="btn-info btn-sm" 
                       onClick={() => {
                         setSelectedOrder(order);
                         setShowDetailsModal(true);
                       }}
-                      title="Update Progress"
+                      title="View Details"
                     >
-                      <FaSync />
+                      <FaEye />
                     </button>
-                  )}
-                </td>
-              </tr>
-            ))}
+                    <button 
+                      className="btn-primary btn-sm" 
+                      onClick={() => syncOrderStatus(order)}
+                      disabled={syncingOrders[order.order_id]}
+                      title="Sync with Digimall"
+                    >
+                      {syncingOrders[order.order_id] ? <FaSpinner className="spinning" /> : <FaSync />}
+                    </button>
+                    <button 
+                      className="btn-success btn-sm" 
+                      onClick={() => notifyCustomer(order)}
+                      title="SMS Customer"
+                    >
+                      <FaEnvelope />
+                    </button>
+                    <button 
+                      className="btn-primary btn-sm" 
+                      onClick={() => sendWhatsAppUpdate(order)}
+                      title="WhatsApp Customer"
+                    >
+                      <FaWhatsapp />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
             {filteredOrders.length === 0 && (
               <tr>
                 <td colSpan="8" className="text-center">
@@ -423,7 +582,7 @@ export default function AgentOrders() {
                 order={selectedOrder}
                 onStatusUpdate={updateOrderStatus}
                 onComplete={() => {
-                  fetchOrders();
+                  fetchOrdersWithRealTimeStatus();
                   setShowDetailsModal(false);
                 }}
               />
@@ -442,7 +601,7 @@ export default function AgentOrders() {
                   </div>
                   <div className="detail-item">
                     <label>Phone Number:</label>
-                    <span>{selectedOrder.customer_phone}</span>
+                    <span>{selectedOrder.customer_phone || selectedOrder.phone}</span>
                   </div>
                   <div className="detail-item">
                     <label>Network:</label>
@@ -465,6 +624,18 @@ export default function AgentOrders() {
                     <span>{selectedOrder.payment_method || 'Wallet'}</span>
                   </div>
                   <div className="detail-item">
+                    <label>Delivery Status:</label>
+                    <span className={getStatusBadge(selectedOrder.status, selectedOrder.delivery_status)}>
+                      {getStatusDisplayText(selectedOrder.status, selectedOrder.delivery_status)}
+                    </span>
+                  </div>
+                  {selectedOrder.provider_order_id && (
+                    <div className="detail-item">
+                      <label>Provider Order ID:</label>
+                      <span><code>{selectedOrder.provider_order_id}</code></span>
+                    </div>
+                  )}
+                  <div className="detail-item">
                     <label>Platform:</label>
                     <span>{COMPANY.name}</span>
                   </div>
@@ -473,6 +644,13 @@ export default function AgentOrders() {
 
               {/* Action Buttons */}
               <div className="modal-actions">
+                <button 
+                  className="btn-outline" 
+                  onClick={() => syncOrderStatus(selectedOrder)}
+                  disabled={syncingOrders[selectedOrder.order_id]}
+                >
+                  <FaSync /> {syncingOrders[selectedOrder.order_id] ? 'Syncing...' : 'Sync Status'}
+                </button>
                 <button 
                   className="btn-outline" 
                   onClick={() => sendWhatsAppUpdate(selectedOrder)}

@@ -1,4 +1,4 @@
-// src/pages/UserDashboard.js - With Paystack Payment Method Added
+// src/pages/UserDashboard.js - Updated with Two Verification Options
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,7 +9,8 @@ import {
   FaDownload, FaUpload, FaEye, FaTimes, FaUserPlus, FaGraduationCap,
   FaBolt, FaTint, FaTv, FaGlobe, FaWhatsapp, FaHeadset, FaShieldAlt,
   FaSearch, FaRocket, FaHourglassHalf, FaInfoCircle, FaReceipt,
-  FaLightbulb, FaPlug, FaWater, FaWifi, FaCreditCard
+  FaLightbulb, FaPlug, FaWater, FaWifi, FaCreditCard, FaQrcode,
+  FaFileInvoice, FaUserCheck, FaRegClock, FaSync
 } from 'react-icons/fa';
 import api, { paymentAPI } from '../services/api';
 import toast from 'react-hot-toast';
@@ -17,7 +18,7 @@ import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 import WAECVoucher from '../components/WAECVoucher';
 import PurchaseConfirmationModal from '../components/PurchaseConfirmationModal';
-
+import { FaRedo } from 'react-icons/fa';
 // Company Configuration
 const COMPANY = {
   name: 'Roamsmart Digital Service',
@@ -35,7 +36,7 @@ const billCategories = [
   { id: 'internet', name: 'Internet', icon: <FaWifi />, color: '#1abc9c', providers: ['Vodafone Broadband', 'MTN Fibre'] }
 ];
 
-// Payment Methods - ADDED PAYSTACK
+// Payment Methods
 const paymentMethods = [
   { 
     id: 'paystack', 
@@ -77,7 +78,10 @@ export default function UserDashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedNetwork, setSelectedNetwork] = useState('mtn');
   const [phoneNumber, setPhoneNumber] = useState('');
-  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showOrderModal, setShowOrderModal] = useState(false);
   // Bill Payment States (Hubtel)
   const [showBillModal, setShowBillModal] = useState(false);
   const [billStep, setBillStep] = useState(1);
@@ -96,9 +100,10 @@ export default function UserDashboard() {
   const [showCustomSize, setShowCustomSize] = useState(false);
   const [customSizeInput, setCustomSizeInput] = useState('');
   
-  // Payment States - ADDED processingPayment for Paystack
+  // Payment States
   const [showFundModal, setShowFundModal] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyOption, setVerifyOption] = useState('auto'); // 'auto' or 'manual'
   const [fundStep, setFundStep] = useState(1);
   const [selectedMethod, setSelectedMethod] = useState('paystack');
   const [fundAmount, setFundAmount] = useState('');
@@ -109,12 +114,19 @@ export default function UserDashboard() {
   const [copied, setCopied] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(false);
   
-  // Verification States
+  // Verification States - Auto Verification
   const [verifyReference, setVerifyReference] = useState('');
   const [verifyTransactionId, setVerifyTransactionId] = useState('');
   const [verifySenderName, setVerifySenderName] = useState('');
   const [verifySenderPhone, setVerifySenderPhone] = useState('');
   const [verifying, setVerifying] = useState(false);
+  
+  // Manual Verification States - Upload Proof
+  const [manualVerifyReference, setManualVerifyReference] = useState('');
+  const [manualVerifyAmount, setManualVerifyAmount] = useState('');
+  const [manualVerifyProof, setManualVerifyProof] = useState(null);
+  const [manualVerifyUploading, setManualVerifyUploading] = useState(false);
+  const [pendingPayments, setPendingPayments] = useState([]);
   
   // Purchase Confirmation States
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -126,6 +138,8 @@ export default function UserDashboard() {
 
   useEffect(() => {
     fetchUserData();
+    fetchOrdersWithRealTimeStatus();
+    fetchPendingPayments();
   }, []);
 
   useEffect(() => {
@@ -135,6 +149,20 @@ export default function UserDashboard() {
     }
   }, [selectedNetwork, bundles]);
 
+  const fetchPendingPayments = async () => {
+    try {
+      const res = await api.get('/user/pending-payments');
+      setPendingPayments(res.data.data || []);
+    } catch (error) {
+      console.error('Failed to fetch pending payments:', error);
+    }
+  };
+
+  const viewOrderDetails = (order) => {
+  setSelectedOrder(order);
+  setShowOrderModal(true);
+};
+
   const refreshPrices = async () => {
     try {
       const pricesRes = await api.get('/prices');
@@ -143,6 +171,64 @@ export default function UserDashboard() {
       console.error('Failed to refresh prices:', error);
     }
   };
+
+  // Fetch orders with real-time status from Digimall
+const fetchOrdersWithRealTimeStatus = async () => {
+  try {
+    // First get orders from your database
+    const response = await api.get('/user/orders');
+    const orders = response.data.data || [];
+    
+    // Then fetch live status for processing/pending orders
+    const ordersToCheck = orders.filter(
+      o => o.delivery_status === 'processing' || o.delivery_status === 'pending'
+    );
+    
+    if (ordersToCheck.length > 0) {
+      const identifiers = ordersToCheck.map(o => o.provider_order_id || o.order_id);
+      
+      try {
+        const statusResponse = await api.post('/digimall/bulk-status', { identifiers });
+        
+        if (statusResponse.data.success) {
+          const statusMap = {};
+          statusResponse.data.results.forEach(r => {
+            statusMap[r.identifier] = r.status;
+          });
+          
+          // Update orders with live status
+          orders.forEach(order => {
+            const identifier = order.provider_order_id || order.order_id;
+            const liveStatus = statusMap[identifier];
+            if (liveStatus && liveStatus !== order.delivery_status) {
+              order.delivery_status = liveStatus;
+            }
+          });
+        }
+      } catch (bulkError) {
+        console.warn('Bulk status check failed, trying individual checks...');
+        // Fallback to individual checks
+        for (const order of ordersToCheck) {
+          try {
+            const identifier = order.provider_order_id || order.order_id;
+            const singleResponse = await api.get(`/digimall/order-status/${identifier}`);
+            if (singleResponse.data.success && singleResponse.data.status) {
+              order.delivery_status = singleResponse.data.status;
+            }
+          } catch (e) {
+            console.error(`Failed to check status for ${order.order_id}:`, e);
+          }
+        }
+      }
+    }
+    
+    setOrders(orders);
+    
+  } catch (error) {
+    console.error('Failed to fetch orders:', error);
+    toast.error('Failed to load orders');
+  }
+};
 
   const fetchAvailableSizes = async (network) => {
     try {
@@ -156,6 +242,19 @@ export default function UserDashboard() {
       return [];
     }
   };
+
+  // Add this after your orders state declaration
+const filteredOrders = orders.filter(order => {
+  const matchesSearch = 
+    order.order_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.customer_phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.network?.toLowerCase().includes(searchTerm.toLowerCase());
+  
+  const matchesStatus = statusFilter === 'all' || 
+    (order.delivery_status || order.status) === statusFilter;
+  
+  return matchesSearch && matchesStatus;
+});
 
   const handleNetworkChange = async (network) => {
     setSelectedNetwork(network);
@@ -232,6 +331,37 @@ export default function UserDashboard() {
     }
   };
 
+
+  const retryOrder = async (order) => {
+  const result = await Swal.fire({
+    title: 'Retry Order?',
+    text: `Retry delivering ${order.size_gb}GB to ${order.customer_phone || order.phone}?`,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#28a745',
+    confirmButtonText: 'Yes, Retry',
+    cancelButtonText: 'Cancel'
+  });
+  
+  if (result.isConfirmed) {
+    try {
+      toast.loading('Retrying order...');
+      const response = await api.post(`/order/${order.order_id}/retry`);
+      toast.dismiss();
+      
+      if (response.data.success) {
+        toast.success('Order retried successfully!');
+        fetchOrdersWithRealTimeStatus();
+      } else {
+        toast.error(response.data.error || 'Failed to retry order');
+      }
+    } catch (error) {
+      toast.dismiss();
+      toast.error(error.response?.data?.error || 'Failed to retry order');
+    }
+  }
+};
+
   const validatePhone = (phone) => {
     const phoneRegex = /^(024|025|026|027|028|020|054|055|059|050|057|053|056)[0-9]{7}$/;
     return phoneRegex.test(phone);
@@ -254,10 +384,8 @@ export default function UserDashboard() {
       
       const { authorization_url, reference } = response.data.data;
       
-      // Open Paystack popup
       const paystackPopup = window.open(authorization_url, '_blank', 'width=600,height=700');
       
-      // Poll for payment verification
       const checkPaymentInterval = setInterval(async () => {
         try {
           const verifyResponse = await api.get(`/payment/paystack/verify/${reference}`);
@@ -282,7 +410,6 @@ export default function UserDashboard() {
         }
       }, 5000);
       
-      // Stop checking after 5 minutes
       setTimeout(() => {
         clearInterval(checkPaymentInterval);
         if (processingPayment) {
@@ -307,7 +434,6 @@ export default function UserDashboard() {
     
     setBillLoading(true);
     
-    // Simulate Hubtel API call
     setTimeout(async () => {
       try {
         const response = await api.post('/hubtel/bill-pay', {
@@ -342,7 +468,6 @@ export default function UserDashboard() {
     
     setBillLoading(true);
     
-    // Simulate Hubtel API call to fetch bill details
     setTimeout(() => {
       const mockBillDetails = {
         customerName: `Customer ${billAccountNumber.slice(-4)}`,
@@ -495,7 +620,6 @@ export default function UserDashboard() {
     }
   };
 
-  // FREE: Become an agent - no payment required
   const handleBecomeAgent = async () => {
     try {
       const result = await Swal.fire({
@@ -545,7 +669,7 @@ export default function UserDashboard() {
     }
   };
 
-  // ========== PAYMENT HANDLERS (Updated for Paystack) ==========
+  // ========== PAYMENT HANDLERS ==========
   
   const closeFundModal = () => {
     setShowFundModal(false);
@@ -555,9 +679,12 @@ export default function UserDashboard() {
   const closeVerifyModal = () => {
     setShowVerifyModal(false);
     resetVerifyModal();
+    setManualVerifyReference('');
+    setManualVerifyAmount('');
+    setManualVerifyProof(null);
+    setVerifyOption('auto');
   };
   
-  // UPDATED: handleAmountSubmit with Paystack support
   const handleAmountSubmit = async () => {
     const amountNum = parseFloat(fundAmount);
     const method = paymentMethods.find(m => m.id === selectedMethod);
@@ -576,10 +703,8 @@ export default function UserDashboard() {
     }
 
     if (selectedMethod === 'paystack') {
-      // Close the modal first
       closeFundModal();
       
-      // Small delay to ensure modal is closed before opening Paystack
       setTimeout(async () => {
         const { value: email } = await Swal.fire({
           title: 'Enter Your Email',
@@ -626,6 +751,88 @@ export default function UserDashboard() {
     }
   };
 
+  // ========== AUTO VERIFICATION HANDLER ==========
+  const handleAutoVerifyPayment = async () => {
+    if (!verifyReference || !verifyTransactionId) {
+      toast.error('Please enter reference ID and transaction ID');
+      return;
+    }
+
+    setVerifying(true);
+    try {
+      const res = await paymentAPI.verifyPayment(
+        verifyReference, 
+        verifyTransactionId, 
+        verifySenderName, 
+        verifySenderPhone
+      );
+      if (res.data.success) {
+        toast.success(`Payment verified on ${COMPANY.shortName}! Wallet credited.`);
+        closeVerifyModal();
+        await fetchUserData();
+        await fetchPendingPayments();
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Wallet Credited!',
+          html: `₵${res.data.data.amount} has been added to your Roamsmart wallet.`,
+          confirmButtonColor: '#8B0000'
+        });
+      }
+    } catch (error) {
+      console.error('Verify payment error:', error);
+      toast.error(error.response?.data?.error || 'Verification failed. Contact Roamsmart support.');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+// ========== MANUAL VERIFICATION HANDLER (Upload Proof) ==========
+const handleManualVerifyPayment = async () => {
+  if (!manualVerifyProof) {
+    toast.error('Please upload your payment proof/screenshot');
+    return;
+  }
+  
+  setManualVerifyUploading(true);
+  
+  const formData = new FormData();
+  formData.append('request_id', manualVerifyReference);
+  formData.append('proof', manualVerifyProof);
+  
+  try {
+    const response = await api.post('/payment/upload-proof', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    
+    if (response.data.success) {
+      toast.success(response.data.message || 'Payment proof submitted for admin approval!');
+      setShowVerifyModal(false);
+      resetVerifyModal();
+      await fetchPendingPayments();
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Proof Submitted!',
+        html: `Your payment proof for reference <strong>${manualVerifyReference}</strong> has been submitted.<br><br>Admin will review and credit your wallet within 5-30 minutes.`,
+        confirmButtonColor: '#8B0000'
+      });
+      
+      setManualVerifyReference('');
+      setManualVerifyAmount('');
+      setManualVerifyProof(null);
+    } else {
+      toast.error(response.data.error || 'Submission failed');
+    }
+  } catch (error) {
+    console.error('Manual verification error:', error);
+    toast.error(error.response?.data?.error || 'Failed to submit proof. Please try again.');
+  } finally {
+    setManualVerifyUploading(false);
+  }
+};
   const handleFileUpload = async () => {
     if (!proofFile) {
       toast.error('Please select a payment screenshot');
@@ -654,6 +861,7 @@ export default function UserDashboard() {
         toast.success(response.data.message || 'Proof uploaded successfully!');
         closeFundModal();
         await fetchUserData();
+        await fetchPendingPayments();
         
         Swal.fire({
           icon: 'success',
@@ -724,6 +932,9 @@ Your Roamsmart wallet will be credited after admin verification.
     setVerifyTransactionId('');
     setVerifySenderName('');
     setVerifySenderPhone('');
+    setManualVerifyReference('');
+    setManualVerifyAmount('');
+    setManualVerifyProof(null);
   };
 
   const cancelManualRequest = async () => {
@@ -738,40 +949,6 @@ Your Roamsmart wallet will be credited after admin verification.
       }
     } else {
       closeFundModal();
-    }
-  };
-
-  const handleVerifyPayment = async () => {
-    if (!verifyReference || !verifyTransactionId) {
-      toast.error('Please enter reference ID and transaction ID');
-      return;
-    }
-
-    setVerifying(true);
-    try {
-      const res = await paymentAPI.verifyPayment(
-        verifyReference, 
-        verifyTransactionId, 
-        verifySenderName, 
-        verifySenderPhone
-      );
-      if (res.data.success) {
-        toast.success(`Payment verified on ${COMPANY.shortName}! Wallet credited.`);
-        closeVerifyModal();
-        await fetchUserData();
-        
-        Swal.fire({
-          icon: 'success',
-          title: 'Wallet Credited!',
-          html: `₵${res.data.data.amount} has been added to your Roamsmart wallet.`,
-          confirmButtonColor: '#8B0000'
-        });
-      }
-    } catch (error) {
-      console.error('Verify payment error:', error);
-      toast.error(error.response?.data?.error || 'Verification failed. Contact Roamsmart support.');
-    } finally {
-      setVerifying(false);
     }
   };
 
@@ -815,6 +992,19 @@ Your Roamsmart wallet will be credited after admin verification.
           )}
         </div>
       </div>
+
+      {/* Pending Payments Notice */}
+      {pendingPayments.length > 0 && (
+        <div className="notice-box" style={{ background: '#fff3cd', borderLeft: '4px solid #ffc107', marginBottom: '20px', padding: '12px 15px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="notice-icon">⏳</div>
+          <div className="notice-content" style={{ flex: 1 }}>
+            <strong>Pending Payments:</strong> You have {pendingPayments.length} pending payment(s) awaiting admin approval.
+            <button onClick={() => setShowVerifyModal(true)} style={{ background: 'none', border: 'none', color: '#8B0000', cursor: 'pointer', fontWeight: 'bold', marginLeft: '5px' }}>
+              Track status →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="stats-grid">
@@ -1029,35 +1219,126 @@ Your Roamsmart wallet will be credited after admin verification.
         </div>
       </div>
 
-      {/* Recent Orders */}
+      {/* Recent Orders with Enhanced Details */}
       <div className="section-header">
-        <h2><FaHistory /> Recent Orders on Roamsmart</h2>
+        <h2><FaHistory /> Order History</h2>
+        <div className="order-filters">
+          <input 
+            type="text" 
+            placeholder="Search orders..." 
+            className="search-input"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <select className="filter-select" onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="processing">Processing</option>
+            <option value="delivered">Delivered</option>
+            <option value="failed">Failed</option>
+          </select>
+          <button className="btn-primary btn-sm" onClick={() => fetchOrdersWithRealTimeStatus()}>
+            <FaSync /> Refresh Status
+          </button>
+        </div>
       </div>
+      
       <div className="orders-table">
         <div className="table-responsive">
           <table className="data-table">
             <thead>
               <tr>
                 <th>Order ID</th>
-                <th>Product</th>
-                <th>Amount</th>
+                <th>Size</th>
+                <th>Recipient</th>
+                <th>Network</th>
                 <th>Status</th>
+                <th>Source</th>
+                <th>Paid</th>
+                <th>Bal. Before</th>
+                <th>Amount</th>
+                <th>Bal. After</th>
                 <th>Date</th>
+                <th>Updated</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {recentOrders.map(order => (
+              {filteredOrders.map(order => (
                 <tr key={order.order_id}>
-                  <td className="order-id">#{order.order_id} on Roamsmart</td>
-                  <td>{order.network} {order.size_gb}GB</td>
-                  <td className="amount">₵{order.amount}</td>
-                  <td><span className={`status ${order.status}`}>{order.status}</span></td>
-                  <td className="date">{new Date(order.date).toLocaleDateString()}</td>
+                  <td className="order-id">
+                    <code>{order.order_id}</code>
+                  </td>
+                  <td>
+                    <strong>{order.size_gb}GB</strong>
+                  </td>
+                  <td>
+                    {/* FIXED: Use customer_phone or phone or fallback */}
+                    {order.customer_phone || order.phone || '—'}
+                  </td>
+                  <td>
+                    <span className={`network-badge ${order.network}`}>
+                      {order.network?.toUpperCase()}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`status-badge ${order.delivery_status || order.status}`}>
+                      {order.delivery_status === 'pending' && '⏳ Pending'}
+                      {order.delivery_status === 'queued' && '📋 Queued'}
+                      {order.delivery_status === 'processing' && '🔄 Processing'}
+                      {order.delivery_status === 'delivered' && '✅ Delivered'}
+                      {order.delivery_status === 'failed' && '❌ Failed'}
+                      {(!order.delivery_status && order.status === 'completed') && '✅ Completed'}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="source-badge">
+                      {order.source || (order.agent_id ? 'Agent' : 'User')}
+                    </span>
+                  </td>
+                  <td className="amount">
+                    ₵{(order.customer_paid || order.amount)?.toFixed(2)}
+                  </td>
+                  <td className="amount">
+                    ₵{(order.balance_before || 0).toFixed(2)}
+                  </td>
+                  <td className="amount text-danger">
+                    -₵{(order.amount_deducted || order.cost || order.amount || 0).toFixed(2)}
+                  </td>
+                  <td className="amount">
+                    ₵{(order.balance_after || 0).toFixed(2)}
+                  </td>
+                  <td>
+                    {order.created_at_display || (order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A')}
+                  </td>
+                  <td>
+                    {order.delivery_status_updated_at ? new Date(order.delivery_status_updated_at).toLocaleString() : 'N/A'}
+                  </td>
+                  <td className="actions">
+                    <button 
+                      className="btn-sm btn-info" 
+                      onClick={() => viewOrderDetails(order)}
+                      title="View Details"
+                    >
+                      <FaEye />
+                    </button>
+                    {order.delivery_status === 'failed' && (
+                      <button 
+                        className="btn-sm btn-warning" 
+                        onClick={() => retryOrder(order)}
+                        title="Retry"
+                      >
+                        <FaSync />
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
-              {recentOrders.length === 0 && (
+              {filteredOrders.length === 0 && (
                 <tr>
-                  <td colSpan="5" className="text-center">No orders yet. Start shopping on Roamsmart!</td>
+                  <td colSpan="13" className="text-center">
+                    No orders found
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -1231,7 +1512,7 @@ Your Roamsmart wallet will be credited after admin verification.
         )}
       </AnimatePresence>
 
-      {/* ========== FUND WALLET MODAL (With Paystack & Manual) ========== */}
+      {/* ========== FUND WALLET MODAL ========== */}
       <AnimatePresence>
         {showFundModal && (
           <motion.div 
@@ -1397,7 +1678,7 @@ Your Roamsmart wallet will be credited after admin verification.
         )}
       </AnimatePresence>
 
-      {/* ========== VERIFY PAYMENT MODAL ========== */}
+      {/* ========== VERIFY PAYMENT MODAL - WITH TWO OPTIONS ========== */}
       <AnimatePresence>
         {showVerifyModal && (
           <motion.div 
@@ -1412,66 +1693,204 @@ Your Roamsmart wallet will be credited after admin verification.
               animate={{ scale: 1, y: 0 }} 
               className="modal-content verify-modal" 
               onClick={e => e.stopPropagation()}
+              style={{ maxWidth: '550px' }}
             >
               <button className="modal-close" onClick={closeVerifyModal}>×</button>
               
               <div className="verify-payment">
-                <h3>Verify Your Roamsmart Payment</h3>
-                <p>Already made a manual payment? Verify it here to credit your wallet.</p>
+                <h3><FaCheckCircle /> Verify Your Roamsmart Payment</h3>
+                <p>Choose how you want to verify your payment</p>
                 
-                <div className="form-group">
-                  <label>Reference ID *</label>
-                  <input 
-                    type="text"
-                    value={verifyReference}
-                    onChange={(e) => setVerifyReference(e.target.value.toUpperCase())}
-                    placeholder="e.g., 33MC"
-                    className="form-control"
-                  />
+                {/* Toggle between Auto and Manual Verification */}
+                <div className="verify-tabs">
+                  <button 
+                    className={`verify-tab ${verifyOption === 'auto' ? 'active' : ''}`}
+                    onClick={() => setVerifyOption('auto')}
+                  >
+                    <FaQrcode /> Auto Verification
+                  </button>
+                  <button 
+                    className={`verify-tab ${verifyOption === 'manual' ? 'active' : ''}`}
+                    onClick={() => setVerifyOption('manual')}
+                  >
+                    <FaUpload /> Manual Verification
+                  </button>
                 </div>
                 
-                <div className="form-group">
-                  <label>Transaction ID / Reference *</label>
-                  <input 
-                    type="text"
-                    value={verifyTransactionId}
-                    onChange={(e) => setVerifyTransactionId(e.target.value)}
-                    placeholder="e.g., MTC123456789"
-                    className="form-control"
-                  />
-                </div>
-                
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Sender Name (Optional)</label>
-                    <input 
-                      type="text"
-                      value={verifySenderName}
-                      onChange={(e) => setVerifySenderName(e.target.value)}
-                      placeholder="Your full name"
-                      className="form-control"
-                    />
+                {/* OPTION 1: AUTO VERIFICATION */}
+                {verifyOption === 'auto' && (
+                  <div className="verify-auto">
+                    <p className="verify-desc">Enter your payment details to auto-credit your Roamsmart wallet instantly.</p>
+                    
+                    <div className="form-group">
+                      <label>Reference ID *</label>
+                      <input 
+                        type="text"
+                        value={verifyReference}
+                        onChange={(e) => setVerifyReference(e.target.value.toUpperCase())}
+                        placeholder="e.g., RS-123-20241201-ABCD"
+                        className="form-control"
+                      />
+                      <small>Enter the reference you received when initiating payment</small>
+                    </div>
+                    
+                    <div className="form-group">
+                      <label>Transaction ID / Reference *</label>
+                      <input 
+                        type="text"
+                        value={verifyTransactionId}
+                        onChange={(e) => setVerifyTransactionId(e.target.value)}
+                        placeholder="e.g., MTC123456789"
+                        className="form-control"
+                      />
+                      <small>Enter the transaction ID from your mobile money app</small>
+                    </div>
+                    
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Sender Name (Optional)</label>
+                        <input 
+                          type="text"
+                          value={verifySenderName}
+                          onChange={(e) => setVerifySenderName(e.target.value)}
+                          placeholder="Your full name"
+                          className="form-control"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Sender Phone (Optional)</label>
+                        <input 
+                          type="tel"
+                          value={verifySenderPhone}
+                          onChange={(e) => setVerifySenderPhone(e.target.value)}
+                          placeholder="024XXXXXXX"
+                          className="form-control"
+                        />
+                      </div>
+                    </div>
+                    
+                    <button onClick={handleAutoVerifyPayment} className="btn-primary btn-block" disabled={verifying}>
+                      {verifying ? <FaSpinner className="spinning" /> : <FaCheckCircle />}
+                      {verifying ? ' Verifying on Roamsmart...' : ' Verify Payment & Credit Wallet'}
+                    </button>
                   </div>
-                  <div className="form-group">
-                    <label>Sender Phone (Optional)</label>
-                    <input 
-                      type="tel"
-                      value={verifySenderPhone}
-                      onChange={(e) => setVerifySenderPhone(e.target.value)}
-                      placeholder="024XXXXXXX"
-                      className="form-control"
-                    />
+                )}
+                
+                {/* OPTION 2: MANUAL VERIFICATION (Upload Proof) */}
+{verifyOption === 'manual' && (
+  <div className="verify-manual">
+    <p className="verify-desc">
+      You have pending payment requests. Select one below and upload your payment proof.
+      Admin will review and credit your wallet within 5-30 minutes.
+    </p>
+    
+    {/* Show pending payments that need proof */}
+    {pendingPayments.length > 0 ? (
+      <>
+        <div className="form-group">
+          <label>Select Payment Request *</label>
+          <select 
+            className="form-control"
+            value={manualVerifyReference}
+            onChange={(e) => {
+              const selected = pendingPayments.find(p => p.reference === e.target.value);
+              setManualVerifyReference(selected?.reference || '');
+              setManualVerifyAmount(selected?.amount || '');
+            }}
+            required
+          >
+            <option value="">-- Select a payment request --</option>
+            {pendingPayments.map((payment, idx) => (
+              <option key={idx} value={payment.reference}>
+                {payment.reference} - ₵{payment.amount} ({new Date(payment.created_at).toLocaleDateString()})
+              </option>
+            ))}
+          </select>
+          <small>Select the payment request you made</small>
+        </div>
+        
+        <div className="form-group">
+          <label>Amount Paid (GHS)</label>
+          <input 
+            type="number"
+            value={manualVerifyAmount}
+            readOnly
+            className="form-control"
+            style={{ backgroundColor: '#f5f5f5' }}
+          />
+          <small>Amount is pre-filled from your payment request</small>
+        </div>
+        
+        <div className="form-group">
+          <label>Payment Proof / Screenshot *</label>
+          <div className="upload-area-manual">
+            <input 
+              type="file" 
+              id="manual-proof-upload"
+              accept="image/*,.pdf"
+              onChange={(e) => setManualVerifyProof(e.target.files[0])}
+              style={{ display: 'none' }}
+            />
+            <label htmlFor="manual-proof-upload" className="upload-label-manual">
+              {manualVerifyProof ? (
+                <><FaCheck /> {manualVerifyProof.name}</>
+              ) : (
+                <><FaUpload /> Click to upload payment screenshot</>
+              )}
+            </label>
+          </div>
+          <small>Upload a screenshot of your payment confirmation (PNG, JPG, or PDF)</small>
+        </div>
+        
+        <button 
+          onClick={handleManualVerifyPayment} 
+          className="btn-primary btn-block" 
+          disabled={manualVerifyUploading || !manualVerifyReference || !manualVerifyProof}
+        >
+          {manualVerifyUploading ? <FaSpinner className="spinning" /> : <FaUpload />}
+          {manualVerifyUploading ? ' Submitting for Approval...' : ' Submit Payment Proof'}
+        </button>
+      </>
+    ) : (
+      <div className="no-pending-payments">
+        <p>⚠️ You don't have any pending payment requests.</p>
+        <p>Please go to <strong>Fund Wallet</strong> and select <strong>Manual Transfer</strong> to create a payment request first.</p>
+        <button 
+          className="btn-primary" 
+          onClick={() => {
+            setShowVerifyModal(false);
+            setShowFundModal(true);
+          }}
+        >
+          Fund Wallet Now
+        </button>
+      </div>
+    )}
+    
+    <div className="verify-note">
+      <p>⚠️ <strong>Note:</strong> Please ensure you have actually sent the payment before submitting. False submissions may lead to account suspension.</p>
+    </div>
+  </div>
+)}
+                
+                {/* Pending Payments List */}
+                {pendingPayments.length > 0 && (
+                  <div className="pending-payments-list">
+                    <h4><FaRegClock /> Your Pending Submissions</h4>
+                    <div className="pending-items">
+                      {pendingPayments.map((payment, idx) => (
+                        <div key={idx} className="pending-item">
+                          <div className="pending-ref">{payment.reference}</div>
+                          <div className="pending-amount">₵{payment.amount}</div>
+                          <div className="pending-status">
+                            <span className="status-badge pending">Pending Approval</span>
+                          </div>
+                          <div className="pending-date">{new Date(payment.created_at).toLocaleDateString()}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                
-                <button onClick={handleVerifyPayment} className="btn-primary btn-block" disabled={verifying}>
-                  {verifying ? <FaSpinner className="spinning" /> : <FaCheckCircle />}
-                  {verifying ? ' Verifying on Roamsmart...' : ' Verify Payment'}
-                </button>
-                
-                <div className="verify-note">
-                  <p>⚠️ <strong>Note:</strong> Please ensure you have actually sent the payment before verifying. False verifications may lead to account suspension.</p>
-                </div>
+                )}
               </div>
             </motion.div>
           </motion.div>
