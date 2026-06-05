@@ -598,3 +598,97 @@
 .btn-primary:active {
   transform: scale(0.97);
 }
+
+/* Payment Methods Styles */
+.payment-methods {
+  display: flex;
+  gap: 15px;
+  margin: 15px 0;
+  flex-wrap: wrap;
+}
+
+.payment-method {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.payment-method.active {
+  border-color: #8B0000;
+  background: #fff5f5;
+  color: #8B0000;
+}
+
+.payment-method input {
+  display: none;
+}
+
+.payment-instructions {
+  padding: 10px;
+}
+
+.payment-detail {
+  padding: 10px;
+  margin: 8px 0;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.payment-detail.highlight {
+  background: #fff3cd;
+  border-left: 3px solid #ffc107;
+}
+
+.reference-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.reference-box code {
+  background: #e9ecef;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.9rem;
+}
+
+.copy-ref-btn {
+  background: #8B0000;
+  color: white;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.payment-steps {
+  margin-top: 15px;
+  padding: 10px;
+  background: #e8f5e9;
+  border-radius: 8px;
+}
+
+.payment-steps ol {
+  margin: 10px 0 0 20px;
+  padding: 0;
+}
+
+.payment-note {
+  margin-top: 15px;
+  font-size: 0.8rem;
+  color: #856404;
+  background: #fff3cd;
+  padding: 10px;
+  border-radius: 8px;
+}
