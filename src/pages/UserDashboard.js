@@ -82,7 +82,7 @@ export default function UserDashboard() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
-  // Bill Payment States (Hubtel)
+  const [unavailableSizes, setUnavailableSizes] = useState({});
   const [showBillModal, setShowBillModal] = useState(false);
   const [billStep, setBillStep] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -91,7 +91,9 @@ export default function UserDashboard() {
   const [billAmount, setBillAmount] = useState('');
   const [billLoading, setBillLoading] = useState(false);
   const [billDetails, setBillDetails] = useState(null);
-  
+  const [paystackReference, setPaystackReference] = useState('');
+  const [verifyAmount, setVerifyAmount] = useState('');
+
   // Dynamic size states
   const [selectedSize, setSelectedSize] = useState('');
   const [selectedPrice, setSelectedPrice] = useState(null);
@@ -257,13 +259,19 @@ const filteredOrders = orders.filter(order => {
 });
 
   const handleNetworkChange = async (network) => {
-    setSelectedNetwork(network);
-    setSelectedSize('');
-    setSelectedPrice(null);
-    setCustomSizeInput('');
-    setShowCustomSize(false);
-    await fetchAvailableSizes(network);
-  };
+  setSelectedNetwork(network);
+  setSelectedSize('');
+  setSelectedPrice(null);
+  setCustomSizeInput('');
+  setShowCustomSize(false);
+  
+  // Get sizes from already filtered bundles
+  const networkBundles = bundles[network] || {};
+  const sizes = Object.keys(networkBundles).map(Number).sort((a, b) => a - b);
+  setAvailableSizes(sizes);
+  
+  console.log(`Available sizes for ${network}:`, sizes);
+};
 
   const handleSizeSelect = (size) => {
     setSelectedSize(size);
@@ -302,34 +310,52 @@ const filteredOrders = orders.filter(order => {
   };
 
   const fetchUserData = async () => {
-    setLoading(true);
-    try {
-      const [statsRes, pricesRes, ordersRes] = await Promise.all([
-        api.get('/user/stats'),
-        api.get('/prices'),
-        api.get('/user/orders')
-      ]);
-      
-      setStats(statsRes.data.data);
-      setBundles(pricesRes.data.data);
-      setOrders(ordersRes.data.data || []);
-      
-      const initialNetwork = 'mtn';
-      const initialSizes = Object.keys(pricesRes.data.data[initialNetwork] || {}).map(Number).sort((a, b) => a - b);
-      setAvailableSizes(initialSizes);
-      
-    } catch (error) {
-      console.error('Fetch user data error:', error);
-      toast.error('Failed to load Roamsmart data');
-      
-      if (error.response?.status === 401) {
-        toast.error('Session expired. Please login again.');
-        navigate('/login');
-      }
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  try {
+    const [statsRes, pricesRes, ordersRes, availabilityRes] = await Promise.all([
+      api.get('/user/stats'),
+      api.get('/prices'),
+      api.get('/user/orders'),
+      api.get('/user/unavailable-packages').catch(() => ({ data: { data: {} } }))
+    ]);
+    
+    setStats(statsRes.data.data);
+    
+    // Get unavailable packages from API response
+    const unavailable = availabilityRes.data?.data || {};
+    setUnavailableSizes(unavailable);
+    
+    console.log('Unavailable sizes from API:', unavailable);
+    
+    // IMPORTANT: Use the prices directly from API - they are already filtered!
+    // The /api/prices endpoint already filters out unavailable packages
+    const filteredBundles = pricesRes.data.data;
+    
+    console.log('Filtered bundles from API:', filteredBundles);
+    
+    setBundles(filteredBundles);
+    console.log('MTN bundles:', filteredBundles.mtn);
+    console.log('Telecel bundles:', filteredBundles.telecel);
+    console.log('AirtelTigo bundles:', filteredBundles.airteltigo);
+    setOrders(ordersRes.data.data || []);
+    
+    // Set available sizes from the filtered bundles
+    const initialNetwork = 'mtn';
+    const initialSizes = Object.keys(filteredBundles[initialNetwork] || {}).map(Number).sort((a, b) => a - b);
+    setAvailableSizes(initialSizes);
+    
+  } catch (error) {
+    console.error('Fetch user data error:', error);
+    toast.error('Failed to load Roamsmart data');
+    
+    if (error.response?.status === 401) {
+      toast.error('Session expired. Please login again.');
+      navigate('/login');
     }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
 
   const retryOrder = async (order) => {
@@ -787,6 +813,54 @@ const filteredOrders = orders.filter(order => {
     }
   };
 
+   // UserDashboard.js - Add handler function
+
+
+const handlePaystackManualVerify = async () => {
+  if (!paystackReference) {
+    toast.error('Please enter your Paystack transaction reference');
+    return;
+  }
+  
+  setVerifying(true);
+  
+  try {
+    const response = await api.post('/payment/manual-with-paystack-verify', {
+      paystack_reference: paystackReference,
+      amount: verifyAmount,
+      phone: stats.phone || phoneNumber
+    });
+    
+    if (response.data.success) {
+      toast.success(response.data.message);
+      setShowVerifyModal(false);
+      await fetchUserData();
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Wallet Credited!',
+        html: `
+          ₵${response.data.data.amount.toFixed(2)} has been added to your wallet.<br/>
+          <strong>Reference:</strong> ${response.data.data.reference}<br/>
+          <strong>New Balance:</strong> ₵${response.data.data.new_balance.toFixed(2)}
+        `,
+        confirmButtonColor: '#8B0000'
+      });
+      
+      // Reset form
+      setPaystackReference('');
+      setVerifyAmount('');
+    } else {
+      toast.error(response.data.error || 'Verification failed');
+    }
+  } catch (error) {
+    console.error('Paystack manual verify error:', error);
+    toast.error(error.response?.data?.error || 'Failed to verify payment');
+  } finally {
+    setVerifying(false);
+  }
+};
+
 // ========== MANUAL VERIFICATION HANDLER (Upload Proof) ==========
 const handleManualVerifyPayment = async () => {
   if (!manualVerifyProof) {
@@ -1096,90 +1170,120 @@ Your Roamsmart wallet will be credited after admin verification.
       </div>
 
       {/* Dynamic Size Input Section */}
-      <div className="custom-size-section">
-        <div className="custom-size-input">
-          <h3>Enter Data Size</h3>
-          <div className="size-input-group">
-            <input
-              type="number"
-              min="1"
-              max="100"
-              value={selectedSize}
-              onChange={handleCustomSize}
-              placeholder="Enter GB (e.g., 15)"
-              className="form-control"
-            />
-            <span className="gb-label">GB</span>
-          </div>
-          
-          {loadingPrice && <div className="spinner-small"><FaSpinner className="spinning" /> Checking price...</div>}
-          
-          {selectedPrice && !loadingPrice && (
-            <div className="price-display">
-              <p>Price: <strong>₵{selectedPrice.toFixed(2)}</strong></p>
-              <button 
-                className="btn-primary"
-                onClick={() => purchaseData(selectedNetwork, parseInt(selectedSize), selectedPrice, phoneNumber)}
-                disabled={!selectedSize}
-              >
-                Buy Now - ₵{selectedPrice.toFixed(2)}
-              </button>
-            </div>
-          )}
-          
-          {selectedSize && !selectedPrice && !loadingPrice && (
-            <div className="price-not-found">
-              <p>⚠️ No price configured for {selectedSize}GB on {selectedNetwork.toUpperCase()}</p>
-              <p className="text-muted">Please contact admin to add this size or select from available sizes below</p>
-            </div>
-          )}
-          
-          <div className="available-sizes">
-            <h4>Available Sizes (Admin Configured)</h4>
-            <div className="size-chips">
-              {availableSizes.map(size => (
-                <button
-                  key={size}
-                  className={`size-chip ${selectedSize == size ? 'active' : ''}`}
-                  onClick={() => handleSizeSelect(size)}
-                >
-                  {size}GB
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+<div className="custom-size-section">
+  <div className="custom-size-input">
+    <h3>Enter Data Size</h3>
+    <div className="size-input-group">
+      <input
+        type="number"
+        min="1"
+        max="100"
+        value={selectedSize}
+        onChange={handleCustomSize}
+        placeholder="Enter GB (e.g., 15)"
+        className="form-control"
+      />
+      <span className="gb-label">GB</span>
+    </div>
+    
+    {loadingPrice && <div className="spinner-small"><FaSpinner className="spinning" /> Checking price...</div>}
+    
+    {/* Check if selected size is unavailable */}
+    {selectedPrice && !loadingPrice && (
+      <div className="price-display">
+        <p>Price: <strong>₵{selectedPrice.toFixed(2)}</strong></p>
+        <button 
+          className="btn-primary"
+          onClick={() => purchaseData(selectedNetwork, parseInt(selectedSize), selectedPrice, phoneNumber)}
+          disabled={!selectedSize}
+        >
+          Buy Now - ₵{selectedPrice.toFixed(2)}
+        </button>
       </div>
+    )}
+    
+    {/* Show unavailable message for disabled packages */}
+    {selectedSize && !selectedPrice && !loadingPrice && (
+      <div className={`price-not-found ${unavailableSizes[selectedNetwork]?.includes(selectedSize.toString()) ? 'price-unavailable' : ''}`}>
+        {unavailableSizes[selectedNetwork]?.includes(selectedSize.toString()) ? (
+          <>
+            <div className="unavailable-icon">🚫</div>
+            <p><strong>{selectedSize}GB is currently UNAVAILABLE</strong> on {selectedNetwork.toUpperCase()}</p>
+            <p className="text-muted">This package has been disabled by the administrator.</p>
+            <small>Please select from available sizes below</small>
+          </>
+        ) : (
+          <>
+            <p>⚠️ No price configured for {selectedSize}GB on {selectedNetwork.toUpperCase()}</p>
+            <p className="text-muted">Please contact admin to add this size or select from available sizes below</p>
+          </>
+        )}
+      </div>
+    )}
+    
+    <div className="available-sizes">
+      <h4>Available Sizes (Admin Configured)</h4>
+      <div className="size-chips">
+        {availableSizes.map(size => {
+          const isUnavailable = unavailableSizes[selectedNetwork]?.includes(size.toString());
+          return (
+            <button
+              key={size}
+              className={`size-chip ${selectedSize == size ? 'active' : ''} ${isUnavailable ? 'unavailable' : ''}`}
+              onClick={() => !isUnavailable && handleSizeSelect(size)}
+              disabled={isUnavailable}
+              title={isUnavailable ? 'This package is currently unavailable' : `Purchase ${size}GB`}
+            >
+              {size}GB {isUnavailable && '❌'}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  </div>
+</div>
 
-      {/* Predefined Bundles Grid */}
-      <div className="bundles-grid">
-        <h3 className="bundles-subtitle">Popular Bundles</h3>
-        <div className="bundles-grid-container">
-          {Object.entries(currentBundles).slice(0, 5).map(([size, price]) => {
-            const isPurchasing = purchasingBundle === `${selectedNetwork}-${size}`;
-            
-            return (
-              <motion.div 
-                key={size} 
-                whileHover={{ y: -5, scale: 1.02 }} 
-                className="bundle-card" 
-              >
-                <div className="bundle-size">{size}GB</div>
-                <div className="bundle-price">₵{price}</div>
-                <div className="bundle-network">{selectedNetwork.toUpperCase()}</div>
-                <div className="bundle-delivery">⚡ Instant Delivery on Roamsmart</div>
-                <button 
-                  className="btn-primary"
-                  onClick={() => purchaseData(selectedNetwork, parseInt(size), price)}
-                  disabled={isPurchasing}
-                >
-                  {isPurchasing ? <FaSpinner className="spinning" /> : 'Buy Now'}
-                </button>
-              </motion.div>
-            );
-          })}
-        </div>
+{/* Predefined Bundles Grid - Only show available bundles */}
+<div className="bundles-grid">
+  <h3 className="bundles-subtitle">Popular Bundles</h3>
+  <div className="bundles-grid-container">
+    {Object.entries(currentBundles)
+      .filter(([size]) => !unavailableSizes[selectedNetwork]?.includes(size.toString()))
+      .slice(0, 5)
+      .map(([size, price]) => {
+        const isPurchasing = purchasingBundle === `${selectedNetwork}-${size}`;
+        
+        return (
+          <motion.div 
+            key={size} 
+            whileHover={{ y: -5, scale: 1.02 }} 
+            className="bundle-card" 
+          >
+            <div className="bundle-size">{size}GB</div>
+            <div className="bundle-price">₵{price}</div>
+            <div className="bundle-network">{selectedNetwork.toUpperCase()}</div>
+            <div className="bundle-delivery">⚡ Instant Delivery on Roamsmart</div>
+            <button 
+              className="btn-primary"
+              onClick={() => purchaseData(selectedNetwork, parseInt(size), price)}
+              disabled={isPurchasing}
+            >
+              {isPurchasing ? <FaSpinner className="spinning" /> : 'Buy Now'}
+            </button>
+          </motion.div>
+        );
+      })}
+    
+    {/* Show message if no bundles available for this network */}
+    {Object.entries(currentBundles).filter(([size]) => !unavailableSizes[selectedNetwork]?.includes(size.toString())).length === 0 && (
+      <div className="no-packages-message">
+        <div className="icon">📦</div>
+        <p>No data packages available for {selectedNetwork.toUpperCase()}</p>
+        <small>Please check back later or contact support</small>
       </div>
+    )}
+  </div>
+</div>
 
       {/* Additional Services Section */}
       <div className="additional-services-section">
@@ -1873,6 +1977,68 @@ Your Roamsmart wallet will be credited after admin verification.
   </div>
 )}
                 
+                 
+
+{/* OPTION 3: Paystack Manual Payment Verification */}
+{verifyOption === 'paystack_manual' && (
+  <div className="verify-paystack-manual">
+    <p className="verify-desc">
+      Made a bank transfer or mobile money payment? 
+      Enter your Paystack transaction reference to auto-verify and credit your wallet instantly.
+    </p>
+    
+    <div className="form-group">
+      <label>Paystack Transaction Reference *</label>
+      <input 
+        type="text"
+        value={paystackReference}
+        onChange={(e) => setPaystackReference(e.target.value)}
+        placeholder="e.g., T394541625653843"
+        className="form-control"
+      />
+      <small>
+        You can find this reference in your email from Paystack or in your bank transaction history.
+        It usually starts with "T" followed by numbers.
+      </small>
+    </div>
+    
+    <div className="form-group">
+      <label>Amount (Optional - for verification)</label>
+      <input 
+        type="number"
+        value={verifyAmount}
+        onChange={(e) => setVerifyAmount(e.target.value)}
+        placeholder="Enter the amount you paid"
+        className="form-control"
+      />
+      <small>Helps prevent errors - the system will verify the amount matches</small>
+    </div>
+    
+    <div className="info-box">
+      <FaInfoCircle />
+      <div>
+        <strong>How it works:</strong>
+        <ol>
+          <li>Make a bank transfer or mobile money payment to our account</li>
+          <li>Paystack will send you a payment reference via email/SMS</li>
+          <li>Enter that reference above and click Verify</li>
+          <li>Your wallet will be credited instantly!</li>
+        </ol>
+      </div>
+    </div>
+    
+    <button 
+      onClick={handlePaystackManualVerify} 
+      className="btn-primary btn-block" 
+      disabled={verifying || !paystackReference}
+    >
+      {verifying ? <FaSpinner className="spinning" /> : <FaCheckCircle />}
+      {verifying ? ' Verifying with Paystack...' : ' Verify Payment & Credit Wallet'}
+    </button>
+  </div>
+)}
+
+
                 {/* Pending Payments List */}
                 {pendingPayments.length > 0 && (
                   <div className="pending-payments-list">

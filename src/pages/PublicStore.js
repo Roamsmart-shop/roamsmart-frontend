@@ -5,10 +5,12 @@ import { motion } from 'framer-motion';
 import { 
   FaWhatsapp, FaPhone, FaEnvelope, FaShoppingCart, 
   FaDatabase, FaMobileAlt, FaCheckCircle, FaClock,
-  FaStore, FaUser, FaStar, FaHeart
+  FaStore, FaUser, FaStar, FaHeart, FaCreditCard,
+  FaUniversity, FaMobile, FaSpinner, FaCopy, FaCheck, FaShieldAlt
 } from 'react-icons/fa';
 import api from '../services/api';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 import '../styles/pages/public-store.css';
 
 export default function PublicStore() {
@@ -20,6 +22,10 @@ export default function PublicStore() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [selectedBundle, setSelectedBundle] = useState(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('mobile_money');
+  const [submitting, setSubmitting] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [paymentReference, setPaymentReference] = useState(null);
 
   useEffect(() => {
     fetchStoreData();
@@ -52,37 +58,150 @@ export default function PublicStore() {
     return null;
   };
 
+  const generatePaymentReference = () => {
+    return `PAY-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+  };
+
+  // Add this useEffect in your PublicStore component (after the store fetch useEffect)
+useEffect(() => {
+  // Check if returning from Paystack payment
+  const urlParams = new URLSearchParams(window.location.search);
+  const reference = urlParams.get('reference');
+  const trxref = urlParams.get('trxref'); // Paystack also uses this parameter
+  
+  const paymentRef = reference || trxref;
+  
+  if (paymentRef) {
+    // Clean up URL (remove query params)
+    window.history.replaceState({}, document.title, window.location.pathname);
+    
+    // Verify the payment
+    const checkPayment = async () => {
+      try {
+        const response = await api.post('/store/verify-payment', {
+          reference: paymentRef
+        });
+        
+        if (response.data.success) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Payment Successful!',
+            html: `
+              <div style="text-align: left;">
+                <p>✅ Your payment has been confirmed!</p>
+                <p>📱 Data will be delivered to your phone shortly.</p>
+                <p>🆔 Order ID: ${response.data.order_id || 'Processing'}</p>
+              </div>
+            `,
+            confirmButtonColor: '#8B0000'
+          });
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Verification Failed',
+            text: response.data.error || 'Could not verify payment. Please contact support.',
+            confirmButtonColor: '#8B0000'
+          });
+        }
+      } catch (error) {
+        console.error('Payment verification error:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Verification Error',
+          text: 'An error occurred while verifying your payment. Please contact support.',
+          confirmButtonColor: '#8B0000'
+        });
+      }
+    };
+    
+    checkPayment();
+  }
+}, []);
+
   const handleBuyNow = (network, size, price) => {
     setSelectedBundle({ network, size, price });
+    setPaymentMethod('mobile_money');
+    setPaymentReference(null);
     setShowOrderModal(true);
   };
 
-  const submitOrder = async () => {
-    if (!phoneNumber || !phoneNumber.match(/^(024|025|026|027|028|020|054|055|059|050|057|053|056)[0-9]{7}$/)) {
-      toast.error('Please enter a valid Ghana phone number');
+  const copyReference = () => {
+    if (paymentReference) {
+      navigator.clipboard.writeText(paymentReference);
+      setCopied(true);
+      toast.success('Reference copied!');
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+const submitOrder = async () => {
+  if (!phoneNumber || !phoneNumber.match(/^(024|025|026|027|028|020|054|055|059|050|057|053|056)[0-9]{7}$/)) {
+    toast.error('Please enter a valid Ghana phone number');
+    return;
+  }
+
+  if (!selectedBundle) return;
+
+  setSubmitting(true);
+  
+  try {
+    // Get customer email
+    const { value: email } = await Swal.fire({
+      title: 'Enter Your Email',
+      input: 'email',
+      inputPlaceholder: 'you@example.com',
+      showCancelButton: true,
+      confirmButtonText: 'Proceed to Payment',
+      preConfirm: (emailValue) => {
+        if (!emailValue) {
+          Swal.showValidationMessage('Email is required');
+        }
+        return emailValue;
+      }
+    });
+    
+    if (!email) {
+      setSubmitting(false);
       return;
     }
+    
+    // Step 1: Initialize payment (NO order created yet)
+    const response = await api.post('/store/initiate-payment', {
+      store_slug: slug,
+      network: selectedBundle.network,
+      size_gb: selectedBundle.size,
+      phone: phoneNumber,
+      amount: selectedBundle.price,
+      email: email
+    });
 
+    if (response.data.success) {
+      // Step 2: Redirect to Paystack for payment
+      window.location.href = response.data.data.authorization_url;
+    }
+  } catch (error) {
+    console.error('Payment initiation error:', error);
+    toast.error(error.response?.data?.error || 'Failed to initiate payment');
+    setSubmitting(false);
+  }
+};
+
+  const verifyPayment = async (reference, expectedAmount) => {
     try {
-      const response = await api.post('/store/order', {
-        agent_id: store.agent_id,
-        network: selectedBundle.network,
-        size_gb: selectedBundle.size,
-        phone: phoneNumber,
-        amount: selectedBundle.price
+      const response = await api.post('/store/verify-payment', {
+        reference: reference,
+        expected_amount: expectedAmount
       });
-
+      
       if (response.data.success) {
-        toast.success('Order placed successfully! Data will be delivered shortly.');
-        setShowOrderModal(false);
-        setPhoneNumber('');
-        
-        // Send WhatsApp notification
-        const message = `Hello! I just ordered ${selectedBundle.size}GB ${selectedBundle.network.toUpperCase()} data from ${store.store_name}. My number is ${phoneNumber}.`;
-        window.open(`https://wa.me/233${store.contact_phone?.replace(/^0/, '')}?text=${encodeURIComponent(message)}`, '_blank');
+        return { success: true, data: response.data.data };
+      } else {
+        toast.error(response.data.error || 'Payment not found');
+        return { success: false };
       }
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Order failed');
+      console.error('Verification error:', error);
+      return { success: false };
     }
   };
 
@@ -110,7 +229,7 @@ export default function PublicStore() {
   return (
     <div className="public-store">
       {/* Store Header */}
-      <div className="store-header" style={{ background: `linear-gradient(135deg, ${store.brand_color || '#8B0000'}, ${store.brand_color || '#D2691E'})` }}>
+      <div className="store-header" style={{ background: `linear-gradient(135deg, ${store.banner_color || '#8B0000'}, ${store.banner_color || '#D2691E'})` }}>
         <div className="store-header-content">
           <div className="store-avatar">
             <FaStore size={50} />
@@ -192,36 +311,51 @@ export default function PublicStore() {
         </div>
       </div>
 
-      {/* Order Modal */}
-      {showOrderModal && selectedBundle && (
-        <div className="modal-overlay" onClick={() => setShowOrderModal(false)}>
-          <div className="modal-content order-modal" onClick={e => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setShowOrderModal(false)}>×</button>
-            <h3>Order from {store.store_name}</h3>
-            <div className="order-summary">
-              <p><strong>Bundle:</strong> {selectedBundle.size}GB {selectedBundle.network.toUpperCase()}</p>
-              <p><strong>Price:</strong> ₵{selectedBundle.price.toFixed(2)}</p>
-            </div>
-            <div className="form-group">
-              <label>Your Phone Number</label>
-              <input 
-                type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="024XXXXXXX"
-                className="form-control"
-              />
-              <small>Data will be delivered to this number</small>
-            </div>
-            <button className="btn-primary btn-block" onClick={submitOrder}>
-              Confirm Order
-            </button>
-            <div className="order-note">
-              <small>After ordering, the agent will contact you to confirm payment and deliver the data.</small>
-            </div>
-          </div>
+      {/* Order Modal - Simplified */}
+{showOrderModal && selectedBundle && (
+  <div className="modal-overlay" onClick={() => setShowOrderModal(false)}>
+    <div className="modal-content order-modal" onClick={e => e.stopPropagation()}>
+      <button className="modal-close" onClick={() => setShowOrderModal(false)}>×</button>
+      <h3>Complete Your Purchase</h3>
+      
+      <div className="order-summary">
+        <p><strong>Bundle:</strong> {selectedBundle.size}GB {selectedBundle.network.toUpperCase()}</p>
+        <p><strong>Price:</strong> ₵{selectedBundle.price.toFixed(2)}</p>
+      </div>
+      
+      <div className="form-group">
+        <label>Your Phone Number (for data delivery)</label>
+        <input 
+          type="tel"
+          value={phoneNumber}
+          onChange={(e) => setPhoneNumber(e.target.value)}
+          placeholder="024XXXXXXX"
+          className="form-control"
+        />
+        <small>Data will be delivered to this number</small>
+      </div>
+      
+      <div className="payment-methods">
+        <div className="payment-method paystack active">
+          <FaCreditCard /> Pay with Card or Mobile Money
+          <small>Powered by Paystack - Secure payment</small>
         </div>
-      )}
+      </div>
+      
+      <button 
+        className="btn-primary btn-block" 
+        onClick={submitOrder}
+        disabled={submitting}
+      >
+        {submitting ? <FaSpinner className="spinning" /> : 'Pay Now with Paystack'}
+      </button>
+      
+      <div className="secure-note">
+        <FaShieldAlt /> Your payment is secure and encrypted
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }

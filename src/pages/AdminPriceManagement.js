@@ -5,12 +5,14 @@ import {
   FaDollarSign, FaEdit, FaSave, FaTimes, FaSpinner, 
   FaCheckCircle, FaChartLine, FaGraduationCap, FaUsers,
   FaMobileAlt, FaDatabase, FaLock, FaKey, FaEye, FaEyeSlash,
-  FaShieldAlt, FaSignOutAlt, FaPlus
+  FaShieldAlt, FaSignOutAlt, FaPlus, FaBan, FaCheck, 
+  FaToggleOn, FaToggleOff, FaTrash, FaExclamationTriangle
 } from 'react-icons/fa';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
 import './AdminPriceManagement.css';
+
 const COMPANY = {
   name: 'Roamsmart Digital Service',
   shortName: 'Roamsmart'
@@ -30,7 +32,7 @@ export default function AdminPriceManagement() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
-  const [verifying, setVerifying] = useState(false); // NEW: Track verification state
+  const [verifying, setVerifying] = useState(false);
   
   // Custom size adder states
   const [newSize, setNewSize] = useState('');
@@ -39,17 +41,24 @@ export default function AdminPriceManagement() {
   const [showAddSize, setShowAddSize] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState('');
   
+  // NEW: Available sizes per network (which sizes are active)
+  const [availableSizes, setAvailableSizes] = useState({
+    mtn: { '1': true, '2': true, '5': true, '10': true, '20': true },
+    telecel: { '1': true, '2': true, '5': true, '10': true, '20': true },
+    airteltigo: { '1': false, '2': false, '5': true, '10': true, '20': true } // 1GB and 2GB disabled by default
+  });
+  
   // Price states
   const [userPrices, setUserPrices] = useState({
     mtn: { '1': 6.50, '2': 12.00, '5': 25.00, '10': 48.00, '20': 90.00 },
     telecel: { '1': 6.00, '2': 11.00, '5': 23.00, '10': 44.00, '20': 85.00 },
-    airteltigo: { '1': 6.00, '2': 11.00, '5': 23.00, '10': 44.00, '20': 85.00 }
+    airteltigo: { '1': 0, '2': 0, '5': 23.00, '10': 44.00, '20': 85.00 }
   });
   
   const [agentPrices, setAgentPrices] = useState({
     mtn: { '1': 5.50, '2': 10.00, '5': 22.00, '10': 42.00, '20': 80.00 },
     telecel: { '1': 5.00, '2': 9.00, '5': 20.00, '10': 38.00, '20': 75.00 },
-    airteltigo: { '1': 5.00, '2': 9.00, '5': 20.00, '10': 38.00, '20': 75.00 }
+    airteltigo: { '1': 0, '2': 0, '5': 20.00, '10': 38.00, '20': 75.00 }
   });
   
   const [waecPrices, setWaecPrices] = useState({
@@ -67,12 +76,12 @@ export default function AdminPriceManagement() {
   
   const [editingCell, setEditingCell] = useState(null);
 
-  // Check for existing session on mount - DON'T auto-fetch prices
+  // Check for existing session on mount
   useEffect(() => {
     checkExistingSession();
   }, []);
 
-  // Session validity checker (only if authenticated)
+  // Session validity checker
   useEffect(() => {
     if (isAuthenticated && authToken) {
       const interval = setInterval(async () => {
@@ -132,7 +141,7 @@ export default function AdminPriceManagement() {
       return;
     }
 
-    setVerifying(true); // Start verifying state
+    setVerifying(true);
     try {
       const res = await api.post('/admin/prices/verify', { password });
       if (res.data.success) {
@@ -153,6 +162,38 @@ export default function AdminPriceManagement() {
       setVerifying(false);
     }
   };
+   
+  const handleChangePassword = async () => {
+  if (!newPassword || newPassword.length < 6) {
+    toast.error('Password must be at least 6 characters');
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    toast.error('Passwords do not match');
+    return;
+  }
+
+  setChangingPassword(true);
+  try {
+    const res = await api.post('/admin/prices/update-password', {
+      new_password: newPassword,
+      confirm_password: confirmPassword
+    }, {
+      headers: { 'X-Price-Auth': authToken }
+    });
+    
+    if (res.data.success) {
+      toast.success('Price management password updated!');
+      setShowChangePassword(false);
+      setNewPassword('');
+      setConfirmPassword('');
+    }
+  } catch (error) {
+    toast.error(error.response?.data?.error || 'Failed to update password');
+  } finally {
+    setChangingPassword(false);
+  }
+};
 
   const handleLogout = async () => {
     try {
@@ -174,61 +215,170 @@ export default function AdminPriceManagement() {
   };
 
   const fetchPrices = async (token = null) => {
-    setLoading(true);
-    try {
-      const headers = token ? { 'X-Price-Auth': token } : {};
-      const res = await api.get('/admin/prices', { headers });
-      if (res.data.success) {
-        const data = res.data.data;
-        if (data.user_prices) setUserPrices(data.user_prices);
-        if (data.agent_prices) setAgentPrices(data.agent_prices);
-        if (data.waec_prices) setWaecPrices(data.waec_prices);
-        if (data.commission_rates) setCommissionRates(data.commission_rates);
+  setLoading(true);
+  try {
+    const headers = token ? { 'X-Price-Auth': token } : {};
+    const res = await api.get('/admin/prices', { headers });
+    if (res.data.success) {
+      const data = res.data.data;
+      
+      // Initialize available sizes
+      const newAvailableSizes = {
+        mtn: {},
+        telecel: {},
+        airteltigo: {}
+      };
+      
+      // Handle user prices - extract availability info
+      if (data.user_prices) {
+        const formattedUserPrices = {};
+        for (const [network, packages] of Object.entries(data.user_prices)) {
+          formattedUserPrices[network] = {};
+          for (const [size, priceData] of Object.entries(packages)) {
+            if (typeof priceData === 'object' && priceData !== null) {
+              // New format with price and is_available
+              formattedUserPrices[network][size] = priceData.price;
+              newAvailableSizes[network][size] = priceData.is_available !== false;
+            } else {
+              // Old format (just price number)
+              formattedUserPrices[network][size] = priceData;
+              newAvailableSizes[network][size] = true;
+            }
+          }
+        }
+        setUserPrices(formattedUserPrices);
       }
-    } catch (error) {
-      console.error('Fetch prices error:', error);
-      if (error.response?.status === 401) {
-        handleSessionExpired();
-      } else {
-        toast.error('Failed to load prices');
+      
+      // Handle agent prices
+      if (data.agent_prices) {
+        const formattedAgentPrices = {};
+        for (const [network, packages] of Object.entries(data.agent_prices)) {
+          formattedAgentPrices[network] = {};
+          for (const [size, priceData] of Object.entries(packages)) {
+            if (typeof priceData === 'object' && priceData !== null) {
+              formattedAgentPrices[network][size] = priceData.price;
+            } else {
+              formattedAgentPrices[network][size] = priceData;
+            }
+          }
+        }
+        setAgentPrices(formattedAgentPrices);
       }
-    } finally {
-      setLoading(false);
+      
+      // Set available sizes
+      setAvailableSizes(newAvailableSizes);
+      
+      if (data.waec_prices) setWaecPrices(data.waec_prices);
+      if (data.commission_rates) setCommissionRates(data.commission_rates);
+    }
+  } catch (error) {
+    console.error('Fetch prices error:', error);
+    if (error.response?.status === 401) {
+      handleSessionExpired();
+    } else {
+      toast.error('Failed to load prices');
+    }
+  } finally {
+    setLoading(false);
+  }
+};
+
+  // NEW: Toggle package availability
+  const togglePackageAvailability = async (network, sizeGb, isCurrentlyAvailable) => {
+    const action = isCurrentlyAvailable ? 'disable' : 'enable';
+    const confirmText = isCurrentlyAvailable 
+      ? `This will make ${sizeGb}GB package UNAVAILABLE for ${network.toUpperCase()}. Users won't see this package. Continue?`
+      : `This will make ${sizeGb}GB package AVAILABLE for ${network.toUpperCase()}. Users will be able to purchase it. Continue?`;
+    
+    const result = await Swal.fire({
+      title: isCurrentlyAvailable ? 'Disable Package?' : 'Enable Package?',
+      text: confirmText,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: isCurrentlyAvailable ? '#dc3545' : '#28a745',
+      confirmButtonText: isCurrentlyAvailable ? 'Yes, Disable' : 'Yes, Enable',
+      cancelButtonText: 'Cancel'
+    });
+    
+    if (result.isConfirmed) {
+      try {
+        const res = await api.post('/admin/prices/toggle-availability', {
+          network,
+          size_gb: parseInt(sizeGb),
+          available: !isCurrentlyAvailable
+        }, {
+          headers: { 'X-Price-Auth': authToken }
+        });
+        
+        if (res.data.success) {
+          // Update local state
+          setAvailableSizes(prev => ({
+            ...prev,
+            [network]: {
+              ...prev[network],
+              [sizeGb]: !isCurrentlyAvailable
+            }
+          }));
+          
+          toast.success(`${sizeGb}GB package for ${network.toUpperCase()} is now ${!isCurrentlyAvailable ? 'AVAILABLE' : 'UNAVAILABLE'}`);
+          
+          // Refresh prices to ensure consistency
+          await fetchPrices(authToken);
+        }
+      } catch (error) {
+        console.error('Toggle availability error:', error);
+        toast.error(error.response?.data?.error || 'Failed to update package availability');
+      }
     }
   };
 
-  const handleChangePassword = async () => {
-    if (!newPassword || newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
-
-    setChangingPassword(true);
-    try {
-      const res = await api.post('/admin/prices/update-password', {
-        new_password: newPassword,
-        confirm_password: confirmPassword
-      });
-      if (res.data.success) {
-        toast.success('Price management password updated!');
-        setShowChangePassword(false);
-        setNewPassword('');
-        setConfirmPassword('');
+  // NEW: Delete custom size package
+  const deleteCustomSize = async (network, sizeGb) => {
+    const result = await Swal.fire({
+      title: 'Delete Package?',
+      text: `Are you sure you want to delete ${sizeGb}GB package for ${network.toUpperCase()}? This action cannot be undone.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      confirmButtonText: 'Yes, Delete',
+      cancelButtonText: 'Cancel'
+    });
+    
+    if (result.isConfirmed) {
+      try {
+        const res = await api.delete('/admin/prices/delete-size', {
+          data: { network, size_gb: parseInt(sizeGb) },
+          headers: { 'X-Price-Auth': authToken }
+        });
         
-        sessionStorage.removeItem('price_auth_token');
-        sessionStorage.removeItem('price_auth_expires');
-        setIsAuthenticated(false);
-        setAuthToken(null);
-        setPassword('');
+        if (res.data.success) {
+          // Remove from prices
+          setUserPrices(prev => {
+            const newPrices = { ...prev };
+            delete newPrices[network][sizeGb];
+            return newPrices;
+          });
+          
+          setAgentPrices(prev => {
+            const newPrices = { ...prev };
+            delete newPrices[network][sizeGb];
+            return newPrices;
+          });
+          
+          // Remove from available sizes
+          setAvailableSizes(prev => {
+            const newAvailable = { ...prev };
+            delete newAvailable[network][sizeGb];
+            return newAvailable;
+          });
+          
+          toast.success(`Deleted ${sizeGb}GB package for ${network.toUpperCase()}`);
+          await fetchPrices(authToken);
+        }
+      } catch (error) {
+        console.error('Delete size error:', error);
+        toast.error(error.response?.data?.error || 'Failed to delete package');
       }
-    } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to update password');
-    } finally {
-      setChangingPassword(false);
     }
   };
 
@@ -240,6 +390,12 @@ export default function AdminPriceManagement() {
     
     if (!newUserPrice || !newAgentPrice) {
       toast.error('Please enter both user and agent prices');
+      return;
+    }
+    
+    // Check if size already exists
+    if (userPrices[network]?.[newSize]) {
+      toast.error(`${newSize}GB package already exists for ${network.toUpperCase()}`);
       return;
     }
     
@@ -258,12 +414,19 @@ export default function AdminPriceManagement() {
         price: parseFloat(newAgentPrice)
       }, { headers: { 'X-Price-Auth': authToken } });
       
+      // Set as available by default
+      await api.post('/admin/prices/toggle-availability', {
+        network,
+        size_gb: parseInt(newSize),
+        available: true
+      }, { headers: { 'X-Price-Auth': authToken } });
+      
       toast.success(`Added ${newSize}GB pricing for ${network.toUpperCase()}`);
       setNewSize('');
       setNewUserPrice('');
       setNewAgentPrice('');
       setShowAddSize(false);
-      fetchPrices(authToken); // Refresh prices
+      fetchPrices(authToken);
       
     } catch (error) {
       console.error('Add custom size error:', error);
@@ -440,7 +603,17 @@ export default function AdminPriceManagement() {
   };
 
   const networks = ['mtn', 'telecel', 'airteltigo'];
-  const sizes = ['1', '2', '5', '10', '20'];
+  // Get all unique sizes from both user and agent prices
+  const getAllSizes = () => {
+    const sizeSet = new Set();
+    networks.forEach(network => {
+      Object.keys(userPrices[network] || {}).forEach(size => sizeSet.add(size));
+      Object.keys(agentPrices[network] || {}).forEach(size => sizeSet.add(size));
+    });
+    return Array.from(sizeSet).sort((a, b) => parseFloat(a) - parseFloat(b));
+  };
+  
+  const sizes = getAllSizes();
 
   // Show loading while checking authentication
   if (authChecking) {
@@ -452,7 +625,7 @@ export default function AdminPriceManagement() {
     );
   }
 
-  // Password Login Screen - Centered
+  // Password Login Screen
   if (!isAuthenticated) {
     return (
       <div className="price-auth-wrapper">
@@ -560,6 +733,102 @@ export default function AdminPriceManagement() {
     );
   }
 
+  // Helper function to render price cell with availability controls
+const renderPriceCell = (network, size, type) => {
+  const isAvailable = availableSizes[network]?.[size] !== false;
+  const isEditing = editingCell?.type === type && 
+                   editingCell?.network === network && 
+                   editingCell?.sizeGb === size;
+  
+  // Get current price - handle both number and object formats
+  let priceData = type === 'user' 
+    ? userPrices[network]?.[size]
+    : agentPrices[network]?.[size];
+  
+  // Extract price value (handles both number and object)
+  let currentPrice = 0;
+  if (typeof priceData === 'object' && priceData !== null) {
+    currentPrice = priceData.price || 0;
+  } else {
+    currentPrice = priceData || 0;
+  }
+  
+  // Convert to number and ensure it's valid
+  const priceNumber = parseFloat(currentPrice) || 0;
+  
+  if (!isAvailable && priceNumber === 0) {
+    return (
+      <td className="price-cell unavailable">
+        <div className="price-unavailable">
+          <FaBan className="unavailable-icon" />
+          <span className="unavailable-text">Unavailable</span>
+          <button 
+            onClick={() => togglePackageAvailability(network, size, false)}
+            className="price-enable-btn"
+            title="Enable this package"
+          >
+            <FaCheck /> Enable
+          </button>
+        </div>
+      </td>
+    );
+  }
+  
+  return (
+    <td className={`price-cell ${!isAvailable ? 'disabled-package' : ''}`}>
+      {isEditing ? (
+        <div className="price-edit-container">
+          <input
+            type="number"
+            step="0.5"
+            value={editingCell.value}
+            onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+            className="price-input"
+            autoFocus
+          />
+          <button onClick={handleSave} className="price-save-btn">
+            <FaCheckCircle />
+          </button>
+          <button onClick={() => setEditingCell(null)} className="price-cancel-btn">
+            <FaTimes />
+          </button>
+        </div>
+      ) : (
+        <div className="price-display">
+          <span className={!isAvailable ? 'price-strikethrough' : ''}>
+            ₵{priceNumber.toFixed(2)}
+          </span>
+          <div className="price-actions-group">
+            <button 
+              onClick={() => handleEdit(type, network, size, priceNumber)}
+              className="price-edit-btn"
+              title="Edit price"
+            >
+              <FaEdit />
+            </button>
+            <button 
+              onClick={() => togglePackageAvailability(network, size, isAvailable)}
+              className={`price-toggle-btn ${isAvailable ? 'active' : 'inactive'}`}
+              title={isAvailable ? 'Disable package' : 'Enable package'}
+            >
+              {isAvailable ? <FaToggleOn /> : <FaToggleOff />}
+            </button>
+            {size !== '1' && size !== '2' && size !== '5' && size !== '10' && size !== '20' && (
+              <button 
+                onClick={() => deleteCustomSize(network, size)}
+                className="price-delete-btn"
+                title="Delete custom package"
+              >
+                <FaTrash />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </td>
+  );
+};
+
   return (
     <div className="price-management-container">
       <div className="price-header">
@@ -606,6 +875,12 @@ export default function AdminPriceManagement() {
           <div className="price-section-header">
             <h2><FaUsers /> User Retail Prices</h2>
             <p>Update prices for regular users buying data on Roamsmart</p>
+            <div className="price-legend">
+              <span><FaToggleOn className="legend-icon active" /> Available</span>
+              <span><FaToggleOff className="legend-icon inactive" /> Disabled</span>
+              <span><FaEdit className="legend-icon" /> Edit Price</span>
+              <span><FaTrash className="legend-icon delete" /> Delete Custom</span>
+            </div>
           </div>
           
           <div className="price-table-responsive">
@@ -619,53 +894,20 @@ export default function AdminPriceManagement() {
               </thead>
               <tbody>
                 {networks.map(network => (
-                  <tr key={network}>
-                    <td className="price-network-cell">{network.toUpperCase()}</td>
-                    {sizes.map(size => {
-                      const isEditing = editingCell?.type === 'user' && 
-                                       editingCell?.network === network && 
-                                       editingCell?.sizeGb === size;
-                      const currentPrice = userPrices[network]?.[size] || 0;
-                      
-                      return (
-                        <td key={size} className="price-cell">
-                          {isEditing ? (
-                            <div className="price-edit-container">
-                              <input
-                                type="number"
-                                step="0.5"
-                                value={editingCell.value}
-                                onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                                className="price-input"
-                                autoFocus
-                              />
-                              <button onClick={handleSave} className="price-save-btn">
-                                <FaCheckCircle />
-                              </button>
-                              <button onClick={() => setEditingCell(null)} className="price-cancel-btn">
-                                <FaTimes />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="price-display">
-                              <span>₵{currentPrice.toFixed(2)}</span>
-                              <button 
-                                onClick={() => handleEdit('user', network, size, currentPrice)}
-                                className="price-edit-btn"
-                              >
-                                <FaEdit />
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      );
-                    })}
+                  <tr key={network} className={network === 'airteltigo' ? 'network-warning' : ''}>
+                    <td className="price-network-cell">
+                      {network.toUpperCase()}
+                      {network === 'airteltigo' && (
+                        <small className="network-note">(Limited packages available)</small>
+                      )}
+                    </td>
+                    {sizes.map(size => renderPriceCell(network, size, 'user'))}
                     <td className="price-action-cell">
                       <button 
                         className="btn-outline btn-sm"
                         onClick={() => handleAddSizeClick(network)}
                       >
-                        <FaPlus /> Add Size
+                        <FaPlus /> Add Custom Size
                       </button>
                     </td>
                   </tr>
@@ -682,6 +924,12 @@ export default function AdminPriceManagement() {
           <div className="price-section-header">
             <h2><FaDatabase /> Agent Wholesale Prices</h2>
             <p>Update wholesale prices for agents on Roamsmart</p>
+            <div className="price-legend">
+              <span><FaToggleOn className="legend-icon active" /> Available</span>
+              <span><FaToggleOff className="legend-icon inactive" /> Disabled</span>
+              <span><FaEdit className="legend-icon" /> Edit Price</span>
+              <span><FaTrash className="legend-icon delete" /> Delete Custom</span>
+            </div>
           </div>
           
           <div className="price-table-responsive">
@@ -697,45 +945,7 @@ export default function AdminPriceManagement() {
                 {networks.map(network => (
                   <tr key={network}>
                     <td className="price-network-cell">{network.toUpperCase()}</td>
-                    {sizes.map(size => {
-                      const isEditing = editingCell?.type === 'agent' && 
-                                       editingCell?.network === network && 
-                                       editingCell?.sizeGb === size;
-                      const currentPrice = agentPrices[network]?.[size] || 0;
-                      
-                      return (
-                        <td key={size} className="price-cell">
-                          {isEditing ? (
-                            <div className="price-edit-container">
-                              <input
-                                type="number"
-                                step="0.5"
-                                value={editingCell.value}
-                                onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                                className="price-input"
-                                autoFocus
-                              />
-                              <button onClick={handleSave} className="price-save-btn">
-                                <FaCheckCircle />
-                              </button>
-                              <button onClick={() => setEditingCell(null)} className="price-cancel-btn">
-                                <FaTimes />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="price-display">
-                              <span>₵{currentPrice.toFixed(2)}</span>
-                              <button 
-                                onClick={() => handleEdit('agent', network, size, currentPrice)}
-                                className="price-edit-btn"
-                              >
-                                <FaEdit />
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      );
-                    })}
+                    {sizes.map(size => renderPriceCell(network, size, 'agent'))}
                     <td className="price-action-cell">
                       <button 
                         className="btn-outline btn-sm"
@@ -756,11 +966,11 @@ export default function AdminPriceManagement() {
               {networks.map(network => (
                 <div key={network} className="price-margin-card">
                   <h5>{network.toUpperCase()}</h5>
-                  {sizes.map(size => {
+                  {sizes.filter(size => availableSizes[network]?.[size] !== false).map(size => {
                     const userPrice = userPrices[network]?.[size] || 0;
                     const agentPrice = agentPrices[network]?.[size] || 0;
                     const margin = userPrice - agentPrice;
-                    const marginPercent = (margin / userPrice * 100).toFixed(1);
+                    const marginPercent = userPrice > 0 ? (margin / userPrice * 100).toFixed(1) : 0;
                     
                     return (
                       <div key={size} className="price-margin-item">
@@ -777,7 +987,7 @@ export default function AdminPriceManagement() {
         </div>
       )}
 
-      {/* WAEC Prices Tab */}
+      {/* WAEC Prices Tab (unchanged) */}
       {activeTab === 'waec' && (
         <div className="price-table-wrapper">
           <div className="price-section-header">
@@ -827,7 +1037,7 @@ export default function AdminPriceManagement() {
         </div>
       )}
 
-      {/* Commission Rates Tab */}
+      {/* Commission Rates Tab (unchanged) */}
       {activeTab === 'commission' && (
         <div className="price-table-wrapper">
           <div className="price-section-header">

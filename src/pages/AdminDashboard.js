@@ -165,6 +165,7 @@ export default function AdminDashboard() {
   const [backups, setBackups] = useState([]);
   const [backupProgress, setBackupProgress] = useState(0);
   const [webhooks, setWebhooks] = useState([]);
+  const [isEditing, setIsEditing] = useState(false);
   const [newWebhook, setNewWebhook] = useState({ url: '', events: [], secret: '' });
   const [kycRequests, setKycRequests] = useState([]);
   const [waecVouchers, setWaecVouchers] = useState([]);
@@ -1334,21 +1335,64 @@ const fetchDigimallBalance = async () => {
     }
   };
 
-  const createUser = async () => {
-    if (!newUser.username || !newUser.email || !newUser.phone) {
-      toast.error('Please fill all required fields');
-      return;
+  // ========== USER MANAGEMENT ==========
+const saveUser = async () => {
+  if (!newUser.username || !newUser.email || !newUser.phone) {
+    toast.error('Please fill all required fields');
+    return;
+  }
+  
+  try {
+    if (isEditing && newUser.id) {
+      // UPDATE existing user
+      const response = await api.put(`/admin/users/${newUser.id}`, {
+        username: newUser.username,
+        email: newUser.email,
+        phone: newUser.phone,
+        role: newUser.role,
+        wallet_balance: newUser.wallet_balance,
+        // Don't send password if empty (keep existing password)
+        ...(newUser.password && { password: newUser.password })
+      });
+      
+      if (response.data.success) {
+        toast.success(`User ${newUser.username} updated successfully on Roamsmart!`);
+      } else {
+        toast.error(response.data.error || 'Failed to update user');
+        return;
+      }
+    } else {
+      // CREATE new user
+      const response = await api.post('/admin/users/create', newUser);
+      if (response.data.success) {
+        toast.success(`User ${newUser.username} created successfully on Roamsmart!`);
+      } else {
+        toast.error(response.data.error || 'Failed to create user');
+        return;
+      }
     }
-    try {
-      await api.post('/admin/users/create', newUser);
-      toast.success(`User ${newUser.username} created successfully on Roamsmart!`);
-      setShowCreateUserModal(false);
-      setNewUser({ username: '', email: '', phone: '', password: '', role: 'user', wallet_balance: 0 });
-      fetchAllData();
-    } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to create user');
-    }
-  };
+    
+    // Close modal and reset form
+    setShowCreateUserModal(false);
+    setIsEditing(false);
+    setNewUser({ 
+      username: '', 
+      email: '', 
+      phone: '', 
+      password: '', 
+      role: 'user', 
+      wallet_balance: 0 
+    });
+    
+    // Refresh data
+    fetchAllData();
+    fetchRecentActivities();
+    
+  } catch (error) {
+    console.error('Save user error:', error);
+    toast.error(error.response?.data?.error || 'Failed to save user');
+  }
+};
 
   const bulkAdjustWallet = async () => {
     const { value: formValues } = await Swal.fire({
@@ -2096,38 +2140,100 @@ const fetchDigimallBalance = async () => {
       )}
 
       {/* ========== USERS TAB ========== */}
-      {activeTab === 'users' && (
-        <div className="panel">
-          <div className="panel-header"><h3>All Users</h3><div className="search-box"><FaSearch /><input type="text" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div></div>
-          <div className="table-responsive">
-            <table className="data-table">
-              <thead>
-                <tr><th>ID</th><th>Username</th><th>Email</th><th>Phone</th><th>Role</th><th>Wallet</th><th>Total Spent</th><th>Joined</th><th>Status</th><th>Actions</th></tr>
-              </thead>
-              <tbody>
-                {users.filter(u => u?.username?.toLowerCase().includes(searchTerm.toLowerCase()) || u?.email?.toLowerCase().includes(searchTerm.toLowerCase()) || u?.phone?.includes(searchTerm)).map(user => (
-                  <tr key={user.id}>
-                    <td>{user?.id}</td>
-                    <td><strong>{user?.username || 'Unknown'}</strong>{user?.is_agent && <span className="agent-badge">Agent</span>}</td>
-                    <td>{user?.email || ''}</td>
-                    <td>{user?.phone || ''}</td>
-                    <td>{user?.is_agent ? 'Agent' : user?.is_admin ? 'Admin' : 'User'}</td>
-                    <td className="amount">₵{user?.wallet_balance || 0}</td>
-                    <td className="amount">₵{user?.total_spent || 0}</td>
-                    <td>{user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</td>
-                    <td><span className={`status ${user?.is_suspended ? 'suspended' : 'active'}`}>{user?.is_suspended ? 'Suspended' : 'Active'}</span></td>
-                    <td className="actions">
-                      <button className="btn-info btn-sm" onClick={() => { setSelectedUser(user); setShowUserModal(true); }}><FaEye /> View</button>
-                      {!user?.is_suspended ? <button className="btn-warning btn-sm" onClick={() => suspendUser(user.id)}><FaBan /> Suspend</button> : <button className="btn-success btn-sm" onClick={() => activateUser(user.id)}><FaUserCheck /> Activate</button>}
-                      <button className="btn-primary btn-sm" onClick={() => { setNewUser(user); setShowCreateUserModal(true); }}><FaEdit /> Edit</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+{activeTab === 'users' && (
+  <div className="panel">
+    <div className="panel-header">
+      <h3>All Users</h3>
+      <div className="search-box">
+        <FaSearch />
+        <input 
+          type="text" 
+          placeholder="Search users..." 
+          value={searchTerm} 
+          onChange={(e) => setSearchTerm(e.target.value)} 
+        />
+      </div>
+    </div>
+    <div className="table-responsive">
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>ID</th><th>Username</th><th>Email</th><th>Phone</th><th>Role</th>
+            <th>Wallet</th><th>Total Spent</th><th>Joined</th><th>Status</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.filter(u => 
+            u?.username?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            u?.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            u?.phone?.includes(searchTerm)
+          ).map(user => (
+            <tr key={user.id}>
+              <td>{user?.id}</td>
+              <td>
+                <strong>{user?.username || 'Unknown'}</strong>
+                {user?.is_agent && <span className="agent-badge">Agent</span>}
+              </td>
+              <td>{user?.email || ''}</td>
+              <td>{user?.phone || ''}</td>
+              <td>{user?.is_agent ? 'Agent' : user?.is_admin ? 'Admin' : 'User'}</td>
+              <td className="amount">₵{user?.wallet_balance || 0}</td>
+              <td className="amount">₵{user?.total_spent || 0}</td>
+              <td>{user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</td>
+              <td>
+                <span className={`status ${user?.is_suspended ? 'suspended' : 'active'}`}>
+                  {user?.is_suspended ? 'Suspended' : 'Active'}
+                </span>
+              </td>
+              <td className="actions">
+                <button 
+                  className="btn-info btn-sm" 
+                  onClick={() => { 
+                    setSelectedUser(user); 
+                    setShowUserModal(true); 
+                  }}
+                >
+                  <FaEye /> View
+                </button>
+                
+                {/* EDIT BUTTON - Updated */}
+                <button 
+                  className="btn-primary btn-sm" 
+                  onClick={() => { 
+                    console.log('Editing user:', user);
+                    setIsEditing(true);  // Set edit mode
+                    setNewUser({         // Populate form with user data
+                      id: user.id,
+                      username: user.username || '',
+                      email: user.email || '',
+                      phone: user.phone || '',
+                      password: '',      // Leave empty, won't update unless filled
+                      role: user.is_agent ? 'agent' : (user.is_admin ? 'admin' : 'user'),
+                      wallet_balance: user.wallet_balance || 0
+                    });
+                    setShowCreateUserModal(true); 
+                  }}
+                >
+                  <FaEdit /> Edit
+                </button>
+                
+                {!user?.is_suspended ? (
+                  <button className="btn-warning btn-sm" onClick={() => suspendUser(user.id)}>
+                    <FaBan /> Suspend
+                  </button>
+                ) : (
+                  <button className="btn-success btn-sm" onClick={() => activateUser(user.id)}>
+                    <FaUserCheck /> Activate
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
 
       {/* ========== AGENTS LIST TAB ========== */}
       {activeTab === 'agents-list' && (
@@ -2319,9 +2425,107 @@ const fetchDigimallBalance = async () => {
       {/* Announcement Modal */}
       <AnimatePresence>{showAnnouncementModal && (<motion.div className="modal-overlay" onClick={() => setShowAnnouncementModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowAnnouncementModal(false)}>×</button><h3><FaBullhorn /> Create Announcement</h3><div className="form-group"><label>Message</label><textarea value={announcement.message} onChange={(e) => setAnnouncement({...announcement, message: e.target.value})} className="form-control" rows="3" /></div><div className="form-group"><label>Type</label><select value={announcement.type} onChange={(e) => setAnnouncement({...announcement, type: e.target.value})} className="form-control"><option value="info">ℹ️ Info</option><option value="warning">⚠️ Warning</option><option value="error">🚨 Critical</option><option value="success">✅ Success</option></select></div><div className="form-group"><label>Affected Network</label><select value={announcement.network_affected} onChange={(e) => setAnnouncement({...announcement, network_affected: e.target.value})} className="form-control"><option value="all">All Networks</option><option value="mtn">MTN</option><option value="telecel">Telecel</option><option value="airteltigo">AirtelTigo</option></select></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowAnnouncementModal(false)}>Cancel</button><button className="btn-primary" onClick={createAnnouncement}>Publish</button></div></motion.div></motion.div>)}</AnimatePresence>
 
-      {/* Create User Modal */}
-      <AnimatePresence>{showCreateUserModal && (<motion.div className="modal-overlay" onClick={() => setShowCreateUserModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowCreateUserModal(false)}>×</button><h3><FaUserPlus /> Create User</h3><div className="form-group"><label>Username *</label><input type="text" value={newUser.username} onChange={(e) => setNewUser({...newUser, username: e.target.value})} className="form-control" /></div><div className="form-group"><label>Email *</label><input type="email" value={newUser.email} onChange={(e) => setNewUser({...newUser, email: e.target.value})} className="form-control" /></div><div className="form-group"><label>Phone *</label><input type="tel" value={newUser.phone} onChange={(e) => setNewUser({...newUser, phone: e.target.value})} className="form-control" /></div><div className="form-group"><label>Password</label><input type="password" value={newUser.password} onChange={(e) => setNewUser({...newUser, password: e.target.value})} className="form-control" placeholder="Leave blank for auto-generated" /></div><div className="form-group"><label>Role</label><select value={newUser.role} onChange={(e) => setNewUser({...newUser, role: e.target.value})} className="form-control"><option value="user">User</option><option value="agent">Agent</option><option value="admin">Admin</option></select></div><div className="form-group"><label>Initial Wallet Balance</label><input type="number" value={newUser.wallet_balance} onChange={(e) => setNewUser({...newUser, wallet_balance: parseFloat(e.target.value)})} className="form-control" /></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowCreateUserModal(false)}>Cancel</button><button className="btn-primary" onClick={createUser}>Create User</button></div></motion.div></motion.div>)}</AnimatePresence>
-
+      {/* Create/Edit User Modal */}
+<AnimatePresence>
+  {showCreateUserModal && (
+    <motion.div className="modal-overlay" onClick={() => {
+      setShowCreateUserModal(false);
+      setIsEditing(false);
+    }}>
+      <motion.div className="modal-content" onClick={e => e.stopPropagation()}>
+        <button className="modal-close" onClick={() => {
+          setShowCreateUserModal(false);
+          setIsEditing(false);
+        }}>×</button>
+        
+        <h3>
+          {isEditing ? <FaEdit /> : <FaUserPlus />} 
+          {isEditing ? 'Edit User' : 'Create New User'}
+        </h3>
+        
+        <div className="form-group">
+          <label>Username *</label>
+          <input 
+            type="text" 
+            value={newUser.username} 
+            onChange={(e) => setNewUser({...newUser, username: e.target.value})} 
+            className="form-control" 
+            required
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Email *</label>
+          <input 
+            type="email" 
+            value={newUser.email} 
+            onChange={(e) => setNewUser({...newUser, email: e.target.value})} 
+            className="form-control" 
+            required
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Phone *</label>
+          <input 
+            type="tel" 
+            value={newUser.phone} 
+            onChange={(e) => setNewUser({...newUser, phone: e.target.value})} 
+            className="form-control" 
+            required
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Password {isEditing && <small style={{color: '#666', fontSize: '11px'}}>(Leave blank to keep current)</small>}</label>
+          <input 
+            type="password" 
+            value={newUser.password} 
+            onChange={(e) => setNewUser({...newUser, password: e.target.value})} 
+            className="form-control" 
+            placeholder={isEditing ? "Enter new password to change" : "Auto-generated if left blank"}
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Role</label>
+          <select 
+            value={newUser.role} 
+            onChange={(e) => setNewUser({...newUser, role: e.target.value})} 
+            className="form-control"
+          >
+            <option value="user">User</option>
+            <option value="agent">Agent</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        
+        <div className="form-group">
+          <label>Initial/Current Wallet Balance (GHS)</label>
+          <input 
+            type="number" 
+            value={newUser.wallet_balance} 
+            onChange={(e) => setNewUser({...newUser, wallet_balance: parseFloat(e.target.value)})} 
+            className="form-control" 
+            step="0.01"
+          />
+        </div>
+        
+        <div className="modal-actions">
+          <button className="btn-secondary" onClick={() => {
+            setShowCreateUserModal(false);
+            setIsEditing(false);
+          }}>
+            Cancel
+          </button>
+          <button className="btn-primary" onClick={saveUser}>
+            {isEditing ? 'Update User' : 'Create User'}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )}
+</AnimatePresence>
       {/* Bulk Approve Modal */}
       <AnimatePresence>{showBulkApproveModal && (<motion.div className="modal-overlay" onClick={() => setShowBulkApproveModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowBulkApproveModal(false)}>×</button><h3><FaUserCheck /> Bulk Approve Agents</h3><p>Approve <strong>{selectedRequests.length}</strong> agent requests</p><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowBulkApproveModal(false)}>Cancel</button><button className="btn-primary" onClick={bulkApproveAgents}>Approve All</button></div></motion.div></motion.div>)}</AnimatePresence>
 

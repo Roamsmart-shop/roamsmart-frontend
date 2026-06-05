@@ -26,15 +26,122 @@
 
 .table-responsive {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -1px;
+  border-radius: var(--radius-xl);
 }
 
-/* Status Badges */
+/* ========== MOBILE RESPONSIVE TABLES ========== */
+
+/* Tablet and below */
+@media (max-width: 768px) {
+  .table-responsive {
+    margin: 0;
+    border-radius: var(--radius-lg);
+  }
+  
+  .data-table th,
+  .data-table td {
+    padding: 12px 10px;
+    font-size: 13px;
+  }
+  
+  /* Make table cells stack on very small screens */
+  .data-table.responsive-stack,
+  .data-table.responsive-stack thead,
+  .data-table.responsive-stack tbody,
+  .data-table.responsive-stack th,
+  .data-table.responsive-stack td,
+  .data-table.responsive-stack tr {
+    display: block;
+  }
+  
+  .data-table.responsive-stack thead tr {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
+  }
+  
+  .data-table.responsive-stack tr {
+    border: 1px solid var(--gray-300);
+    margin-bottom: 15px;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  
+  .data-table.responsive-stack td {
+    border: none;
+    border-bottom: 1px solid var(--gray-200);
+    position: relative;
+    padding-left: 50%;
+    text-align: right;
+    min-height: 48px;
+  }
+  
+  .data-table.responsive-stack td:before {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 45%;
+    padding-right: 10px;
+    white-space: nowrap;
+    text-align: left;
+    font-weight: 600;
+    color: var(--gray-700);
+    content: attr(data-label);
+  }
+  
+  .data-table.responsive-stack td:last-child {
+    border-bottom: 0;
+  }
+}
+
+/* Mobile portrait */
+@media (max-width: 480px) {
+  .data-table th,
+  .data-table td {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+  
+  /* Alternative: horizontal scroll (simpler approach) */
+  .table-responsive.horizontal-scroll {
+    overflow-x: auto;
+  }
+  
+  .table-responsive.horizontal-scroll .data-table {
+    min-width: 600px;
+  }
+  
+  /* Ensure action buttons are touch-friendly */
+  .data-table td:last-child {
+    white-space: nowrap;
+  }
+  
+  .data-table button,
+  .data-table .btn-sm {
+    min-height: 36px;
+    min-width: 36px;
+    padding: 6px 10px;
+    margin: 2px;
+  }
+}
+
+/* ========== STATUS BADGES - Mobile Friendly ========== */
 .status-badge {
   display: inline-block;
   padding: 4px 12px;
   border-radius: 20px;
   font-size: 0.75rem;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .status-badge {
+    padding: 3px 8px;
+    font-size: 0.7rem;
+  }
 }
 
 .badge-success {
@@ -62,13 +169,21 @@
   color: var(--gray-700);
 }
 
-/* Type Badges */
+/* ========== TYPE BADGES ========== */
 .type-badge {
   display: inline-block;
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 0.7rem;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .type-badge {
+    padding: 3px 8px;
+    font-size: 0.65rem;
+  }
 }
 
 .type-credit {
@@ -84,4 +199,209 @@
 .type-refund {
   background: #cce5ff;
   color: #004085;
+}
+
+/* ========== COMPACT TABLE (For dense data) ========== */
+.table-compact .data-table th,
+.table-compact .data-table td {
+  padding: 8px 12px;
+}
+
+@media (max-width: 768px) {
+  .table-compact .data-table th,
+  .table-compact .data-table td {
+    padding: 6px 8px;
+  }
+}
+
+/* ========== CARD-STYLE TABLE (Mobile Alternative) ========== */
+.table-card-view {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .table-card-view {
+    display: block;
+  }
+  
+  .table-card-view .data-table {
+    display: none;
+  }
+  
+  .card-table-item {
+    background: var(--white);
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    transition: all 0.2s;
+  }
+  
+  .card-table-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  
+  .card-table-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--gray-200);
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .card-table-row:last-child {
+    border-bottom: none;
+  }
+  
+  .card-table-label {
+    font-weight: 600;
+    color: var(--gray-700);
+    font-size: 12px;
+    min-width: 100px;
+  }
+  
+  .card-table-value {
+    flex: 1;
+    text-align: right;
+    font-size: 13px;
+    color: var(--gray-900);
+    word-break: break-word;
+  }
+  
+  .card-table-actions {
+    margin-top: 12px;
+    padding-top: 8px;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+}
+
+/* ========== TOUCH-FRIENDLY IMPROVEMENTS ========== */
+@media (max-width: 768px) {
+  /* Larger tap targets for action buttons */
+  .data-table td .btn-sm,
+  .data-table td button,
+  .card-table-actions button {
+    min-height: 40px;
+    min-width: 40px;
+    padding: 8px 12px;
+    margin: 2px;
+  }
+  
+  /* Better spacing for table rows */
+  .data-table tr {
+    border-bottom: 1px solid var(--gray-200);
+  }
+  
+  /* Sticky first column for wide tables */
+  .table-responsive.sticky-first-col .data-table td:first-child,
+  .table-responsive.sticky-first-col .data-table th:first-child {
+    position: sticky;
+    left: 0;
+    background: inherit;
+    z-index: 1;
+  }
+  
+  .table-responsive.sticky-first-col .data-table th:first-child {
+    background: var(--gray-100);
+    z-index: 2;
+  }
+}
+
+/* ========== DARK MODE SUPPORT ========== */
+@media (prefers-color-scheme: dark) {
+  .data-table {
+    background: var(--dark-surface);
+  }
+  
+  .data-table th {
+    background: var(--dark-surface-hover);
+    color: var(--dark-text);
+  }
+  
+  .data-table td {
+    border-bottom-color: var(--dark-border);
+    color: var(--dark-text-secondary);
+  }
+  
+  .data-table tr:hover {
+    background: var(--dark-surface-hover);
+  }
+  
+  .badge-success {
+    background: rgba(40, 167, 69, 0.2);
+    color: #2ea043;
+  }
+  
+  .badge-warning {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+  }
+  
+  .badge-danger {
+    background: rgba(220, 53, 69, 0.2);
+    color: #f85149;
+  }
+  
+  .badge-info {
+    background: rgba(0, 123, 255, 0.2);
+    color: #58a6ff;
+  }
+  
+  .card-table-item {
+    background: var(--dark-surface);
+    border-color: var(--dark-border);
+  }
+  
+  .card-table-row {
+    border-bottom-color: var(--dark-border);
+  }
+  
+  .card-table-label {
+    color: var(--dark-text-secondary);
+  }
+  
+  .card-table-value {
+    color: var(--dark-text);
+  }
+}
+
+/* ========== UTILITY CLASSES ========== */
+.text-right {
+  text-align: right;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-nowrap {
+  white-space: nowrap;
+}
+
+/* Truncate long text on mobile */
+@media (max-width: 768px) {
+  .text-truncate-mobile {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .data-table tr,
+  .card-table-item {
+    transition: none;
+  }
+  
+  .card-table-item:hover {
+    transform: none;
+  }
 }

@@ -105,13 +105,19 @@ export default function AgentDashboard() {
     username: ''
   });
   
+
+  
+
   const [bundles, setBundles] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedNetwork, setSelectedNetwork] = useState('mtn');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerName, setCustomerName] = useState('');
-  
+  const [selectedProducts, setSelectedProducts] = useState([]);
+  const [availableProducts, setAvailableProducts] = useState([]);
+  const [customPrices, setCustomPrices] = useState({});
+  const [editingPrice, setEditingPrice] = useState(null);
   // Payment States
   const [showFundModal, setShowFundModal] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
@@ -195,6 +201,17 @@ export default function AgentDashboard() {
   const [dateRange, setDateRange] = useState('week');
   const [searchTerm, setSearchTerm] = useState('');
 
+  const [storeEarnings, setStoreEarnings] = useState({
+  total_sales: 0,
+  total_earnings: 0,
+  pending_payouts: 0,
+  orders_count: 0,
+  earnings_by_month: {},
+  recent_orders: []
+});
+const [loadingEarnings, setLoadingEarnings] = useState(false);
+  
+  
   const quickAmounts = [50, 100, 200, 500, 1000];
 
   useEffect(() => {
@@ -204,6 +221,7 @@ export default function AgentDashboard() {
     fetchPrices();
     fetchPendingTopups();
     fetchPendingPayments();
+    fetchStoreEarnings();
   }, []);
 
   // Update available sizes when network changes
@@ -249,6 +267,43 @@ export default function AgentDashboard() {
     }
   };
 
+  // Add to fetchStoreSettings or create a new function
+const fetchStoreProducts = async () => {
+  try {
+    const res = await api.get('/agent/store');
+    if (res.data.data) {
+      // Load existing custom products
+      if (res.data.data.custom_products) {
+        setSelectedProducts(res.data.data.custom_products);
+      }
+      if (res.data.data.custom_prices) {
+        setCustomPrices(res.data.data.custom_prices);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch store products:', error);
+  }
+};
+
+const fetchStoreEarnings = async () => {
+  setLoadingEarnings(true);
+  try {
+    const response = await api.get('/agent/store-earnings');
+    if (response.data.success) {
+      setStoreEarnings(response.data.data);
+    }
+  } catch (error) {
+    console.error('Failed to fetch store earnings:', error);
+  } finally {
+    setLoadingEarnings(false);
+  }
+};
+
+// Call this when opening store modal
+const openStoreModal = async () => {
+  await fetchStoreProducts();
+  setShowStoreModal(true);
+};
   // Fetch prices function
   const fetchPrices = async () => {
     try {
@@ -1032,6 +1087,8 @@ const retryOrder = async (order) => {
   }
 };
 
+  
+
   const confirmSale = async () => {
   if (!pendingPurchase) return;
   
@@ -1206,7 +1263,7 @@ const retryOrder = async (order) => {
     }
   };
 
-  // ========== BULK EXCEL UPLOAD ==========
+
   const handleExcelUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -1259,42 +1316,62 @@ const retryOrder = async (order) => {
     }
   };
 
-  // ========== SAVE STORE SETTINGS ==========
+ 
   const saveStoreSettings = async () => {
-    if (!storeSettings.store_name) {
-      toast.error('Please enter a store name');
-      return;
+  if (!storeSettings.store_name) {
+    toast.error('Please enter a store name');
+    return;
+  }
+  if (!storeSettings.store_slug) {
+    toast.error('Please enter a store URL slug');
+    return;
+  }
+  
+  setSavingStore(true);
+  
+  const finalCustomPrices = {};
+  selectedProducts.forEach(product => {
+    const network = product.network;
+    const size = product.size_gb;
+    const price = customPrices[network]?.[size];
+    if (price) {
+      if (!finalCustomPrices[network]) finalCustomPrices[network] = {};
+      finalCustomPrices[network][size] = price;
     }
-    if (!storeSettings.store_slug) {
-      toast.error('Please enter a store URL slug');
-      return;
-    }
+  });
+  
+  try {
+    await api.post('/agent/store', {
+      store_name: storeSettings.store_name,
+      store_slug: storeSettings.store_slug,
+      contact_phone: storeSettings.contact_phone,
+      contact_email: storeSettings.contact_email,
+      store_description: storeSettings.store_description,
+      markup: storeSettings.markup,
+      custom_products: selectedProducts,
+      custom_prices: finalCustomPrices
+    });
     
-    setSavingStore(true);
+    toast.success(`Store settings saved on ${COMPANY.name}!`);
+    setShowStoreModal(false);
     
-    try {
-      await api.post('/agent/store', storeSettings);
-      toast.success(`Store settings saved on ${COMPANY.name}!`);
-      setShowStoreModal(false);
-      
-      const storeUrl = `${window.location.origin}/store/${storeSettings.store_slug}`;
-      Swal.fire({
-        icon: 'success',
-        title: 'Store Created on Roamsmart!',
-        html: `Your Roamsmart store is live at: <br/><a href="${storeUrl}" target="_blank">${storeUrl}</a><br/><br/>Share this link with your customers!`,
-        confirmButtonColor: '#8B0000'
-      });
-      
-      fetchPrices();
-    } catch (error) {
-      console.error('Save store error:', error);
-      toast.error('Failed to save store settings');
-    } finally {
-      setSavingStore(false);
-    }
-  };
+    const storeUrl = `${window.location.origin}/store/${storeSettings.store_slug}`;
+    Swal.fire({
+      icon: 'success',
+      title: 'Store Created on Roamsmart!',
+      html: `Your Roamsmart store is live at: <br/><a href="${storeUrl}" target="_blank">${storeUrl}</a><br/><br/>Share this link with your customers!`,
+      confirmButtonColor: '#8B0000'
+    });
+    
+    fetchPrices();
+  } catch (error) {
+    console.error('Save store error:', error);
+    toast.error('Failed to save store settings');
+  } finally {
+    setSavingStore(false);
+  }
+};
 
-  // ========== SHARE FUNCTIONS ==========
   const shareWhatsApp = (product) => {
     const storeUrl = `${window.location.origin}/store/${storeSettings.store_slug || 'roamsmart'}`;
     const message = `📱 *ROAMSMART DATA BUNDLE* 📱\n\n` +
@@ -1449,16 +1526,19 @@ const retryOrder = async (order) => {
       )}
 
       <div className="agent-tabs">
-        <button className={`tab ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
-          <FaChartLine /> Dashboard
-        </button>
-        <button className={`tab ${activeTab === 'sell' ? 'active' : ''}`} onClick={() => setActiveTab('sell')}>
-          <FaShoppingCart /> Sell Data
-        </button>
-        <button className={`tab ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => setActiveTab('customers')}>
-          <FaUsers /> Customers
-        </button>
-      </div>
+  <button className={`tab ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => setActiveTab('dashboard')}>
+    <FaChartLine /> Dashboard
+  </button>
+  <button className={`tab ${activeTab === 'sell' ? 'active' : ''}`} onClick={() => setActiveTab('sell')}>
+    <FaShoppingCart /> Sell Data
+  </button>
+  <button className={`tab ${activeTab === 'store_earnings' ? 'active' : ''}`} onClick={() => setActiveTab('store_earnings')}>
+    <FaStore /> Store Earnings
+  </button>
+  <button className={`tab ${activeTab === 'customers' ? 'active' : ''}`} onClick={() => setActiveTab('customers')}>
+    <FaUsers /> Customers
+  </button>
+</div>
 
       {/* Dashboard Tab */}
       {activeTab === 'dashboard' && (
@@ -2044,11 +2124,79 @@ const retryOrder = async (order) => {
         )}
       </AnimatePresence>
 
-      {/* Store Settings Modal - Updated with Price Management */}
+      
+{/* Store Earnings Tab */}
+{activeTab === 'store_earnings' && (
+  <div className="store-earnings-panel">
+    <div className="earnings-summary">
+      <div className="summary-card">
+        <h3>Total Store Sales</h3>
+        <div className="amount">₵{storeEarnings.total_sales?.toFixed(2) || '0.00'}</div>
+      </div>
+      <div className="summary-card success">
+        <h3>Your Earnings</h3>
+        <div className="amount">₵{storeEarnings.total_earnings?.toFixed(2) || '0.00'}</div>
+        <small>Already credited to your wallet</small>
+      </div>
+      <div className="summary-card warning">
+        <h3>Pending Payouts</h3>
+        <div className="amount">₵{storeEarnings.pending_payouts?.toFixed(2) || '0.00'}</div>
+        <small>Will be credited after payment confirmation</small>
+      </div>
+    </div>
+    
+    <div className="earnings-table">
+      <h3>Recent Store Orders</h3>
+      {loadingEarnings ? (
+        <div className="loading-spinner"><FaSpinner className="spinning" /> Loading...</div>
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Customer</th>
+              <th>Product</th>
+              <th>Amount</th>
+              <th>Your Earnings</th>
+              <th>Status</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {storeEarnings.recent_orders?.map(order => (
+              <tr key={order.order_id}>
+                <td className="order-id">{order.order_id}</td>
+                <td>{order.customer_phone}</td>
+                <td>{order.product}</td>
+                <td className="amount">₵{order.amount?.toFixed(2)}</td>
+                <td className="profit">₵{order.earnings?.toFixed(2)}</td>
+                <td>
+                  <span className={`status ${order.status}`}>
+                    {order.status === 'completed' ? '✅ Completed' : 
+                     order.status === 'pending_payment' ? '⏳ Pending Payment' : 
+                     order.status}
+                  </span>
+                </td>
+                <td className="date">{new Date(order.created_at).toLocaleDateString()}</td>
+              </tr>
+            ))}
+            {(!storeEarnings.recent_orders || storeEarnings.recent_orders.length === 0) && (
+              <tr>
+                <td colSpan="7" className="text-center">No store orders yet</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
+    </div>
+  </div>
+)}
+      
+      {/* Store Settings Modal - With Product Selection */}
 <AnimatePresence>
   {showStoreModal && (
     <motion.div className="modal-overlay" onClick={() => setShowStoreModal(false)}>
-      <motion.div className="modal-content store-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+      <motion.div className="modal-content store-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px' }}>
         <button className="modal-close" onClick={() => setShowStoreModal(false)}>×</button>
         <h3><FaStore /> Your Roamsmart Store Setup</h3>
         
@@ -2072,7 +2220,7 @@ const retryOrder = async (order) => {
             placeholder="my-store"
             className="form-control"
           />
-          <small>Your store URL: {window.location.origin}/store/{storeSettings.store_slug || 'my-store'}</small>
+          <small>Your Roamsmart store: roamsmart.shop/store/{storeSettings.store_slug || 'my-store'}</small>
         </div>
         
         <div className="form-row">
@@ -2105,56 +2253,148 @@ const retryOrder = async (order) => {
             onChange={(e) => setStoreSettings({...storeSettings, store_description: e.target.value})}
             placeholder="Tell customers about your Roamsmart store..."
             className="form-control"
-            rows="3"
+            rows="2"
           />
         </div>
         
-        {/* Price Management Section */}
-        <div className="price-management-section">
-          <h4>💰 Your Prices (Markup %)</h4>
-          <div className="form-group">
-            <label>Default Markup (%)</label>
-            <input 
-              type="number" 
-              value={storeSettings.markup}
-              onChange={(e) => setStoreSettings({...storeSettings, markup: parseInt(e.target.value)})}
-              placeholder="15"
-              className="form-control"
-              min="0"
-              max="100"
-            />
-            <small>Example: 15% markup means you sell ₵100 product for ₵115</small>
+        <div className="form-group">
+          <label>Your Markup (%)</label>
+          <input 
+            type="number" 
+            value={storeSettings.markup}
+            onChange={(e) => setStoreSettings({...storeSettings, markup: parseInt(e.target.value)})}
+            placeholder="15"
+            className="form-control"
+            min="0"
+            max="100"
+          />
+          <small>Default markup for calculating selling prices</small>
+        </div>
+        
+        {/* PRODUCT SELECTION SECTION */}
+        <div className="form-group">
+          <label>📦 Select Products to Sell</label>
+          <small className="help-text">Choose which data bundles you want to display in your store</small>
+          
+          <div className="product-selection-tabs">
+            {['mtn', 'telecel', 'airteltigo'].map(net => (
+              <button 
+                key={net}
+                type="button"
+                className={`product-tab ${selectedNetwork === net ? 'active' : ''}`}
+                onClick={() => setSelectedNetwork(net)}
+              >
+                {net.toUpperCase()}
+              </button>
+            ))}
           </div>
           
-          <div className="custom-prices">
-            <label>Custom Prices (Optional)</label>
-            <div className="custom-prices-list">
-              {Object.entries(agentBundles).map(([network, bundles]) => (
-                <div key={network} className="network-price-group">
-                  <h5>{network.toUpperCase()}</h5>
-                  {Object.entries(bundles).slice(0, 5).map(([size, wholesalePrice]) => {
-                    const currentPrice = storeSettings.custom_prices?.[network]?.[size] || wholesalePrice * (1 + storeSettings.markup / 100);
-                    return (
-                      <div key={size} className="custom-price-row">
-                        <span>{size}GB</span>
+          <div className="products-selection-grid">
+            {Object.entries(agentBundles[selectedNetwork] || {}).map(([size, wholesalePrice]) => {
+              const sellingPrice = wholesalePrice * (1 + storeSettings.markup / 100);
+              const customPrice = customPrices[selectedNetwork]?.[size];
+              const isSelected = selectedProducts.some(p => p.network === selectedNetwork && p.size_gb === parseFloat(size));
+              const displayPrice = customPrice || sellingPrice;
+              
+              return (
+                <div 
+                  key={`${selectedNetwork}-${size}`}
+                  className={`product-select-card ${isSelected ? 'selected' : ''}`}
+                  onClick={() => {
+                    if (isSelected) {
+                      setSelectedProducts(selectedProducts.filter(p => !(p.network === selectedNetwork && p.size_gb === parseFloat(size))));
+                      // Remove custom price if exists
+                      if (customPrices[selectedNetwork]?.[size]) {
+                        const newCustomPrices = {...customPrices};
+                        delete newCustomPrices[selectedNetwork][size];
+                        if (Object.keys(newCustomPrices[selectedNetwork] || {}).length === 0) {
+                          delete newCustomPrices[selectedNetwork];
+                        }
+                        setCustomPrices(newCustomPrices);
+                      }
+                    } else {
+                      setSelectedProducts([...selectedProducts, {
+                        network: selectedNetwork,
+                        size_gb: parseFloat(size)
+                      }]);
+                    }
+                  }}
+                >
+                  <div className="product-header">
+                    <span className="product-size">{size}GB</span>
+                    {isSelected && <FaCheckCircle className="selected-icon" />}
+                  </div>
+                  <div className="product-pricing">
+                    <div className="wholesale-price">
+                      <span>Wholesale:</span>
+                      <span>₵{wholesalePrice.toFixed(2)}</span>
+                    </div>
+                    <div className="selling-price">
+                      <span>Selling Price:</span>
+                      {isSelected ? (
                         <input 
                           type="number"
                           step="0.5"
-                          value={currentPrice}
+                          value={displayPrice.toFixed(2)}
                           onChange={(e) => {
-                            const newCustomPrices = {...storeSettings.custom_prices};
-                            if (!newCustomPrices[network]) newCustomPrices[network] = {};
-                            newCustomPrices[network][size] = parseFloat(e.target.value);
-                            setStoreSettings({...storeSettings, custom_prices: newCustomPrices});
+                            e.stopPropagation();
+                            const newPrice = parseFloat(e.target.value);
+                            if (!isNaN(newPrice) && newPrice > 0) {
+                              setCustomPrices({
+                                ...customPrices,
+                                [selectedNetwork]: {
+                                  ...customPrices[selectedNetwork],
+                                  [size]: newPrice
+                                }
+                              });
+                            }
                           }}
+                          onClick={(e) => e.stopPropagation()}
                           className="price-input"
                         />
-                      </div>
-                    );
-                  })}
+                      ) : (
+                        <span>₵{displayPrice.toFixed(2)}</span>
+                      )}
+                    </div>
+                  </div>
+                  {isSelected && (
+                    <div className="product-profit">
+                      Profit: ₵{(displayPrice - wholesalePrice).toFixed(2)}
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
+              );
+            })}
+          </div>
+          <small className="help-text">Click on a bundle to add/remove from your store. You can also edit the selling price.</small>
+        </div>
+        
+        <div className="selected-products-summary">
+          <h4>Selected Products ({selectedProducts.length})</h4>
+          <div className="selected-products-list">
+            {selectedProducts.map((product, idx) => {
+              const price = customPrices[product.network]?.[product.size_gb] || 
+                           (agentBundles[product.network]?.[product.size_gb] * (1 + storeSettings.markup / 100));
+              return (
+                <div key={idx} className="selected-product-tag">
+                  <span>{product.network.toUpperCase()} {product.size_gb}GB</span>
+                  <span className="selected-price">₵{price.toFixed(2)}</span>
+                  <button 
+                    className="remove-product"
+                    onClick={() => {
+                      setSelectedProducts(selectedProducts.filter(p => 
+                        !(p.network === product.network && p.size_gb === product.size_gb)
+                      ));
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+            {selectedProducts.length === 0 && (
+              <p className="text-muted">No products selected. Your store will not show any bundles.</p>
+            )}
           </div>
         </div>
         

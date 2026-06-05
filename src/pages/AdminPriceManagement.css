@@ -220,7 +220,7 @@
   color: #ffffff;
 }
 
-/* Tables - IMPROVED VISIBILITY */
+/* Tables */
 .price-table-wrapper {
   background: #ffffff;
   border-radius: 16px;
@@ -247,6 +247,7 @@
 
 .price-table-responsive {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .price-data-table {
@@ -283,7 +284,7 @@
   font-size: 14px;
 }
 
-/* Price display - IMPROVED VISIBILITY */
+/* Price display - IMPROVED FOR MOBILE */
 .price-cell {
   position: relative;
 }
@@ -292,7 +293,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .price-display span {
@@ -301,19 +303,78 @@
   font-size: 15px;
 }
 
-.price-edit-btn {
+/* Action buttons group - IMPROVED VISIBILITY */
+.price-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.price-edit-btn,
+.price-toggle-btn,
+.price-delete-btn {
   background: none;
   border: none;
-  color: #8B0000;
   cursor: pointer;
-  padding: 6px 10px;
-  border-radius: 6px;
-  transition: all 0.3s ease;
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  min-width: 36px;
+  min-height: 36px;
+}
+
+.price-edit-btn {
+  color: #8B0000;
+  background: rgba(139, 0, 0, 0.05);
 }
 
 .price-edit-btn:hover {
-  background: #f0f0f0;
-  transform: scale(1.1);
+  background: #8B0000;
+  color: white;
+  transform: scale(1.05);
+}
+
+.price-toggle-btn {
+  font-size: 22px;
+}
+
+.price-toggle-btn.active {
+  color: #28a745;
+  background: rgba(40, 167, 69, 0.1);
+}
+
+.price-toggle-btn.active:hover {
+  background: #28a745;
+  color: white;
+  transform: scale(1.05);
+}
+
+.price-toggle-btn.inactive {
+  color: #dc3545;
+  background: rgba(220, 53, 69, 0.1);
+}
+
+.price-toggle-btn.inactive:hover {
+  background: #dc3545;
+  color: white;
+  transform: scale(1.05);
+}
+
+.price-delete-btn {
+  color: #dc3545;
+  background: rgba(220, 53, 69, 0.05);
+}
+
+.price-delete-btn:hover {
+  background: #dc3545;
+  color: white;
+  transform: scale(1.05);
 }
 
 /* Edit container */
@@ -322,14 +383,15 @@
   align-items: center;
   gap: 8px;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .price-input,
 .price-rate-input {
   width: 90px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border: 2px solid #8B0000;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 14px;
   font-weight: 600;
   text-align: center;
@@ -348,28 +410,137 @@
   background: none;
   border: none;
   cursor: pointer;
-  padding: 6px;
-  border-radius: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
   transition: all 0.2s;
   font-size: 16px;
+  min-width: 40px;
+  min-height: 40px;
 }
 
 .price-save-btn {
   color: #28a745;
+  background: rgba(40, 167, 69, 0.1);
 }
 
 .price-save-btn:hover {
-  background: #d4edda;
-  transform: scale(1.1);
+  background: #28a745;
+  color: white;
+  transform: scale(1.05);
 }
 
 .price-cancel-btn {
   color: #dc3545;
+  background: rgba(220, 53, 69, 0.1);
 }
 
 .price-cancel-btn:hover {
-  background: #f8d7da;
-  transform: scale(1.1);
+  background: #dc3545;
+  color: white;
+  transform: scale(1.05);
+}
+
+/* Availability styles - IMPROVED VISIBILITY */
+.price-cell.unavailable {
+  background-color: #f8f9fa;
+  opacity: 0.8;
+}
+
+.price-unavailable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+}
+
+.unavailable-icon {
+  color: #dc3545;
+  font-size: 20px;
+}
+
+.unavailable-text {
+  font-size: 11px;
+  color: #6c757d;
+  font-weight: 600;
+}
+
+.price-enable-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+  min-height: 32px;
+}
+
+.price-enable-btn:hover {
+  background: #218838;
+  transform: scale(1.05);
+}
+
+.price-strikethrough {
+  text-decoration: line-through;
+  color: #6c757d;
+}
+
+.price-cell.disabled-package {
+  background-color: #fff3cd;
+}
+
+.network-warning {
+  background-color: #fff8e7;
+}
+
+.network-note {
+  display: block;
+  font-size: 10px;
+  color: #ff9800;
+  margin-top: 2px;
+}
+
+/* Legend - IMPROVED FOR MOBILE */
+.price-legend {
+  display: flex;
+  gap: 15px;
+  margin-top: 10px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  font-size: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.price-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: white;
+  border-radius: 20px;
+}
+
+.legend-icon {
+  font-size: 14px;
+}
+
+.legend-icon.active {
+  color: #28a745;
+}
+
+.legend-icon.inactive {
+  color: #dc3545;
+}
+
+.legend-icon.delete {
+  color: #dc3545;
 }
 
 /* Profit Margin */
@@ -534,12 +705,13 @@
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
-  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  padding: 16px;
 }
 
 .price-modal-content {
@@ -547,9 +719,11 @@
   border-radius: 20px;
   padding: 30px;
   max-width: 450px;
-  width: 90%;
+  width: 100%;
   position: relative;
   animation: modalFadeIn 0.3s ease;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 @keyframes modalFadeIn {
@@ -573,8 +747,8 @@
   cursor: pointer;
   color: #5a6e7c;
   transition: all 0.2s;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -621,13 +795,14 @@
 
 .price-btn-primary,
 .price-btn-secondary {
-  padding: 10px 20px;
+  padding: 12px 24px;
   border-radius: 8px;
   border: none;
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
   transition: all 0.2s;
+  min-height: 44px;
 }
 
 .price-btn-primary {
@@ -691,6 +866,8 @@
 }
 
 /* ========== RESPONSIVE STYLES ========== */
+
+/* Tablet */
 @media (max-width: 1024px) {
   .price-management-container {
     padding: 20px;
@@ -698,13 +875,14 @@
   
   .price-data-table th,
   .price-data-table td {
-    padding: 10px 12px;
+    padding: 12px 12px;
   }
 }
 
+/* Mobile Landscape */
 @media (max-width: 768px) {
   .price-management-container {
-    padding: 15px;
+    padding: 12px;
   }
   
   .price-header {
@@ -716,30 +894,72 @@
     font-size: 22px;
   }
   
+  .price-header-info p {
+    font-size: 13px;
+  }
+  
   .price-tabs {
-    justify-content: center;
+    justify-content: flex-start;
     overflow-x: auto;
     flex-wrap: nowrap;
     -webkit-overflow-scrolling: touch;
-    padding-bottom: 5px;
+    padding-bottom: 8px;
+    gap: 8px;
   }
   
   .price-tab {
     white-space: nowrap;
-    padding: 8px 16px;
-    font-size: 14px;
+    padding: 10px 16px;
+    font-size: 13px;
+    min-height: 44px;
+  }
+  
+  .price-table-wrapper {
+    padding: 12px;
+    border-radius: 12px;
+  }
+  
+  .price-section-header h2 {
+    font-size: 18px;
   }
   
   .price-data-table th,
   .price-data-table td {
-    padding: 8px 10px;
+    padding: 10px 8px;
     font-size: 12px;
+  }
+  
+  /* Make action buttons bigger and more visible on mobile */
+  .price-edit-btn,
+  .price-toggle-btn,
+  .price-delete-btn {
+    padding: 8px;
+    font-size: 18px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  .price-toggle-btn {
+    font-size: 24px;
+  }
+  
+  .price-actions-group {
+    gap: 8px;
   }
   
   .price-input,
   .price-rate-input {
-    width: 65px;
-    font-size: 12px;
+    width: 70px;
+    font-size: 14px;
+    padding: 8px;
+  }
+  
+  .price-save-btn,
+  .price-cancel-btn {
+    padding: 8px;
+    font-size: 18px;
+    min-width: 44px;
+    min-height: 44px;
   }
   
   .price-display span {
@@ -759,7 +979,6 @@
   .price-auth-icon {
     width: 60px;
     height: 60px;
-    font-size: 1.5rem;
   }
   
   .price-auth-card h2 {
@@ -776,14 +995,46 @@
   }
   
   .price-modal-content {
-    padding: 20px;
+    padding: 24px;
     width: 95%;
+    max-height: 85vh;
+  }
+  
+  /* Legend on mobile */
+  .price-legend {
+    gap: 8px;
+    padding: 10px;
+  }
+  
+  .price-legend span {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+  
+  .legend-icon {
+    font-size: 12px;
+  }
+  
+  /* Unavailable state on mobile */
+  .price-unavailable {
+    gap: 6px;
+  }
+  
+  .unavailable-icon {
+    font-size: 18px;
+  }
+  
+  .price-enable-btn {
+    padding: 6px 10px;
+    font-size: 10px;
+    min-height: 36px;
   }
 }
 
+/* Mobile Portrait */
 @media (max-width: 480px) {
   .price-management-container {
-    padding: 10px;
+    padding: 8px;
   }
   
   .price-header-info h1 {
@@ -791,16 +1042,16 @@
   }
   
   .price-header-info p {
-    font-size: 12px;
+    font-size: 11px;
   }
   
   .price-tab {
-    padding: 6px 12px;
+    padding: 8px 12px;
     font-size: 12px;
   }
   
   .price-table-wrapper {
-    padding: 12px;
+    padding: 8px;
   }
   
   .price-section-header h2 {
@@ -809,20 +1060,42 @@
   
   .price-data-table th,
   .price-data-table td {
-    padding: 6px 8px;
+    padding: 8px 6px;
     font-size: 11px;
+  }
+  
+  /* Stack buttons on very small screens */
+  .price-actions-group {
+    flex-direction: row;
+    gap: 4px;
+  }
+  
+  .price-edit-btn,
+  .price-toggle-btn,
+  .price-delete-btn {
+    padding: 6px;
+    font-size: 16px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+  
+  .price-toggle-btn {
+    font-size: 20px;
   }
   
   .price-input,
   .price-rate-input {
-    width: 55px;
-    font-size: 11px;
+    width: 60px;
+    font-size: 12px;
+    padding: 6px;
   }
   
-  .price-edit-btn,
   .price-save-btn,
   .price-cancel-btn {
-    padding: 4px 6px;
+    padding: 6px;
+    font-size: 16px;
+    min-width: 40px;
+    min-height: 40px;
   }
   
   .price-auth-card {
@@ -835,31 +1108,47 @@
   }
   
   .price-auth-btn {
-    padding: 10px 16px;
+    padding: 12px 16px;
     font-size: 14px;
+  }
+  
+  .price-modal-content {
+    padding: 20px;
+  }
+  
+  .price-modal-actions {
+    flex-direction: column;
+  }
+  
+  .price-btn-primary,
+  .price-btn-secondary {
+    width: 100%;
+    justify-content: center;
   }
 }
 
-/* Touch-friendly tap targets */
-@media (max-width: 768px) {
-  .price-tab,
-  .price-edit-btn,
-  .price-save-btn,
-  .price-cancel-btn,
-  .price-logout-btn,
-  .price-auth-btn,
-  .price-link-btn,
-  .price-modal-close,
-  .price-btn-primary,
-  .price-btn-secondary {
-    min-height: 44px;
-  }
-  
-  .price-input,
-  .price-rate-input,
-  .price-form-input {
-    font-size: 16px !important;
-  }
+/* Touch-friendly tap targets - ensures all buttons are easily tappable */
+.price-tab,
+.price-edit-btn,
+.price-save-btn,
+.price-cancel-btn,
+.price-logout-btn,
+.price-auth-btn,
+.price-link-btn,
+.price-modal-close,
+.price-btn-primary,
+.price-btn-secondary,
+.price-enable-btn,
+.price-toggle-btn,
+.price-delete-btn {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.price-input,
+.price-rate-input,
+.price-form-input {
+  font-size: 16px !important; /* Prevents zoom on iOS */
 }
 
 /* Dark mode support */
@@ -878,7 +1167,8 @@
   .price-data-table td,
   .price-network-cell,
   .price-display span,
-  .price-tier-name {
+  .price-tier-name,
+  .price-form-group label {
     color: #f8f9fa;
   }
   
@@ -929,6 +1219,15 @@
   
   .price-logout-btn:hover {
     background: #3a3a4a;
+  }
+  
+  .price-legend {
+    background: #2a2a3a;
+  }
+  
+  .price-legend span {
+    background: #1a1a2e;
+    color: #f8f9fa;
   }
 }
 
