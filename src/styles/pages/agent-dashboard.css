@@ -1563,3 +1563,38 @@
     font-size: 0.8rem;
   }
 }
+
+/* Force all table content to be visible in dark mode */
+@media (prefers-color-scheme: dark) {
+  .data-table *,
+  .orders-table *,
+  table *,
+  .order-row *,
+  .order-item * {
+    color: var(--text-primary) !important;
+  }
+  
+  /* Except these that should have special colors */
+  .data-table .amount,
+  .data-table td.amount,
+  .order-amount {
+    color: var(--success) !important;
+  }
+  
+  .data-table .profit,
+  .data-table td.profit,
+  .order-profit {
+    color: var(--primary) !important;
+  }
+  
+  .data-table .order-id,
+  .data-table td:first-child {
+    color: var(--primary) !important;
+  }
+  
+  .data-table .date,
+  .data-table td.date,
+  .order-date {
+    color: var(--text-secondary) !important;
+  }
+}
