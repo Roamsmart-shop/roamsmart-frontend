@@ -1598,3 +1598,332 @@
     color: var(--text-secondary) !important;
   }
 }
+
+/* ========== TABLE DARK MODE FIXES - SPECIFIC FOR YOUR STRUCTURE ========== */
+@media (prefers-color-scheme: dark) {
+  /* Recent Orders Container */
+  .recent-orders {
+    background: var(--bg-card);
+    border-radius: 20px;
+    padding: 20px;
+    margin-top: 20px;
+    border: 1px solid var(--border-color);
+  }
+  
+  /* Section Header inside recent orders */
+  .recent-orders .section-header h3 {
+    color: var(--text-primary);
+  }
+  
+  /* Table Wrapper */
+  .table-responsive {
+    background: transparent;
+  }
+  
+  /* Data Table */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  /* Table Header */
+  .data-table th {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 12px 15px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--border-color);
+  }
+  
+  /* Table Cells - ALL text must be visible */
+  .data-table td {
+    padding: 12px 15px;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-light);
+  }
+  
+  /* Order ID column */
+  .data-table td.order-id,
+  .data-table td:first-child {
+    color: var(--primary);
+    font-weight: 600;
+  }
+  
+  /* Customer column (2nd column) */
+  .data-table td:nth-child(2) {
+    color: var(--text-primary);
+  }
+  
+  /* Product column (3rd column) */
+  .data-table td:nth-child(3) {
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+  
+  /* Amount column */
+  .data-table td.amount,
+  .data-table td:nth-child(4) {
+    color: var(--success);
+    font-weight: 600;
+  }
+  
+  /* Date column */
+  .data-table td.date,
+  .data-table td:nth-child(6) {
+    color: var(--text-secondary);
+  }
+  
+  /* Actions column */
+  .data-table td.actions,
+  .data-table td:last-child {
+    color: var(--text-primary);
+  }
+  
+  /* Table row hover effect */
+  .data-table tbody tr:hover {
+    background: var(--bg-secondary);
+  }
+  
+  .data-table tbody tr:hover td {
+    color: var(--text-primary);
+  }
+  
+  /* Status Badge in table */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  
+  /* Status badge colors in dark mode */
+  .status-badge.delivered {
+    background: #1a4a2a;
+    color: #a5d6a7;
+  }
+  
+  .status-badge.pending {
+    background: #4a3a1a;
+    color: #ffd966;
+  }
+  
+  .status-badge.processing {
+    background: #1a3a5c;
+    color: #8fc9ff;
+  }
+  
+  .status-badge.failed {
+    background: #4a1a1a;
+    color: #f5a5a5;
+  }
+  
+  .status-badge.queued {
+    background: #3a2a1a;
+    color: #ffb347;
+  }
+  
+  /* Action buttons in table */
+  .data-table .actions .btn-sm {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+  }
+  
+  .data-table .actions .btn-sm:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+  }
+  
+  .data-table .actions .btn-info {
+    background: var(--info);
+    color: white;
+  }
+  
+  /* No orders row */
+  .data-table td.text-center {
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 40px;
+  }
+}
+
+/* ========== STORE TIPS DARK MODE ========== */
+@media (prefers-color-scheme: dark) {
+  .store-tips {
+    background: var(--bg-secondary);
+    border-radius: 20px;
+    padding: 20px;
+    margin-top: 30px;
+  }
+  
+  .store-tips h3 {
+    color: var(--text-primary);
+    margin-bottom: 20px;
+  }
+  
+  .tips-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+  }
+  
+  .tip-card {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+  }
+  
+  .tip-card svg {
+    color: var(--primary);
+    font-size: 2rem;
+    margin-bottom: 10px;
+  }
+  
+  .tip-card h4 {
+    color: var(--text-primary);
+    margin-bottom: 10px;
+  }
+  
+  .tip-card p {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+  }
+  
+  /* Store Footer Note */
+  .store-footer-note {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+  }
+  
+  .store-footer-note p,
+  .store-footer-note small {
+    color: var(--text-muted);
+  }
+}
+
+/* ========== COMPLETE TABLE DARK MODE FIX - ADD THIS AT THE END ========== */
+@media (prefers-color-scheme: dark) {
+  /* Force ALL table text to be visible */
+  .orders-table .data-table td,
+  .orders-table .data-table th,
+  .table-responsive .data-table td,
+  .table-responsive .data-table th {
+    color: var(--text-primary) !important;
+  }
+  
+  /* Order ID column - keep special color */
+  .orders-table .data-table td:first-child,
+  .orders-table .data-table td.order-id,
+  .orders-table .data-table td.order-id code {
+    color: var(--primary) !important;
+  }
+  
+  /* Size column (2nd column) */
+  .orders-table .data-table td:nth-child(2),
+  .orders-table .data-table td:nth-child(2) strong {
+    color: var(--text-primary) !important;
+  }
+  
+  /* Recipient column (3rd column) */
+  .orders-table .data-table td:nth-child(3) {
+    color: var(--text-primary) !important;
+  }
+  
+  /* Network badge - keep original colors */
+  .network-badge.mtn {
+    background: #ffc107 !important;
+    color: #000 !important;
+  }
+  
+  .network-badge.telecel {
+    background: #ec008c !important;
+    color: white !important;
+  }
+  
+  .network-badge.airteltigo {
+    background: #ed1b24 !important;
+    color: white !important;
+  }
+  
+  /* Status badge text colors */
+  .status-badge {
+    color: white !important;
+  }
+  
+  .status-badge:contains("⏳ Pending"),
+  .status-badge:contains("Pending") {
+    background: #4a3a1a !important;
+    color: #ffd966 !important;
+  }
+  
+  .status-badge:contains("✅ Delivered"),
+  .status-badge:contains("Delivered") {
+    background: #1a4a2a !important;
+    color: #a5d6a7 !important;
+  }
+  
+  .status-badge:contains("🔄 Processing"),
+  .status-badge:contains("Processing") {
+    background: #1a3a5c !important;
+    color: #8fc9ff !important;
+  }
+  
+  .status-badge:contains("❌ Failed"),
+  .status-badge:contains("Failed") {
+    background: #4a1a1a !important;
+    color: #f5a5a5 !important;
+  }
+  
+  /* Source badge */
+  .source-badge {
+    background: var(--bg-secondary) !important;
+    color: var(--text-secondary) !important;
+  }
+  
+  /* Amount columns - financial colors */
+  .orders-table .data-table td.amount {
+    color: var(--success) !important;
+    font-weight: 600 !important;
+  }
+  
+  .orders-table .data-table td.text-danger {
+    color: var(--danger) !important;
+  }
+  
+  /* Balance before/after columns */
+  .orders-table .data-table td:nth-child(8),
+  .orders-table .data-table td:nth-child(10) {
+    color: var(--success) !important;
+  }
+  
+  /* Date columns */
+  .orders-table .data-table td:nth-child(11),
+  .orders-table .data-table td:nth-child(12) {
+    color: var(--text-secondary) !important;
+  }
+  
+  /* Action buttons */
+  .orders-table .data-table td.actions .btn-sm {
+    background: var(--bg-secondary) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+  }
+  
+  .orders-table .data-table td.actions .btn-sm:hover {
+    background: var(--primary) !important;
+    color: white !important;
+  }
+  
+  /* Table row hover */
+  .orders-table .data-table tbody tr:hover td {
+    background: var(--bg-secondary) !important;
+  }
+}
