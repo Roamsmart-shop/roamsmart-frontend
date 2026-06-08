@@ -1,667 +1,502 @@
-/* src/styles/pages/admin-dashboard.css - WITH DARK MODE SUPPORT */
+/* src/styles/pages/admin-dashboard.css - COMPLETE FIX FOR DARK MODE VISIBILITY */
 
 /* ========== BASE VARIABLES ========== */
 :root {
   --bg-light: #ffffff;
-  --bg-dark: #1a1a2e;
+  --bg-dark: #121212;
+  --card-light: #ffffff;
+  --card-dark: #1e1e2e;
   --text-light: #1a2c3e;
-  --text-dark: #f8f9fa;
+  --text-dark: #e0e0e0;
+  --text-muted-light: #5a6e7c;
+  --text-muted-dark: #a0a0a0;
   --border-light: #e8e8e8;
   --border-dark: #2a2a3e;
-  --card-bg-light: #ffffff;
-  --card-bg-dark: #16213e;
   --hover-light: #f8f9fa;
-  --hover-dark: #1e2a3a;
-  --table-header-light: #f8f9fa;
-  --table-header-dark: #0f3460;
-  --input-bg-light: #ffffff;
-  --input-bg-dark: #1e2a3a;
-  --input-border-light: #e0e0e0;
-  --input-border-dark: #3a3a4a;
+  --hover-dark: #2a2a3a;
+  --primary: #8B0000;
+  --primary-dark: #D2691E;
+  --success: #28a745;
+  --warning: #ffc107;
+  --danger: #dc3545;
+  --info: #17a2b8;
+}
+
+/* Force dark mode styles regardless of system preference */
+.dark-mode,
+[data-theme="dark"] {
+  --bg-primary: #121212;
+  --bg-secondary: #1e1e2e;
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0a0;
+  --border-color: #2a2a3e;
 }
 
 .admin-dashboard {
   padding: var(--spacing-lg);
-  color: var(--text-light);
-  background: var(--bg-light);
   min-height: 100vh;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: all 0.3s ease;
 }
 
-/* ========== DARK MODE SUPPORT - Media Query ========== */
+/* ========== FORCE DARK MODE STYLES - DIRECT TARGETING ========== */
+/* These styles will apply when dark mode is detected OR a class is present */
+
 @media (prefers-color-scheme: dark) {
+  .admin-dashboard,
+  .admin-dashboard * {
+    color-scheme: dark;
+  }
+}
+
+/* Direct dark mode overrides - these will force visibility */
+@media (prefers-color-scheme: dark) {
+  
+  /* Main container */
   .admin-dashboard {
-    background: var(--bg-dark);
-    color: var(--text-dark);
+    background: #0a0a0f !important;
   }
-
-  /* Live Stats Bar */
-  .live-stats-bar {
-    background: linear-gradient(135deg, #6d0000, #a0522d);
-    color: #ffffff;
-  }
-
-  .live-stat {
-    color: #ffffff;
-  }
-
-  /* Announcement Banner */
-  .announcement-banner {
-    background: linear-gradient(135deg, #0f3460, #1a1a2e);
-    color: #ffffff;
-  }
-
-  .announcement-content {
-    color: #ffffff;
-  }
-
-  .announcement-message {
-    color: #ffffff;
-  }
-
-  .network-badge, .expiry-badge {
-    background: rgba(255,255,255,0.2);
-    color: #ffffff;
-  }
-
-  .close-announcement {
-    color: #ffffff;
-  }
-
-  /* Stats Cards */
-  .stat-card {
-    background: var(--card-bg-dark);
-    border-color: var(--border-dark);
-    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-  }
-
-  .stat-card:hover {
-    box-shadow: 0 8px 25px rgba(0,0,0,0.4);
-  }
-
-  .stat-icon {
-    background: rgba(139,0,0,0.2);
-  }
-
-  .stat-value {
-    color: var(--text-dark);
-  }
-
-  .stat-label {
-    color: #aaa;
-  }
-
-  /* Stats Grid Secondary */
-  .stats-grid.secondary .stat-card {
-    background: var(--card-bg-dark);
-    border-color: var(--border-dark);
-  }
-
-  /* Panels */
-  .panel {
-    background: var(--card-bg-dark);
-    border-color: var(--border-dark);
-  }
-
-  .panel h3 {
-    color: var(--text-dark);
-  }
-
-  /* AI Predictions */
-  .ai-predictions {
-    background: linear-gradient(135deg, #2d2d5e, #3d2d6e);
-  }
-
-  .ai-predictions h3 {
-    color: #ffffff;
-  }
-
-  .prediction-card {
-    background: rgba(255,255,255,0.12);
-  }
-
-  .prediction-card svg {
-    color: #ffffff;
-  }
-
-  .prediction-value {
-    color: #ffffff;
-  }
-
-  .prediction-label {
-    color: rgba(255,255,255,0.9);
-  }
-
-  /* Admin Tabs */
-  .admin-tabs {
-    border-bottom-color: var(--border-dark);
-  }
-
-  .admin-tabs .tab-btn {
-    color: #aaa;
-  }
-
-  .admin-tabs .tab-btn:hover {
-    background: rgba(255,255,255,0.1);
-    color: var(--text-dark);
-  }
-
-  .admin-tabs .tab-btn.active {
-    background: #8B0000;
-    color: #ffffff;
-  }
-
-  /* Tables - CRITICAL for visibility */
-  .data-table {
-    background: var(--card-bg-dark);
-  }
-
+  
+  /* ========== TABLE FIXES - MOST IMPORTANT ========== */
+  /* Force table background and text colors */
+  .data-table,
+  .data-table tbody,
+  .data-table tr,
+  .data-table td,
   .data-table th {
-    background: var(--table-header-dark);
-    color: var(--text-dark);
-    border-bottom-color: var(--border-dark);
-    font-weight: 700;
+    background-color: #1a1a2e !important;
   }
-
+  
+  .data-table th {
+    background: #0f0f1a !important;
+    color: #ffffff !important;
+    border-bottom: 2px solid #8B0000 !important;
+    font-weight: 700 !important;
+    padding: 12px 15px !important;
+  }
+  
   .data-table td {
-    color: var(--text-dark);
-    border-bottom-color: var(--border-dark);
-    background: var(--card-bg-dark);
+    color: #e0e0e0 !important;
+    border-bottom: 1px solid #2a2a3e !important;
+    padding: 12px 15px !important;
   }
-
-  .data-table tr:hover td {
-    background: var(--hover-dark);
-  }
-
-  /* Table cell text colors */
+  
+  /* Table text colors - explicit overrides */
   .data-table td strong,
-  .data-table td .amount,
+  .data-table td b,
+  .data-table td span,
+  .data-table td div,
   .data-table td code {
-    color: var(--text-dark);
+    color: #e0e0e0 !important;
   }
-
-  .data-table td .text-muted,
-  .data-table td small {
-    color: #aaa;
-  }
-
-  /* Order ID, Reference codes */
+  
+  /* Order ID and reference codes */
   .data-table td .order-id,
+  .data-table td code,
   .data-table td .reference-code {
-    background: rgba(255,255,255,0.1);
-    color: #ffd700;
+    color: #ffd700 !important;
+    background: rgba(255,215,0,0.1) !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+    font-family: monospace !important;
   }
-
+  
   /* Amount column */
-  .data-table td.amount {
-    color: #4caf50;
-    font-weight: 600;
+  .data-table td.amount,
+  .data-table td .amount {
+    color: #4caf50 !important;
+    font-weight: 700 !important;
   }
-
+  
+  /* Small text and muted text */
+  .data-table td small,
+  .data-table td .text-muted,
+  .data-table td .small {
+    color: #a0a0a0 !important;
+  }
+  
+  /* Row hover */
+  .data-table tr:hover td {
+    background: #252540 !important;
+  }
+  
+  /* Selected row */
+  .data-table tr.selected-row td {
+    background: rgba(139,0,0,0.2) !important;
+  }
+  
+  /* ========== PANEL AND CARD FIXES ========== */
+  .panel,
+  .chart-card,
+  .stat-card,
+  .recent-activities,
+  .inventory-card {
+    background: #1a1a2e !important;
+    border: 1px solid #2a2a3e !important;
+  }
+  
+  .panel h3,
+  .chart-card h3,
+  .recent-activities h3,
+  .stat-card .stat-label,
+  .activity-content p {
+    color: #ffffff !important;
+  }
+  
+  .stat-card .stat-value {
+    color: #ffd700 !important;
+  }
+  
+  .stat-card .stat-label {
+    color: #a0a0a0 !important;
+  }
+  
+  /* ========== STATUS BADGES ========== */
+  .status.completed,
+  .status.delivered {
+    background: rgba(40,167,69,0.2) !important;
+    color: #6bff6b !important;
+    border: 1px solid rgba(40,167,69,0.3) !important;
+  }
+  
+  .status.pending {
+    background: rgba(255,193,7,0.2) !important;
+    color: #ffd700 !important;
+    border: 1px solid rgba(255,193,7,0.3) !important;
+  }
+  
+  .status.processing,
+  .status.queued {
+    background: rgba(23,162,184,0.2) !important;
+    color: #6b9eff !important;
+    border: 1px solid rgba(23,162,184,0.3) !important;
+  }
+  
+  .status.failed {
+    background: rgba(220,53,69,0.2) !important;
+    color: #ff6b6b !important;
+    border: 1px solid rgba(220,53,69,0.3) !important;
+  }
+  
+  .status.active {
+    background: rgba(40,167,69,0.2) !important;
+    color: #6bff6b !important;
+  }
+  
+  .status.suspended {
+    background: rgba(220,53,69,0.2) !important;
+    color: #ff6b6b !important;
+  }
+  
+  /* ========== NETWORK BADGES ========== */
+  .network-badge.mtn {
+    background: #ffc107 !important;
+    color: #1a1a2e !important;
+  }
+  
+  .network-badge.telecel {
+    background: #ec008c !important;
+    color: #ffffff !important;
+  }
+  
+  .network-badge.airteltigo {
+    background: #ed1b24 !important;
+    color: #ffffff !important;
+  }
+  
+  /* ========== BUTTONS ========== */
+  .btn-primary {
+    background: #8B0000 !important;
+    color: #ffffff !important;
+  }
+  
+  .btn-primary:hover {
+    background: #D2691E !important;
+  }
+  
+  .btn-outline {
+    border: 1px solid #D2691E !important;
+    color: #D2691E !important;
+  }
+  
+  .btn-outline:hover {
+    background: #D2691E !important;
+    color: #ffffff !important;
+  }
+  
+  .btn-success {
+    background: #28a745 !important;
+    color: #ffffff !important;
+  }
+  
+  .btn-danger {
+    background: #dc3545 !important;
+    color: #ffffff !important;
+  }
+  
+  .btn-info {
+    background: #17a2b8 !important;
+    color: #ffffff !important;
+  }
+  
+  .btn-warning {
+    background: #ffc107 !important;
+    color: #1a1a2e !important;
+  }
+  
+  .btn-secondary {
+    background: #2a2a3e !important;
+    color: #ffffff !important;
+  }
+  
+  /* ========== FORM ELEMENTS ========== */
+  .form-control,
+  input.form-control,
+  select.form-control,
+  textarea.form-control {
+    background: #2a2a3e !important;
+    border: 1px solid #3a3a4a !important;
+    color: #ffffff !important;
+  }
+  
+  .form-control::placeholder {
+    color: #888888 !important;
+  }
+  
+  .form-control:focus {
+    border-color: #8B0000 !important;
+    box-shadow: 0 0 0 3px rgba(139,0,0,0.3) !important;
+  }
+  
+  .form-group label {
+    color: #e0e0e0 !important;
+  }
+  
+  /* ========== MODALS ========== */
+  .modal-content {
+    background: #1a1a2e !important;
+    border: 1px solid #2a2a3e !important;
+  }
+  
+  .modal-content h3 {
+    color: #ffffff !important;
+    border-bottom-color: #2a2a3e !important;
+  }
+  
+  .modal-close {
+    color: #ffffff !important;
+  }
+  
+  .modal-close:hover {
+    color: #ff6b6b !important;
+  }
+  
+  /* ========== SEARCH BOX ========== */
+  .search-box input {
+    background: #2a2a3e !important;
+    border: 1px solid #3a3a4a !important;
+    color: #ffffff !important;
+  }
+  
+  .search-box input::placeholder {
+    color: #888888 !important;
+  }
+  
+  .search-box svg {
+    color: #888888 !important;
+  }
+  
+  /* ========== NOTIFICATIONS ========== */
+  .notification-bell {
+    background: #1a1a2e !important;
+    color: #ffffff !important;
+  }
+  
+  .notifications-dropdown {
+    background: #1a1a2e !important;
+    border: 1px solid #2a2a3e !important;
+  }
+  
+  .notification-item {
+    border-bottom: 1px solid #2a2a3e !important;
+  }
+  
+  .notification-item:hover {
+    background: #252540 !important;
+  }
+  
+  .notification-content strong {
+    color: #ffffff !important;
+  }
+  
+  .notification-content p {
+    color: #a0a0a0 !important;
+  }
+  
+  /* ========== ACTIVITY LIST ========== */
+  .activity-item {
+    border-bottom: 1px solid #2a2a3e !important;
+  }
+  
+  .activity-item:hover {
+    background: #252540 !important;
+  }
+  
+  .activity-icon {
+    background: rgba(139,0,0,0.2) !important;
+    color: #D2691E !important;
+  }
+  
+  /* ========== INVENTORY STATS ========== */
+  .inventory-stats div {
+    color: #e0e0e0 !important;
+    border-bottom: 1px solid #2a2a3e !important;
+  }
+  
+  .inventory-card h4 {
+    color: #D2691E !important;
+  }
+  
+  /* ========== LIVE STATS BAR ========== */
+  .live-stats-bar {
+    background: linear-gradient(135deg, #6d0000, #8B0000) !important;
+  }
+  
+  .live-stat {
+    color: #ffffff !important;
+  }
+  
+  /* ========== AI PREDICTIONS ========== */
+  .ai-predictions {
+    background: linear-gradient(135deg, #1a1a2e, #16213e) !important;
+  }
+  
+  .ai-predictions h3 {
+    color: #ffffff !important;
+  }
+  
+  .prediction-value {
+    color: #ffd700 !important;
+  }
+  
+  .prediction-label {
+    color: #a0a0a0 !important;
+  }
+  
+  /* ========== ADMIN TABS ========== */
+  .admin-tabs {
+    border-bottom-color: #2a2a3e !important;
+  }
+  
+  .admin-tabs .tab-btn {
+    color: #a0a0a0 !important;
+  }
+  
+  .admin-tabs .tab-btn:hover {
+    background: #252540 !important;
+    color: #ffffff !important;
+  }
+  
+  .admin-tabs .tab-btn.active {
+    background: #8B0000 !important;
+    color: #ffffff !important;
+  }
+  
+  /* ========== PAGINATION ========== */
+  .pagination button {
+    background: #2a2a3e !important;
+    border: 1px solid #3a3a4a !important;
+    color: #e0e0e0 !important;
+  }
+  
+  .pagination button:hover:not(:disabled) {
+    background: #8B0000 !important;
+    color: #ffffff !important;
+  }
+  
+  .pagination button:disabled {
+    opacity: 0.5 !important;
+  }
+  
+  /* ========== TEXT UTILITIES ========== */
   .text-danger {
     color: #ff6b6b !important;
   }
-
+  
   .text-success {
     color: #6bff6b !important;
   }
-
-  /* Status Badges - High contrast */
-  .status.completed {
-    background: rgba(40,167,69,0.2);
-    color: #6bff6b;
+  
+  .text-warning {
+    color: #ffd700 !important;
   }
-
-  .status.pending {
-    background: rgba(255,193,7,0.2);
-    color: #ffd700;
+  
+  .text-info {
+    color: #6b9eff !important;
   }
-
-  .status.processing {
-    background: rgba(0,123,255,0.2);
-    color: #6b9eff;
+  
+  .text-muted {
+    color: #a0a0a0 !important;
   }
-
-  .status.failed {
-    background: rgba(220,53,69,0.2);
-    color: #ff6b6b;
-  }
-
-  /* WAEC & Bill Stats */
-  .stat-small {
-    background: var(--card-bg-dark);
-    border-color: var(--border-dark);
-  }
-
-  .stat-small span {
-    color: #aaa;
-  }
-
-  .stat-small strong {
-    color: var(--text-dark);
-  }
-
-  /* Inventory Cards */
-  .inventory-card {
-    background: var(--card-bg-dark);
-    border-color: var(--border-dark);
-  }
-
-  .inventory-card h4 {
-    color: #D2691E;
-  }
-
-  .inventory-stats div {
-    color: var(--text-dark);
-    border-bottom-color: var(--border-dark);
-  }
-
-  /* Progress Bar */
-  .progress-bar {
-    background: var(--border-dark);
-  }
-
-  .progress-fill {
-    background: #D2691E;
-  }
-
-  /* Recent Activities */
-  .recent-activities {
-    background: var(--card-bg-dark);
-    border-color: var(--border-dark);
-  }
-
-  .recent-activities h3 {
-    color: var(--text-dark);
-  }
-
-  .activity-item {
-    border-bottom-color: var(--border-dark);
-  }
-
-  .activity-item:hover {
-    background: var(--hover-dark);
-  }
-
-  .activity-icon {
-    background: rgba(139,0,0,0.2);
-    color: #D2691E;
-  }
-
-  .activity-content p {
-    color: var(--text-dark);
-  }
-
-  .activity-content small {
-    color: #aaa;
-  }
-
-  /* Search Box */
-  .search-box input {
-    background: var(--input-bg-dark);
-    border-color: var(--input-border-dark);
-    color: var(--text-dark);
-  }
-
-  .search-box input::placeholder {
-    color: #aaa;
-  }
-
-  .search-box svg {
-    color: #aaa;
-  }
-
-  /* Form Controls */
-  .form-group label {
-    color: var(--text-dark);
-  }
-
-  .form-control {
-    background: var(--input-bg-dark);
-    border-color: var(--input-border-dark);
-    color: var(--text-dark);
-  }
-
-  .form-control:focus {
-    border-color: #8B0000;
-    box-shadow: 0 0 0 3px rgba(139,0,0,0.2);
-  }
-
-  .form-control::placeholder {
-    color: #888;
-  }
-
-  select.form-control option {
-    background: var(--input-bg-dark);
-    color: var(--text-dark);
-  }
-
-  /* Modal */
-  .modal-content {
-    background: var(--card-bg-dark);
-  }
-
-  .modal-content h3 {
-    color: var(--text-dark);
-    border-bottom-color: var(--border-dark);
-  }
-
-  .modal-close {
-    color: #aaa;
-  }
-
-  .modal-close:hover {
-    color: #ff6b6b;
-  }
-
-  /* Buttons in Dark Mode */
-  .btn-outline {
-    border-color: #D2691E;
-    color: #D2691E;
-  }
-
-  .btn-outline:hover {
-    background: #D2691E;
-    color: #ffffff;
-  }
-
-  .btn-secondary {
-    background: #2a2a3e;
-    color: #ffffff;
-  }
-
-  .btn-secondary:hover {
-    background: #3a3a4e;
-  }
-
-  /* Badges */
+  
+  /* ========== BADGES ========== */
   .agent-badge {
-    background: #D2691E;
-    color: #ffffff;
+    background: #D2691E !important;
+    color: #ffffff !important;
   }
-
+  
   .rank-badge {
-    background: #f39c12;
-    color: #1a1a2e;
+    background: #ffd700 !important;
+    color: #1a1a2e !important;
   }
-
-  .tier-badge.bronze {
-    background: #cd7f32;
-    color: #ffffff;
-  }
-
-  .tier-badge.silver {
-    background: #c0c0c0;
-    color: #1a1a2e;
-  }
-
-  .tier-badge.gold {
-    background: #ffd700;
-    color: #1a1a2e;
-  }
-
-  .tier-badge.platinum {
-    background: #e5e4e2;
-    color: #1a1a2e;
-  }
-
-  /* Chart Cards */
-  .chart-card {
-    background: var(--card-bg-dark);
-    border-color: var(--border-dark);
-  }
-
-  .chart-card h3 {
-    color: var(--text-dark);
-  }
-
-  /* Chart.js canvas text colors */
-  canvas {
-    filter: brightness(0.9);
-  }
-
-  /* Notification Bell */
-  .notification-bell {
-    background: var(--card-bg-dark);
-    color: var(--text-dark);
-    border-color: var(--border-dark);
-  }
-
-  .notification-badge {
-    background: #dc3545;
-    color: #ffffff;
-  }
-
-  /* Notifications Dropdown */
-  .notifications-dropdown {
-    background: var(--card-bg-dark);
-    border-color: var(--border-dark);
-  }
-
-  .notifications-header {
-    border-bottom-color: var(--border-dark);
-  }
-
-  .notifications-header h4 {
-    color: var(--text-dark);
-  }
-
-  .notification-item {
-    border-bottom-color: var(--border-dark);
-  }
-
-  .notification-item:hover {
-    background: var(--hover-dark);
-  }
-
-  .notification-content strong {
-    color: var(--text-dark);
-  }
-
-  .notification-content p {
-    color: #aaa;
-  }
-
-  /* Backup List */
-  .backups-list {
-    background: var(--card-bg-dark);
-  }
-
-  .backup-item {
-    background: var(--hover-dark);
-    border-color: var(--border-dark);
-  }
-
-  .backup-info span {
-    color: var(--text-dark);
-  }
-
-  /* Settings Grid */
-  .settings-grid {
-    background: var(--card-bg-dark);
-  }
-
-  .setting-group {
-    border-color: var(--border-dark);
-  }
-
-  .setting-group h4 {
-    color: var(--text-dark);
-  }
-
-  .setting-group label {
-    color: var(--text-dark);
-  }
-
-  .setting-group input {
-    background: var(--input-bg-dark);
-    border-color: var(--input-border-dark);
-    color: var(--text-dark);
-  }
-
-  /* Pagination */
-  .pagination button {
-    background: var(--input-bg-dark);
-    border-color: var(--input-border-dark);
-    color: var(--text-dark);
-  }
-
-  .pagination button:hover:not(:disabled) {
-    background: #8B0000;
-    color: #ffffff;
-  }
-
-  .pagination button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  /* Selected row highlight */
-  .data-table tr.selected-row td {
-    background: rgba(139,0,0,0.15);
-  }
-
-  /* Empty state */
+  
+  /* ========== EMPTY STATE ========== */
   .empty-state p {
-    color: var(--text-dark);
+    color: #e0e0e0 !important;
   }
-
+  
   .empty-state small {
-    color: #aaa;
+    color: #a0a0a0 !important;
   }
-
-  /* Proof actions buttons */
-  .proof-actions .btn-sm {
-    background: var(--input-bg-dark);
-    color: var(--text-dark);
-    border-color: var(--input-border-dark);
+  
+  /* ========== SCROLLBAR ========== */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
   }
-
-  .proof-actions .btn-sm:hover {
-    background: #8B0000;
-    color: #ffffff;
+  
+  ::-webkit-scrollbar-track {
+    background: #1a1a2e !important;
   }
-
-  /* Manual payments table specific */
-  .reference-code {
-    background: rgba(255,255,255,0.1);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: monospace;
-    color: #ffd700;
+  
+  ::-webkit-scrollbar-thumb {
+    background: #8B0000 !important;
+    border-radius: 4px !important;
   }
-
-  /* Actions buttons in tables */
-  .data-table td .actions button {
-    margin-right: 5px;
-  }
-
-  .btn-success {
-    background: #28a745;
-    color: #ffffff;
-  }
-
-  .btn-success:hover {
-    background: #218838;
-  }
-
-  .btn-danger {
-    background: #dc3545;
-    color: #ffffff;
-  }
-
-  .btn-danger:hover {
-    background: #c82333;
-  }
-
-  .btn-info {
-    background: #17a2b8;
-    color: #ffffff;
-  }
-
-  .btn-info:hover {
-    background: #138496;
-  }
-
-  .btn-warning {
-    background: #ffc107;
-    color: #1a1a2e;
-  }
-
-  .btn-warning:hover {
-    background: #e0a800;
-  }
-
-  /* Network badges */
-  .network-badge {
-    display: inline-block;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  .network-badge.mtn {
-    background: #ffc107;
-    color: #1a1a2e;
-  }
-
-  .network-badge.telecel {
-    background: #ec008c;
-    color: #ffffff;
-  }
-
-  .network-badge.airteltigo {
-    background: #ed1b24;
-    color: #ffffff;
-  }
-
-  /* Sales cards */
-  .sales-card-small {
-    background: linear-gradient(135deg, #2d2d5e 0%, #3d2d6e 100%);
-  }
-
-  .sales-card-small.total {
-    background: linear-gradient(135deg, #6d0000 0%, #8B0000 100%);
-  }
-
-  /* Header actions */
-  .header-actions {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: #D2691E !important;
   }
 }
 
-/* ========== ADDITIONAL DARK MODE CLASS (for manual toggle if needed) ========== */
-.dark-mode .admin-dashboard,
-body.dark-mode .admin-dashboard {
-  background: var(--bg-dark);
-  color: var(--text-dark);
+/* ========== ADDITIONAL CLASS-BASED DARK MODE (for manual toggle) ========== */
+body.dark-mode .admin-dashboard,
+html[data-theme="dark"] .admin-dashboard {
+  background: #0a0a0f !important;
 }
 
-.dark-mode .data-table th,
-body.dark-mode .data-table th {
-  background: var(--table-header-dark);
-  color: var(--text-dark);
+body.dark-mode .data-table td,
+html[data-theme="dark"] .data-table td {
+  color: #e0e0e0 !important;
+  background: #1a1a2e !important;
 }
 
-.dark-mode .data-table td,
-body.dark-mode .data-table td {
-  color: var(--text-dark);
-  background: var(--card-bg-dark);
+body.dark-mode .data-table th,
+html[data-theme="dark"] .data-table th {
+  background: #0f0f1a !important;
+  color: #ffffff !important;
 }
 
-.dark-mode .stat-card,
-body.dark-mode .stat-card {
-  background: var(--card-bg-dark);
-}
-
-.dark-mode .panel,
-body.dark-mode .panel {
-  background: var(--card-bg-dark);
-}
-
+/* ========== RESPONSIVE STYLES ========== */
 @media (max-width: 768px) {
   .admin-dashboard {
     padding: 15px;
@@ -692,6 +527,14 @@ body.dark-mode .panel {
   
   .table-responsive {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Ensure table text is readable on mobile */
+  .data-table td,
+  .data-table th {
+    font-size: 12px;
+    padding: 8px 10px !important;
   }
 }
 
@@ -703,13 +546,15 @@ body.dark-mode .panel {
   .predictions-grid {
     grid-template-columns: 1fr;
   }
+  
+  .data-table td,
+  .data-table th {
+    font-size: 11px;
+    padding: 6px 8px !important;
+  }
 }
 
-/* ========== UTILITY CLASSES ========== */
-.text-center {
-  text-align: center;
-}
-
+/* ========== ANIMATIONS ========== */
 .spinning {
   animation: spin 1s linear infinite;
 }
@@ -735,37 +580,39 @@ body.dark-mode .panel {
 .spinner {
   width: 50px;
   height: 50px;
-  border: 4px solid var(--border-light);
+  border: 4px solid #e0e0e0;
   border-top-color: #8B0000;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
 
-/* Dark mode spinner */
 @media (prefers-color-scheme: dark) {
   .spinner {
-    border-color: var(--border-dark);
+    border-color: #2a2a3e;
   }
 }
 
-/* Scrollbar styling for dark mode */
-@media (prefers-color-scheme: dark) {
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
+/* ========== TABLE CELL SPECIFIC FIXES ========== */
+/* Force all text in tables to be visible */
+table.data-table td *,
+.data-table td * {
+  color: inherit !important;
+}
 
-  ::-webkit-scrollbar-track {
-    background: var(--border-dark);
-    border-radius: 4px;
-  }
+/* But keep special colors for amounts */
+.data-table td.amount,
+.data-table td .amount-value {
+  color: #4caf50 !important;
+}
 
-  ::-webkit-scrollbar-thumb {
-    background: #8B0000;
-    border-radius: 4px;
-  }
+/* Keep link colors visible */
+.data-table td a,
+.data-table td button {
+  color: inherit !important;
+}
 
-  ::-webkit-scrollbar-thumb:hover {
-    background: #D2691E;
-  }
+/* Ensure icons are visible */
+.data-table td svg {
+  color: inherit !important;
+  fill: currentColor !important;
 }
