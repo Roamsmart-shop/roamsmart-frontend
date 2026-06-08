@@ -662,7 +662,6 @@ body.dark-mode .panel {
   background: var(--card-bg-dark);
 }
 
-/* ========== RESPONSIVE STYLES (Keep existing) ========== */
 @media (max-width: 768px) {
   .admin-dashboard {
     padding: 15px;
