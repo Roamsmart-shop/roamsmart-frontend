@@ -1,5 +1,6 @@
-// src/pages/AdminDashboard.js
-// ========== ALL IMPORTS FIRST ==========
+// src/pages/AdminDashboard.js - WITH FAILED ORDERS TAB
+// Add FaExclamationTriangle to imports
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bar, Line, Doughnut, Pie } from 'react-chartjs-2';
@@ -248,40 +249,14 @@ export default function AdminDashboard() {
     year: 0,
     all_time: 0
   });
-
-  // In your fetchDashboardData function, add these detailed logs
-const fetchDashboardData = async () => {
-  try {
-    console.log('Fetching admin dashboard data...');
-    
-    const salesRes = await api.get('/admin/total-sales');
-    console.log('Total sales FULL response:', JSON.stringify(salesRes.data, null, 2));
-    
-    const statsRes = await api.get('/admin/stats');
-    console.log('Stats FULL response:', JSON.stringify(statsRes.data, null, 2));
-    
-    const ordersRes = await api.get('/admin/orders/recent');
-    console.log('Recent orders FULL response:', JSON.stringify(ordersRes.data, null, 2));
-    
-    // Check what data structure you're receiving
-    if (salesRes.data.success) {
-      console.log('Sales data structure:', Object.keys(salesRes.data.data));
-      console.log('Today sales:', salesRes.data.data.today);
-      console.log('Week sales:', salesRes.data.data.this_week);
-    }
-    
-    if (statsRes.data.success) {
-      console.log('Stats data structure:', Object.keys(statsRes.data.data));
-      console.log('Total users:', statsRes.data.data.total_users);
-      console.log('Total revenue:', statsRes.data.data.total_revenue);
-    }
-    
-  } catch (error) {
-    console.error('Failed to fetch dashboard data:', error);
-  }
-};
-    
   
+  // ========== NEW STATE FOR FAILED ORDERS ==========
+  const [failedOrders, setFailedOrders] = useState([]);
+  const [failedOrdersSummary, setFailedOrdersSummary] = useState({ total_failed: 0, total_refund_amount: 0 });
+  const [failedOrdersPagination, setFailedOrdersPagination] = useState({ page: 1, total: 0, pages: 0, has_prev: false, has_next: false });
+  const [resolvingOrder, setResolvingOrder] = useState(null);
+  const [failedOrdersCount, setFailedOrdersCount] = useState(0);
+
   // Socket connection effect
   useEffect(() => {
     const socketUrl = process.env.REACT_APP_SOCKET_URL || 'https://roamsmart-backend-production.up.railway.app';
@@ -313,7 +288,7 @@ const fetchDashboardData = async () => {
       if (order) {
         showOrderNotification(order);
         fetchAllData();
-        fetchTotalSales(); // Refresh sales when new order comes
+        fetchTotalSales();
       }
     });
     
@@ -351,6 +326,7 @@ const fetchDashboardData = async () => {
     fetchMasterInventory();
     fetchAgentApplications();
     fetchRegionalStats();
+    fetchFailedOrders(); // NEW: Fetch failed orders
   }, []);
 
   // Africa's Talking balance polling
@@ -374,208 +350,280 @@ const fetchDashboardData = async () => {
 
   // ========== DATA FETCHING FUNCTIONS ==========
   
-  // Update the fetchAllData function in AdminDashboard.js
-const fetchAllData = async () => {
-  setLoading(true);
-  try {
-    // Fetch stats first - this is your main data source
-    const statsRes = await api.get('/admin/stats');
-    console.log('Stats data received:', statsRes.data);
-    
-    if (statsRes.data.success && statsRes.data.data) {
-      const data = statsRes.data.data;
-      
-      // Update main stats
-      setStats({
-        total_users: data.total_users || 0,
-        total_agents: data.total_agents || 0,
-        pending_agents: data.pending_agents || 0,
-        total_orders: data.total_orders || 0,
-        total_revenue: data.total_revenue || 0,
-        pending_manual: data.pending_manual || 0,
-        pending_withdrawals: data.pending_withdrawals || 0,
-        // Use the actual data from API
-        today_sales: data.today_sales || 0,
-        today_orders: data.today_orders || 0,
-        week_sales: data.week_sales || 0,
-        month_sales: data.month_sales || 0,
-        year_sales: data.year_sales || 0,
-        // Keep existing stats with defaults
-        monthly_revenue: data.month_sales || data.total_revenue || 0,
-        weekly_revenue: data.week_sales || data.total_revenue / 4 || 0,
-        daily_revenue: data.today_sales || data.total_revenue / 30 || 0,
-        active_users: data.active_users || data.total_users || 0,
-        suspended_users: 0,
-        total_commission_paid: 0,
-        avg_order_value: data.total_orders > 0 ? data.total_revenue / data.total_orders : 0,
-        conversion_rate: 0,
-        total_data_sold_gb: 0,
-        top_network: 'MTN',
-        peak_hour: '6 PM',
-        customer_lifetime_value: 0,
-        customer_acquisition_cost: 0,
-        gross_merchandise_value: data.total_revenue || 0,
-        total_waec_sold: 0,
-        total_bills_paid: 0
-      });
-      
-      // Update live stats with actual data
-      setLiveStats({
-        online_users: data.active_users || data.total_users || 0,
-        active_purchases_per_sec: 0,
-        revenue_today: data.today_sales || 0,  // Fixed: use today_sales
-        orders_today: data.today_orders || 0,   // Fixed: use today_orders
-        pending_actions: (data.pending_agents || 0) + (data.pending_withdrawals || 0) + (data.pending_manual || 0)
-      });
-      
-      // Update recent orders if available
-      if (data.recent_orders && data.recent_orders.length > 0) {
-        setAllOrders(data.recent_orders);
-      }
-      
-      // Set total sales from the stats data
-      setTotalSales({
-        today: data.today_sales || 0,
-        week: data.week_sales || 0,
-        month: data.month_sales || 0,
-        year: data.year_sales || 0,
-        all_time: data.total_revenue || 0
-      });
-    }
-    
-    // Fetch total sales separately for additional data
+  // NEW: Fetch Failed Orders
+  const fetchFailedOrders = async (page = 1) => {
     try {
-      const salesRes = await api.get('/admin/total-sales');
-      console.log('Total sales data:', salesRes.data);
-      
-      if (salesRes.data.success && salesRes.data.data) {
-        const salesData = salesRes.data.data;
-        // Update total sales with more precise data if available
-        setTotalSales(prev => ({
-          today: salesData.today_sales !== undefined ? salesData.today_sales : prev.today,
-          week: salesData.week_sales !== undefined ? salesData.week_sales : prev.week,
-          month: salesData.month_sales !== undefined ? salesData.month_sales : prev.month,
-          year: salesData.year_sales !== undefined ? salesData.year_sales : prev.year,
-          all_time: salesData.total_sales !== undefined ? salesData.total_sales : prev.all_time
-        }));
+      const res = await api.get(`/admin/failed-orders?page=${page}&limit=20`);
+      if (res.data.success) {
+        setFailedOrders(res.data.data);
+        setFailedOrdersSummary(res.data.summary);
+        setFailedOrdersPagination(res.data.pagination);
+        setFailedOrdersCount(res.data.summary.total_failed);
       }
-    } catch (err) {
-      console.warn('Total sales endpoint issue:', err.message);
-      // Already have total sales from stats, so this is fine
+    } catch (error) {
+      console.error('Failed to fetch failed orders:', error);
     }
+  };
+
+  // NEW: Handle Retry Order
+  const handleRetryOrder = async (order) => {
+    const result = await Swal.fire({
+      title: 'Retry Delivery?',
+      html: `
+        <div style="text-align: left;">
+          <p><strong>Order ID:</strong> ${order.order_id}</p>
+          <p><strong>Customer:</strong> ${order.username}</p>
+          <p><strong>Product:</strong> ${order.size_gb}GB ${order.network?.toUpperCase()}</p>
+          <p><strong>Phone:</strong> ${order.phone_number}</p>
+          <p><strong>Amount:</strong> ₵${order.amount.toFixed(2)}</p>
+          <p style="color: #ff9800;">⚠️ This will attempt to deliver the data again.</p>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#28a745',
+      confirmButtonText: 'Yes, Retry Delivery',
+      cancelButtonText: 'Cancel'
+    });
     
-    // Fetch other data
-    const [usersRes, agentsRes, requestsRes, paymentsRes, withdrawalsRes, ordersRes] = await Promise.all([
-      api.get('/admin/users').catch(() => ({ data: { data: [] } })),
-      api.get('/admin/agents').catch(() => ({ data: { data: [] } })),
-      api.get('/admin/agent-requests').catch(() => ({ data: { data: [] } })),
-      api.get('/admin/manual-payments').catch(() => ({ data: { data: [] } })),
-      api.get('/admin/withdrawals').catch(() => ({ data: { data: [] } })),
-      api.get('/admin/orders').catch(() => ({ data: { data: [] } }))
-    ]);
+    if (result.isConfirmed) {
+      setResolvingOrder(order.id);
+      try {
+        const res = await api.post(`/admin/resolve-failed-order/${order.id}`, { action: 'retry' });
+        if (res.data.success) {
+          toast.success(res.data.message);
+          fetchFailedOrders(failedOrdersPagination.page);
+          fetchAllData(); // Refresh main stats
+        } else {
+          toast.error(res.data.error || 'Retry failed');
+        }
+      } catch (error) {
+        toast.error(error.response?.data?.error || 'Retry failed');
+      } finally {
+        setResolvingOrder(null);
+      }
+    }
+  };
+
+  // NEW: Handle Refund Order
+  const handleRefundOrder = async (order) => {
+    const result = await Swal.fire({
+      title: 'Refund Order?',
+      html: `
+        <div style="text-align: left;">
+          <p><strong>Order ID:</strong> ${order.order_id}</p>
+          <p><strong>Customer:</strong> ${order.username}</p>
+          <p><strong>Email:</strong> ${order.email}</p>
+          <p><strong>Amount to Refund:</strong> <strong class="text-success">₵${order.amount.toFixed(2)}</strong></p>
+          <p style="color: #dc3545;">⚠️ This will credit the user's wallet with ₵${order.amount.toFixed(2)}.</p>
+        </div>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      confirmButtonText: 'Yes, Refund',
+      cancelButtonText: 'Cancel'
+    });
     
-    setUsers(usersRes.data?.data || []);
-    setAgents(agentsRes.data?.data || []);
-    setAgentRequests(requestsRes.data?.data || []);
-    setManualPayments(paymentsRes.data?.data || []);
-    setWithdrawals(withdrawalsRes.data?.data || []);
-    setAllOrders(ordersRes.data?.data || []);
-    
-  } catch (error) {
-    console.error('Failed to load data:', error);
-    toast.error('Failed to load dashboard data');
-  } finally {
-    setLoading(false);
-  }
-};
+    if (result.isConfirmed) {
+      setResolvingOrder(order.id);
+      try {
+        const res = await api.post(`/admin/resolve-failed-order/${order.id}`, { action: 'refund' });
+        if (res.data.success) {
+          toast.success(res.data.message);
+          fetchFailedOrders(failedOrdersPagination.page);
+          fetchAllData(); // Refresh main stats
+        } else {
+          toast.error(res.data.error || 'Refund failed');
+        }
+      } catch (error) {
+        toast.error(error.response?.data?.error || 'Refund failed');
+      } finally {
+        setResolvingOrder(null);
+      }
+    }
+  };
+
+  const fetchAllData = async () => {
+    setLoading(true);
+    try {
+      const statsRes = await api.get('/admin/stats');
+      console.log('Stats data received:', statsRes.data);
+      
+      if (statsRes.data.success && statsRes.data.data) {
+        const data = statsRes.data.data;
+        
+        setStats({
+          total_users: data.total_users || 0,
+          total_agents: data.total_agents || 0,
+          pending_agents: data.pending_agents || 0,
+          total_orders: data.total_orders || 0,
+          total_revenue: data.total_revenue || 0,
+          pending_manual: data.pending_manual || 0,
+          pending_withdrawals: data.pending_withdrawals || 0,
+          today_sales: data.today_sales || 0,
+          today_orders: data.today_orders || 0,
+          week_sales: data.week_sales || 0,
+          month_sales: data.month_sales || 0,
+          year_sales: data.year_sales || 0,
+          monthly_revenue: data.month_sales || data.total_revenue || 0,
+          weekly_revenue: data.week_sales || data.total_revenue / 4 || 0,
+          daily_revenue: data.today_sales || data.total_revenue / 30 || 0,
+          active_users: data.active_users || data.total_users || 0,
+          suspended_users: 0,
+          total_commission_paid: 0,
+          avg_order_value: data.total_orders > 0 ? data.total_revenue / data.total_orders : 0,
+          conversion_rate: 0,
+          total_data_sold_gb: 0,
+          top_network: 'MTN',
+          peak_hour: '6 PM',
+          customer_lifetime_value: 0,
+          customer_acquisition_cost: 0,
+          gross_merchandise_value: data.total_revenue || 0,
+          total_waec_sold: 0,
+          total_bills_paid: 0
+        });
+        
+        setLiveStats({
+          online_users: data.active_users || data.total_users || 0,
+          active_purchases_per_sec: 0,
+          revenue_today: data.today_sales || 0,
+          orders_today: data.today_orders || 0,
+          pending_actions: (data.pending_agents || 0) + (data.pending_withdrawals || 0) + (data.pending_manual || 0)
+        });
+        
+        if (data.recent_orders && data.recent_orders.length > 0) {
+          setAllOrders(data.recent_orders);
+        }
+        
+        setTotalSales({
+          today: data.today_sales || 0,
+          week: data.week_sales || 0,
+          month: data.month_sales || 0,
+          year: data.year_sales || 0,
+          all_time: data.total_revenue || 0
+        });
+      }
+      
+      try {
+        const salesRes = await api.get('/admin/total-sales');
+        if (salesRes.data.success && salesRes.data.data) {
+          const salesData = salesRes.data.data;
+          setTotalSales(prev => ({
+            today: salesData.today_sales !== undefined ? salesData.today_sales : prev.today,
+            week: salesData.week_sales !== undefined ? salesData.week_sales : prev.week,
+            month: salesData.month_sales !== undefined ? salesData.month_sales : prev.month,
+            year: salesData.year_sales !== undefined ? salesData.year_sales : prev.year,
+            all_time: salesData.total_sales !== undefined ? salesData.total_sales : prev.all_time
+          }));
+        }
+      } catch (err) {
+        console.warn('Total sales endpoint issue:', err.message);
+      }
+      
+      const [usersRes, agentsRes, requestsRes, paymentsRes, withdrawalsRes, ordersRes] = await Promise.all([
+        api.get('/admin/users').catch(() => ({ data: { data: [] } })),
+        api.get('/admin/agents').catch(() => ({ data: { data: [] } })),
+        api.get('/admin/agent-requests').catch(() => ({ data: { data: [] } })),
+        api.get('/admin/manual-payments').catch(() => ({ data: { data: [] } })),
+        api.get('/admin/withdrawals').catch(() => ({ data: { data: [] } })),
+        api.get('/admin/orders').catch(() => ({ data: { data: [] } }))
+      ]);
+      
+      setUsers(usersRes.data?.data || []);
+      setAgents(agentsRes.data?.data || []);
+      setAgentRequests(requestsRes.data?.data || []);
+      setManualPayments(paymentsRes.data?.data || []);
+      setWithdrawals(withdrawalsRes.data?.data || []);
+      setAllOrders(ordersRes.data?.data || []);
+      
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // NEW: Fetch Africa's Talking Balance
-   // Update the fetchAfricasTalkingBalance function
-const fetchAfricasTalkingBalance = async () => {
-  try {
-    const res = await api.get('/admin/africastalking-balance');
-    console.log('Africa\'s Talking balance response:', res.data);
-    
-    if (res.data.success) {
-      // Handle different possible response structures
-      let balance = 0;
-      let currency = 'GHS';
-      
-      if (res.data.data) {
-        balance = res.data.data.wallet_balance || res.data.data.balance || res.data.data.account_balance || 0;
-        currency = res.data.data.currency || 'GHS';
-      } else if (res.data.wallet_balance) {
-        balance = res.data.wallet_balance;
-      } else if (res.data.balance) {
-        balance = res.data.balance;
+  const fetchAfricasTalkingBalance = async () => {
+    try {
+      const res = await api.get('/admin/africastalking-balance');
+      if (res.data.success) {
+        let balance = 0;
+        let currency = 'GHS';
+        
+        if (res.data.data) {
+          balance = res.data.data.wallet_balance || res.data.data.balance || res.data.data.account_balance || 0;
+          currency = res.data.data.currency || 'GHS';
+        } else if (res.data.wallet_balance) {
+          balance = res.data.wallet_balance;
+        } else if (res.data.balance) {
+          balance = res.data.balance;
+        }
+        
+        setAfricasTalkingBalance({
+          wallet_balance: parseFloat(balance),
+          account_balance: parseFloat(balance),
+          currency: currency,
+          loading: false,
+          error: null
+        });
+      } else {
+        setAfricasTalkingBalance(prev => ({
+          ...prev,
+          loading: false,
+          error: res.data.error || 'Failed to fetch balance'
+        }));
       }
-      
-      setAfricasTalkingBalance({
-        wallet_balance: parseFloat(balance),
-        account_balance: parseFloat(balance),
-        currency: currency,
-        loading: false,
-        error: null
-      });
-    } else {
+    } catch (error) {
+      console.error('Failed to fetch Africa\'s Talking balance:', error);
       setAfricasTalkingBalance(prev => ({
         ...prev,
         loading: false,
-        error: res.data.error || 'Failed to fetch balance'
+        error: 'Could not connect to Africa\'s Talking API'
       }));
     }
-  } catch (error) {
-    console.error('Failed to fetch Africa\'s Talking balance:', error);
-    setAfricasTalkingBalance(prev => ({
-      ...prev,
-      loading: false,
-      error: 'Could not connect to Africa\'s Talking API'
-    }));
-  }
-};
+  };
 
-// Update the fetchDigimallBalance function
-const fetchDigimallBalance = async () => {
-  try {
-    const res = await api.get('/admin/digimall-balance');
-    console.log('Digimall balance response:', res.data);
-    
-    if (res.data.success) {
-      let balance = 0;
-      let currency = 'GHS';
-      
-      if (res.data.data) {
-        balance = res.data.data.wallet_balance || res.data.data.balance || res.data.data.account_balance || 0;
-        currency = res.data.data.currency || 'GHS';
-      } else if (res.data.wallet_balance) {
-        balance = res.data.wallet_balance;
+  // NEW: Fetch Digimall Balance
+  const fetchDigimallBalance = async () => {
+    try {
+      const res = await api.get('/admin/digimall-balance');
+      if (res.data.success) {
+        let balance = 0;
+        let currency = 'GHS';
+        
+        if (res.data.data) {
+          balance = res.data.data.wallet_balance || res.data.data.balance || res.data.data.account_balance || 0;
+          currency = res.data.data.currency || 'GHS';
+        } else if (res.data.wallet_balance) {
+          balance = res.data.wallet_balance;
+        }
+        
+        setDigimallBalance({
+          wallet_balance: parseFloat(balance),
+          account_balance: parseFloat(balance),
+          currency: currency,
+          loading: false,
+          error: null
+        });
+      } else {
+        setDigimallBalance(prev => ({
+          ...prev,
+          loading: false,
+          error: res.data.error || 'Failed to fetch Digimall balance'
+        }));
       }
-      
-      setDigimallBalance({
-        wallet_balance: parseFloat(balance),
-        account_balance: parseFloat(balance),
-        currency: currency,
-        loading: false,
-        error: null
-      });
-    } else {
+    } catch (error) {
+      console.error('Failed to fetch Digimall balance:', error);
       setDigimallBalance(prev => ({
         ...prev,
         loading: false,
-        error: res.data.error || 'Failed to fetch Digimall balance'
+        error: 'Could not connect to Digimall API'
       }));
     }
-  } catch (error) {
-    console.error('Failed to fetch Digimall balance:', error);
-    setDigimallBalance(prev => ({
-      ...prev,
-      loading: false,
-      error: 'Could not connect to Digimall API'
-    }));
-  }
-};
-  
- 
+  };
   
   // NEW: Fetch Total Sales from Database
   const fetchTotalSales = async () => {
@@ -762,10 +810,6 @@ const fetchDigimallBalance = async () => {
   // ========== SIMPLIFIED PAYMENT APPROVAL FUNCTIONS ==========
   
   const approvePaymentSimple = async (payment) => {
-    console.log("=== APPROVE PAYMENT DEBUG ===");
-    console.log("Payment object:", payment);
-    console.log("Payment ID:", payment.id);
-    
     const result = await Swal.fire({
       title: 'Approve Payment?',
       html: `
@@ -791,23 +835,16 @@ const fetchDigimallBalance = async () => {
       let loadingToast;
       try {
         loadingToast = toast.loading('Approving payment and crediting wallet...');
-        
         const response = await api.post(`/admin/manual-payments/${payment.id}/approve-simple`);
-        
         toast.dismiss(loadingToast);
-        
-        console.log("API Response:", response.data);
         
         if (response.data.success) {
           toast.success(`✅ Payment of ₵${payment.amount} approved and credited to ${payment.username}!`);
-          
           setManualPayments(prev => prev.filter(p => p.id !== payment.id));
           setSelectedPaymentIds(prevIds => prevIds.filter(id => id !== payment.id));
-          
           await fetchAllData();
-          await fetchTotalSales(); // Refresh sales after approval
+          await fetchTotalSales();
           fetchRecentActivities();
-          
           addNotification({
             type: 'success',
             title: 'Payment Approved',
@@ -816,7 +853,6 @@ const fetchDigimallBalance = async () => {
         } else {
           toast.error(response.data.error || 'Failed to approve payment');
         }
-        
       } catch (error) {
         console.error('Approval error:', error);
         if (loadingToast) toast.dismiss(loadingToast);
@@ -856,22 +892,15 @@ const fetchDigimallBalance = async () => {
     if (result.isConfirmed) {
       try {
         const loadingToast = toast.loading(`Approving ${selectedPaymentIds.length} payments...`);
-        
-        await api.post('/admin/manual-payments/batch-approve', { 
-          payment_ids: selectedPaymentIds 
-        });
-        
+        await api.post('/admin/manual-payments/batch-approve', { payment_ids: selectedPaymentIds });
         toast.dismiss(loadingToast);
         toast.success(`✅ Successfully approved ${selectedPaymentIds.length} payments!`);
-        
         setManualPayments(prevPayments => prevPayments.filter(p => !selectedPaymentIds.includes(p.id)));
         setSelectedPaymentIds([]);
         setShowBatchApproveModal(false);
-        
         fetchAllData();
-        fetchTotalSales(); // Refresh sales after batch approval
+        fetchTotalSales();
         fetchRecentActivities();
-        
       } catch (error) {
         console.error('Batch approval error:', error);
         toast.error(error.response?.data?.error || 'Failed to batch approve payments');
@@ -881,8 +910,6 @@ const fetchDigimallBalance = async () => {
   
   // ========== PAYMENT PROOF VIEWING FUNCTIONS ==========
   const viewPaymentProof = (proofUrl) => {
-    console.log("View Proof clicked. URL:", proofUrl);
-    
     if (!proofUrl || proofUrl === 'No proof' || proofUrl === 'N/A' || proofUrl === 'null' || proofUrl === 'undefined') {
       toast.error('No valid proof document was uploaded');
       return;
@@ -903,8 +930,6 @@ const fetchDigimallBalance = async () => {
   };
 
   const downloadProofDocument = async (proofUrl, filename) => {
-    console.log("Download Proof clicked. URL:", proofUrl);
-    
     if (!proofUrl || proofUrl === 'No proof' || proofUrl === 'N/A') {
       toast.error('No document available to download');
       return;
@@ -912,18 +937,12 @@ const fetchDigimallBalance = async () => {
     
     try {
       toast.loading('Downloading document...');
-      
       let url = proofUrl;
       if (!url.startsWith('http')) {
         url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/uploads/${proofUrl}`;
       }
-      
       const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -933,7 +952,6 @@ const fetchDigimallBalance = async () => {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(blobUrl);
-      
       toast.dismiss();
       toast.success('Document downloaded successfully');
     } catch (error) {
@@ -976,13 +994,10 @@ const fetchDigimallBalance = async () => {
       try {
         await api.post(`/admin/manual-payments/${paymentId}/reject`, { reason: rejectionReason });
         toast.error('Payment rejected. User has been notified.');
-        
         setManualPayments(prevPayments => prevPayments.filter(p => p.id !== paymentId));
         setSelectedPaymentIds(prevIds => prevIds.filter(id => id !== paymentId));
-        
         fetchAllData();
         fetchRecentActivities();
-        
       } catch (error) {
         toast.error('Failed to reject payment');
       }
@@ -1001,7 +1016,6 @@ const fetchDigimallBalance = async () => {
       setShowAnnouncementModal(false);
       fetchAnnouncement();
       socketRef.current?.emit('broadcast_announcement', announcement);
-      
       setAnnouncement({
         is_active: true,
         message: '',
@@ -1184,7 +1198,7 @@ const fetchDigimallBalance = async () => {
             setShowDataPurchaseModal(false);
             fetchMasterInventory();
             fetchAfricasTalkingBalance();
-            fetchDigimallBalance(); // Refresh Digimall balance as well
+            fetchDigimallBalance();
             setDataPurchase({
               network: 'mtn',
               size_gb: 10,
@@ -1335,64 +1349,57 @@ const fetchDigimallBalance = async () => {
     }
   };
 
-  // ========== USER MANAGEMENT ==========
-const saveUser = async () => {
-  if (!newUser.username || !newUser.email || !newUser.phone) {
-    toast.error('Please fill all required fields');
-    return;
-  }
-  
-  try {
-    if (isEditing && newUser.id) {
-      // UPDATE existing user
-      const response = await api.put(`/admin/users/${newUser.id}`, {
-        username: newUser.username,
-        email: newUser.email,
-        phone: newUser.phone,
-        role: newUser.role,
-        wallet_balance: newUser.wallet_balance,
-        // Don't send password if empty (keep existing password)
-        ...(newUser.password && { password: newUser.password })
-      });
-      
-      if (response.data.success) {
-        toast.success(`User ${newUser.username} updated successfully on Roamsmart!`);
-      } else {
-        toast.error(response.data.error || 'Failed to update user');
-        return;
-      }
-    } else {
-      // CREATE new user
-      const response = await api.post('/admin/users/create', newUser);
-      if (response.data.success) {
-        toast.success(`User ${newUser.username} created successfully on Roamsmart!`);
-      } else {
-        toast.error(response.data.error || 'Failed to create user');
-        return;
-      }
+  const saveUser = async () => {
+    if (!newUser.username || !newUser.email || !newUser.phone) {
+      toast.error('Please fill all required fields');
+      return;
     }
     
-    // Close modal and reset form
-    setShowCreateUserModal(false);
-    setIsEditing(false);
-    setNewUser({ 
-      username: '', 
-      email: '', 
-      phone: '', 
-      password: '', 
-      role: 'user', 
-      wallet_balance: 0 
-    });
-    
-    // Refresh data
-    fetchAllData();
-    fetchRecentActivities();
-    
-  } catch (error) {
-    console.error('Save user error:', error);
-    toast.error(error.response?.data?.error || 'Failed to save user');
-  }
-};
+    try {
+      if (isEditing && newUser.id) {
+        const response = await api.put(`/admin/users/${newUser.id}`, {
+          username: newUser.username,
+          email: newUser.email,
+          phone: newUser.phone,
+          role: newUser.role,
+          wallet_balance: newUser.wallet_balance,
+          ...(newUser.password && { password: newUser.password })
+        });
+        
+        if (response.data.success) {
+          toast.success(`User ${newUser.username} updated successfully on Roamsmart!`);
+        } else {
+          toast.error(response.data.error || 'Failed to update user');
+          return;
+        }
+      } else {
+        const response = await api.post('/admin/users/create', newUser);
+        if (response.data.success) {
+          toast.success(`User ${newUser.username} created successfully on Roamsmart!`);
+        } else {
+          toast.error(response.data.error || 'Failed to create user');
+          return;
+        }
+      }
+      
+      setShowCreateUserModal(false);
+      setIsEditing(false);
+      setNewUser({ 
+        username: '', 
+        email: '', 
+        phone: '', 
+        password: '', 
+        role: 'user', 
+        wallet_balance: 0 
+      });
+      fetchAllData();
+      fetchRecentActivities();
+      
+    } catch (error) {
+      console.error('Save user error:', error);
+      toast.error(error.response?.data?.error || 'Failed to save user');
+    }
+  };
 
   const bulkAdjustWallet = async () => {
     const { value: formValues } = await Swal.fire({
@@ -1689,7 +1696,7 @@ const saveUser = async () => {
         <div className="stat-card warning"><div className="stat-icon"><FaClock /></div><div className="stat-value">{stats.pending_agents || 0}</div><div className="stat-label">Pending Agents</div></div>
         <div className="stat-card success"><div className="stat-icon"><FaMoneyBillWave /></div><div className="stat-value">₵{(stats.total_revenue || 0).toFixed(2)}</div><div className="stat-label">Total Revenue</div></div>
         
-        {/* Total Sales Card - NEW */}
+        {/* Total Sales Card */}
         <div className="stat-card sales-card">
           <div className="stat-icon"><FaShoppingCart /></div>
           <div className="stat-value">₵{(totalSales.all_time || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
@@ -1701,7 +1708,7 @@ const saveUser = async () => {
           </div>
         </div>
 
-        {/* Digimall Balance Card - NEW */}
+        {/* Digimall Balance Card */}
         <div className="stat-card digimall-card">
           <div className="stat-icon"><FaDatabase /></div>
           <div className="stat-value">
@@ -1905,12 +1912,120 @@ const saveUser = async () => {
         <button className={`tab-btn ${activeTab === 'withdrawals' ? 'active' : ''}`} onClick={() => setActiveTab('withdrawals')}><FaMoneyBillWave /> Withdrawals ({withdrawals.filter(w => w?.status === 'pending').length})</button>
         <button className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}><FaUsers /> All Users</button>
         <button className={`tab-btn ${activeTab === 'agents-list' ? 'active' : ''}`} onClick={() => setActiveTab('agents-list')}><FaUserCheck /> Agents List</button>
+        <button className={`tab-btn ${activeTab === 'failed-orders' ? 'active' : ''}`} onClick={() => setActiveTab('failed-orders')}><FaExclamationTriangle /> Failed Orders ({failedOrdersCount})</button>
         <button className={`tab-btn ${activeTab === 'waec' ? 'active' : ''}`} onClick={() => setActiveTab('waec')}><FaGraduationCap /> WAEC Vouchers</button>
         <button className={`tab-btn ${activeTab === 'bills' ? 'active' : ''}`} onClick={() => setActiveTab('bills')}><FaBolt /> Bill Payments</button>
         <button className={`tab-btn ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}><FaDatabase /> Inventory</button>
         <button className={`tab-btn ${activeTab === 'kyc' ? 'active' : ''}`} onClick={() => setActiveTab('kyc')}><FaShieldAlt /> KYC ({kycRequests.length})</button>
         <button className={`tab-btn ${activeTab === 'webhooks' ? 'active' : ''}`} onClick={() => setActiveTab('webhooks')}><FaPlug /> Webhooks</button>
       </div>
+
+      {/* ========== FAILED ORDERS TAB - NEW ========== */}
+      {activeTab === 'failed-orders' && (
+        <div className="panel">
+          <div className="panel-header">
+            <h3><FaExclamationTriangle /> Failed Orders Management</h3>
+            <div className="failed-summary" style={{ display: 'flex', gap: '15px' }}>
+              <div className="summary-badge danger" style={{ background: '#dc3545', color: 'white', padding: '8px 16px', borderRadius: '8px', textAlign: 'center' }}>
+                <span>Total Failed</span>
+                <strong style={{ display: 'block', fontSize: '20px' }}>{failedOrdersSummary.total_failed || 0}</strong>
+              </div>
+              <div className="summary-badge warning" style={{ background: '#ffc107', color: '#333', padding: '8px 16px', borderRadius: '8px', textAlign: 'center' }}>
+                <span>Pending Refund</span>
+                <strong style={{ display: 'block', fontSize: '20px' }}>₵{(failedOrdersSummary.total_refund_amount || 0).toFixed(2)}</strong>
+              </div>
+            </div>
+          </div>
+          
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Customer</th>
+                  <th>Product</th>
+                  <th>Amount</th>
+                  <th>Phone</th>
+                  <th>Error</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {failedOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="text-center">
+                      <div className="empty-state" style={{ padding: '40px', textAlign: 'center' }}>
+                        <FaCheckCircle size={40} color="#28a745" />
+                        <p style={{ marginTop: '10px' }}>No failed orders found!</p>
+                        <small>All orders delivered successfully</small>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  failedOrders.map(order => (
+                    <tr key={order.id}>
+                      <td className="order-id"><code>{order.order_id}</code></td>
+                      <td>
+                        <strong>{order.username || 'Unknown'}</strong><br/>
+                        <small>{order.email || ''}</small>
+                      </td>
+                      <td>{order.network?.toUpperCase()} {order.size_gb}GB</td>
+                      <td className="amount">₵{order.amount?.toFixed(2) || 0}</td>
+                      <td>{order.phone_number || 'N/A'}</td>
+                      <td className="error-message">
+                        <span title={order.error_message} style={{ fontSize: '12px', color: '#dc3545' }}>
+                          {order.error_message?.substring(0, 50)}...
+                        </span>
+                      </td>
+                      <td>{order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}</td>
+                      <td className="actions">
+                        <button 
+                          className="btn-sm btn-success" 
+                          onClick={() => handleRetryOrder(order)}
+                          disabled={resolvingOrder === order.id}
+                          style={{ marginRight: '5px' }}
+                        >
+                          {resolvingOrder === order.id ? <FaSpinner className="spinning" /> : <FaSync />}
+                          Retry
+                        </button>
+                        <button 
+                          className="btn-sm btn-danger" 
+                          onClick={() => handleRefundOrder(order)}
+                          disabled={resolvingOrder === order.id}
+                        >
+                          <FaMoneyBillWave /> Refund
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Pagination */}
+          {failedOrdersPagination.pages > 1 && (
+            <div className="pagination" style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '20px' }}>
+              <button 
+                onClick={() => fetchFailedOrders(failedOrdersPagination.page - 1)}
+                disabled={!failedOrdersPagination.has_prev}
+                className="btn-sm btn-secondary"
+              >
+                Previous
+              </button>
+              <span>Page {failedOrdersPagination.page} of {failedOrdersPagination.pages}</span>
+              <button 
+                onClick={() => fetchFailedOrders(failedOrdersPagination.page + 1)}
+                disabled={!failedOrdersPagination.has_next}
+                className="btn-sm btn-secondary"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ========== AGENT APPLICATIONS TAB ========== */}
       {activeTab === 'applications' && (
@@ -2140,100 +2255,96 @@ const saveUser = async () => {
       )}
 
       {/* ========== USERS TAB ========== */}
-{activeTab === 'users' && (
-  <div className="panel">
-    <div className="panel-header">
-      <h3>All Users</h3>
-      <div className="search-box">
-        <FaSearch />
-        <input 
-          type="text" 
-          placeholder="Search users..." 
-          value={searchTerm} 
-          onChange={(e) => setSearchTerm(e.target.value)} 
-        />
-      </div>
-    </div>
-    <div className="table-responsive">
-      <table className="data-table">
-        <thead>
-          <tr>
-            <th>ID</th><th>Username</th><th>Email</th><th>Phone</th><th>Role</th>
-            <th>Wallet</th><th>Total Spent</th><th>Joined</th><th>Status</th><th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.filter(u => 
-            u?.username?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-            u?.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-            u?.phone?.includes(searchTerm)
-          ).map(user => (
-            <tr key={user.id}>
-              <td>{user?.id}</td>
-              <td>
-                <strong>{user?.username || 'Unknown'}</strong>
-                {user?.is_agent && <span className="agent-badge">Agent</span>}
-              </td>
-              <td>{user?.email || ''}</td>
-              <td>{user?.phone || ''}</td>
-              <td>{user?.is_agent ? 'Agent' : user?.is_admin ? 'Admin' : 'User'}</td>
-              <td className="amount">₵{user?.wallet_balance || 0}</td>
-              <td className="amount">₵{user?.total_spent || 0}</td>
-              <td>{user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</td>
-              <td>
-                <span className={`status ${user?.is_suspended ? 'suspended' : 'active'}`}>
-                  {user?.is_suspended ? 'Suspended' : 'Active'}
-                </span>
-              </td>
-              <td className="actions">
-                <button 
-                  className="btn-info btn-sm" 
-                  onClick={() => { 
-                    setSelectedUser(user); 
-                    setShowUserModal(true); 
-                  }}
-                >
-                  <FaEye /> View
-                </button>
-                
-                {/* EDIT BUTTON - Updated */}
-                <button 
-                  className="btn-primary btn-sm" 
-                  onClick={() => { 
-                    console.log('Editing user:', user);
-                    setIsEditing(true);  // Set edit mode
-                    setNewUser({         // Populate form with user data
-                      id: user.id,
-                      username: user.username || '',
-                      email: user.email || '',
-                      phone: user.phone || '',
-                      password: '',      // Leave empty, won't update unless filled
-                      role: user.is_agent ? 'agent' : (user.is_admin ? 'admin' : 'user'),
-                      wallet_balance: user.wallet_balance || 0
-                    });
-                    setShowCreateUserModal(true); 
-                  }}
-                >
-                  <FaEdit /> Edit
-                </button>
-                
-                {!user?.is_suspended ? (
-                  <button className="btn-warning btn-sm" onClick={() => suspendUser(user.id)}>
-                    <FaBan /> Suspend
-                  </button>
-                ) : (
-                  <button className="btn-success btn-sm" onClick={() => activateUser(user.id)}>
-                    <FaUserCheck /> Activate
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  </div>
-)}
+      {activeTab === 'users' && (
+        <div className="panel">
+          <div className="panel-header">
+            <h3>All Users</h3>
+            <div className="search-box">
+              <FaSearch />
+              <input 
+                type="text" 
+                placeholder="Search users..." 
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.target.value)} 
+              />
+            </div>
+          </div>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th><th>Username</th><th>Email</th><th>Phone</th><th>Role</th>
+                  <th>Wallet</th><th>Total Spent</th><th>Joined</th><th>Status</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.filter(u => 
+                  u?.username?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                  u?.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                  u?.phone?.includes(searchTerm)
+                ).map(user => (
+                  <tr key={user.id}>
+                    <td>{user?.id}</td>
+                    <td>
+                      <strong>{user?.username || 'Unknown'}</strong>
+                      {user?.is_agent && <span className="agent-badge">Agent</span>}
+                    </td>
+                    <td>{user?.email || ''}</td>
+                    <td>{user?.phone || ''}</td>
+                    <td>{user?.is_agent ? 'Agent' : user?.is_admin ? 'Admin' : 'User'}</td>
+                    <td className="amount">₵{user?.wallet_balance || 0}</td>
+                    <td className="amount">₵{user?.total_spent || 0}</td>
+                    <td>{user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}</td>
+                    <td>
+                      <span className={`status ${user?.is_suspended ? 'suspended' : 'active'}`}>
+                        {user?.is_suspended ? 'Suspended' : 'Active'}
+                      </span>
+                    </td>
+                    <td className="actions">
+                      <button 
+                        className="btn-info btn-sm" 
+                        onClick={() => { 
+                          setSelectedUser(user); 
+                          setShowUserModal(true); 
+                        }}
+                      >
+                        <FaEye /> View
+                      </button>
+                      <button 
+                        className="btn-primary btn-sm" 
+                        onClick={() => { 
+                          setIsEditing(true);
+                          setNewUser({
+                            id: user.id,
+                            username: user.username || '',
+                            email: user.email || '',
+                            phone: user.phone || '',
+                            password: '',
+                            role: user.is_agent ? 'agent' : (user.is_admin ? 'admin' : 'user'),
+                            wallet_balance: user.wallet_balance || 0
+                          });
+                          setShowCreateUserModal(true); 
+                        }}
+                      >
+                        <FaEdit /> Edit
+                      </button>
+                      {!user?.is_suspended ? (
+                        <button className="btn-warning btn-sm" onClick={() => suspendUser(user.id)}>
+                          <FaBan /> Suspend
+                        </button>
+                      ) : (
+                        <button className="btn-success btn-sm" onClick={() => activateUser(user.id)}>
+                          <FaUserCheck /> Activate
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* ========== AGENTS LIST TAB ========== */}
       {activeTab === 'agents-list' && (
@@ -2282,8 +2393,7 @@ const saveUser = async () => {
                 {waecVouchers.slice(0, 50).map(v => (
                   <tr key={v.id}>
                     <td><code>{v?.voucher_code || 'N/A'}</code></td>
-                    <td>{v?.serial_number || 'N/A'}</td>
-                    <td>{v?.pin || 'N/A'}</td>
+                    <td>{v?.serial_number || 'N/A'}</td>                    <td>{v?.pin || 'N/A'}</td>
                     <td>{v?.exam_type || 'N/A'}</td>
                     <td>{v?.year || 'N/A'}</td>
                     <td><span className={`status ${v?.is_used ? 'used' : 'available'}`}>{v?.is_used ? 'Used' : 'Available'}</span></td>
@@ -2426,111 +2536,112 @@ const saveUser = async () => {
       <AnimatePresence>{showAnnouncementModal && (<motion.div className="modal-overlay" onClick={() => setShowAnnouncementModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowAnnouncementModal(false)}>×</button><h3><FaBullhorn /> Create Announcement</h3><div className="form-group"><label>Message</label><textarea value={announcement.message} onChange={(e) => setAnnouncement({...announcement, message: e.target.value})} className="form-control" rows="3" /></div><div className="form-group"><label>Type</label><select value={announcement.type} onChange={(e) => setAnnouncement({...announcement, type: e.target.value})} className="form-control"><option value="info">ℹ️ Info</option><option value="warning">⚠️ Warning</option><option value="error">🚨 Critical</option><option value="success">✅ Success</option></select></div><div className="form-group"><label>Affected Network</label><select value={announcement.network_affected} onChange={(e) => setAnnouncement({...announcement, network_affected: e.target.value})} className="form-control"><option value="all">All Networks</option><option value="mtn">MTN</option><option value="telecel">Telecel</option><option value="airteltigo">AirtelTigo</option></select></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowAnnouncementModal(false)}>Cancel</button><button className="btn-primary" onClick={createAnnouncement}>Publish</button></div></motion.div></motion.div>)}</AnimatePresence>
 
       {/* Create/Edit User Modal */}
-<AnimatePresence>
-  {showCreateUserModal && (
-    <motion.div className="modal-overlay" onClick={() => {
-      setShowCreateUserModal(false);
-      setIsEditing(false);
-    }}>
-      <motion.div className="modal-content" onClick={e => e.stopPropagation()}>
-        <button className="modal-close" onClick={() => {
-          setShowCreateUserModal(false);
-          setIsEditing(false);
-        }}>×</button>
-        
-        <h3>
-          {isEditing ? <FaEdit /> : <FaUserPlus />} 
-          {isEditing ? 'Edit User' : 'Create New User'}
-        </h3>
-        
-        <div className="form-group">
-          <label>Username *</label>
-          <input 
-            type="text" 
-            value={newUser.username} 
-            onChange={(e) => setNewUser({...newUser, username: e.target.value})} 
-            className="form-control" 
-            required
-          />
-        </div>
-        
-        <div className="form-group">
-          <label>Email *</label>
-          <input 
-            type="email" 
-            value={newUser.email} 
-            onChange={(e) => setNewUser({...newUser, email: e.target.value})} 
-            className="form-control" 
-            required
-          />
-        </div>
-        
-        <div className="form-group">
-          <label>Phone *</label>
-          <input 
-            type="tel" 
-            value={newUser.phone} 
-            onChange={(e) => setNewUser({...newUser, phone: e.target.value})} 
-            className="form-control" 
-            required
-          />
-        </div>
-        
-        <div className="form-group">
-          <label>Password {isEditing && <small style={{color: '#666', fontSize: '11px'}}>(Leave blank to keep current)</small>}</label>
-          <input 
-            type="password" 
-            value={newUser.password} 
-            onChange={(e) => setNewUser({...newUser, password: e.target.value})} 
-            className="form-control" 
-            placeholder={isEditing ? "Enter new password to change" : "Auto-generated if left blank"}
-          />
-        </div>
-        
-        <div className="form-group">
-          <label>Role</label>
-          <select 
-            value={newUser.role} 
-            onChange={(e) => setNewUser({...newUser, role: e.target.value})} 
-            className="form-control"
-          >
-            <option value="user">User</option>
-            <option value="agent">Agent</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-        
-        <div className="form-group">
-          <label>Initial/Current Wallet Balance (GHS)</label>
-          <input 
-            type="number" 
-            value={newUser.wallet_balance} 
-            onChange={(e) => setNewUser({...newUser, wallet_balance: parseFloat(e.target.value)})} 
-            className="form-control" 
-            step="0.01"
-          />
-        </div>
-        
-        <div className="modal-actions">
-          <button className="btn-secondary" onClick={() => {
+      <AnimatePresence>
+        {showCreateUserModal && (
+          <motion.div className="modal-overlay" onClick={() => {
             setShowCreateUserModal(false);
             setIsEditing(false);
           }}>
-            Cancel
-          </button>
-          <button className="btn-primary" onClick={saveUser}>
-            {isEditing ? 'Update User' : 'Create User'}
-          </button>
-        </div>
-      </motion.div>
-    </motion.div>
-  )}
-</AnimatePresence>
+            <motion.div className="modal-content" onClick={e => e.stopPropagation()}>
+              <button className="modal-close" onClick={() => {
+                setShowCreateUserModal(false);
+                setIsEditing(false);
+              }}>×</button>
+              
+              <h3>
+                {isEditing ? <FaEdit /> : <FaUserPlus />} 
+                {isEditing ? 'Edit User' : 'Create New User'}
+              </h3>
+              
+              <div className="form-group">
+                <label>Username *</label>
+                <input 
+                  type="text" 
+                  value={newUser.username} 
+                  onChange={(e) => setNewUser({...newUser, username: e.target.value})} 
+                  className="form-control" 
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>Email *</label>
+                <input 
+                  type="email" 
+                  value={newUser.email} 
+                  onChange={(e) => setNewUser({...newUser, email: e.target.value})} 
+                  className="form-control" 
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>Phone *</label>
+                <input 
+                  type="tel" 
+                  value={newUser.phone} 
+                  onChange={(e) => setNewUser({...newUser, phone: e.target.value})} 
+                  className="form-control" 
+                  required
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>Password {isEditing && <small style={{color: '#666', fontSize: '11px'}}>(Leave blank to keep current)</small>}</label>
+                <input 
+                  type="password" 
+                  value={newUser.password} 
+                  onChange={(e) => setNewUser({...newUser, password: e.target.value})} 
+                  className="form-control" 
+                  placeholder={isEditing ? "Enter new password to change" : "Auto-generated if left blank"}
+                />
+              </div>
+              
+              <div className="form-group">
+                <label>Role</label>
+                <select 
+                  value={newUser.role} 
+                  onChange={(e) => setNewUser({...newUser, role: e.target.value})} 
+                  className="form-control"
+                >
+                  <option value="user">User</option>
+                  <option value="agent">Agent</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              
+              <div className="form-group">
+                <label>Initial/Current Wallet Balance (GHS)</label>
+                <input 
+                  type="number" 
+                  value={newUser.wallet_balance} 
+                  onChange={(e) => setNewUser({...newUser, wallet_balance: parseFloat(e.target.value)})} 
+                  className="form-control" 
+                  step="0.01"
+                />
+              </div>
+              
+              <div className="modal-actions">
+                <button className="btn-secondary" onClick={() => {
+                  setShowCreateUserModal(false);
+                  setIsEditing(false);
+                }}>
+                  Cancel
+                </button>
+                <button className="btn-primary" onClick={saveUser}>
+                  {isEditing ? 'Update User' : 'Create User'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
       {/* Bulk Approve Modal */}
       <AnimatePresence>{showBulkApproveModal && (<motion.div className="modal-overlay" onClick={() => setShowBulkApproveModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowBulkApproveModal(false)}>×</button><h3><FaUserCheck /> Bulk Approve Agents</h3><p>Approve <strong>{selectedRequests.length}</strong> agent requests</p><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowBulkApproveModal(false)}>Cancel</button><button className="btn-primary" onClick={bulkApproveAgents}>Approve All</button></div></motion.div></motion.div>)}</AnimatePresence>
 
       {/* Batch Approve Payments Modal */}
-      <AnimatePresence>{showBatchApproveModal && (<motion.div className="modal-overlay" onClick={() => setShowBatchApproveModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowBatchApproveModal(false)}>×</button><h3><FaCheckCircle /> Batch Approve Payments</h3><div style={{ margin: '20px 0' }}><p>You are about to approve <strong>{selectedPaymentIds.length}</strong> payments.</p><div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', margin: '15px 0', maxHeight: '300px', overflowY: 'auto' }}><table style={{ width: '100%', fontSize: '14px' }}><thead><tr><th>User</th><th>Amount</th><th>Reference</th></tr></thead><tbody>{manualPayments.filter(p => selectedPaymentIds.includes(p.id)).map(p => (<tr key={p.id}><td>{p.username}</td><td className="amount">₵{p.amount}</td><td><code>{p.reference}</code></td></tr>))}</tbody><tfoot><tr style={{ borderTop: '2px solid #ddd' }}><td><strong>Total:</strong></td><td><strong>₵{manualPayments.filter(p => selectedPaymentIds.includes(p.id)).reduce((sum, p) => sum + (p.amount || 0), 0).toFixed(2)}</strong></td><td></td></tr></tfoot></table></div><p style={{ color: '#ff9800' }}>⚠️ All selected users will be credited automatically.</p></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowBatchApproveModal(false)}>Cancel</button><button className="btn-success" onClick={batchApprovePayments}><FaCheckCircle /> Approve All ({selectedPaymentIds.length})</button></div></motion.div></motion.div>)}</AnimatePresence>
+      <AnimatePresence>{showBatchApproveModal && (<motion.div className="modal-overlay" onClick={() => setShowBatchApproveModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowBatchApproveModal(false)}>×</button><h3><FaCheckCircle /> Batch Approve Payments</h3><div style={{ margin: '20px 0' }}><p>You are about to approve <strong>{selectedPaymentIds.length}</strong> payments.</p><div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', margin: '15px 0', maxHeight: '300px', overflowY: 'auto' }}><table style={{ width: '100%', fontSize: '14px' }}><thead><tr><th>User</th><th>Amount</th><th>Reference</th></tr></thead><tbody>{manualPayments.filter(p => selectedPaymentIds.includes(p.id)).map(p => (<tr key={p.id}><td>{p.username}</td><td className="amount">₵{p.amount}</td><td><code>{p.reference}</code></td></tr>))}</tbody><tfoot><tr style={{ borderTop: '2px solid #ddd' }}><td><strong>Total:</strong></td><td><strong>₵{manualPayments.filter(p => selectedPaymentIds.includes(p.id)).reduce((sum, p) => sum + (p.amount || 0), 0).toFixed(2)}</strong></td></tr></tfoot></table></div><p style={{ color: '#ff9800' }}>⚠️ All selected users will be credited automatically.</p></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowBatchApproveModal(false)}>Cancel</button><button className="btn-success" onClick={batchApprovePayments}><FaCheckCircle /> Approve All ({selectedPaymentIds.length})</button></div></motion.div></motion.div>)}</AnimatePresence>
 
       {/* WAEC Generate Modal */}
       <AnimatePresence>{showWAECModal && (<motion.div className="modal-overlay" onClick={() => setShowWAECModal(false)}><motion.div className="modal-content" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowWAECModal(false)}>×</button><h3><FaGraduationCap /> Generate WAEC Vouchers</h3><div className="form-group"><label>Exam Type</label><select value={newWAEC.exam_type} onChange={(e) => setNewWAEC({...newWAEC, exam_type: e.target.value})} className="form-control"><option value="WASSCE">WASSCE</option><option value="BECE">BECE</option><option value="SHS Placement">SHS Placement</option></select></div><div className="form-group"><label>Year</label><input type="number" value={newWAEC.year} onChange={(e) => setNewWAEC({...newWAEC, year: parseInt(e.target.value)})} className="form-control" /></div><div className="form-group"><label>Quantity</label><input type="number" value={newWAEC.quantity} onChange={(e) => setNewWAEC({...newWAEC, quantity: parseInt(e.target.value)})} className="form-control" /></div><div className="form-row"><div className="form-group"><label>Retail Price (₵)</label><input type="number" step="0.5" value={newWAEC.retail_price} onChange={(e) => setNewWAEC({...newWAEC, retail_price: parseFloat(e.target.value)})} className="form-control" /></div><div className="form-group"><label>Agent Price (₵)</label><input type="number" step="0.5" value={newWAEC.agent_price} onChange={(e) => setNewWAEC({...newWAEC, agent_price: parseFloat(e.target.value)})} className="form-control" /></div></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowWAECModal(false)}>Cancel</button><button className="btn-primary" onClick={generateWAECVouchers}>Generate</button></div></motion.div></motion.div>)}</AnimatePresence>
