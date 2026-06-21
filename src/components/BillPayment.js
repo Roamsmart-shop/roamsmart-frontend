@@ -1,15 +1,18 @@
-// src/components/BillPayment.js - Complete with Manual Payment Upload
+// src/components/BillPayment.js - Fixed version
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaBolt, FaTint, FaTv, FaCheckCircle, FaSpinner, FaSearch, 
   FaHistory, FaMoneyBillWave, FaWater, FaCalendarAlt, FaBell, 
   FaPlus, FaTrash, FaClock, FaToggleOn, FaToggleOff, FaCopy,
-  FaDownload, FaUpload, FaTimes, FaCheck
+  FaDownload, FaUpload, FaTimes, FaCheck, FaUndo, FaExclamationTriangle,
+  FaArrowLeft
 } from 'react-icons/fa';
 import api from '../services/api';
 import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
+import { useAuth } from '../context/AuthContext'; // Add this import
 import '../styles/components/billPayment.css';
 
 // Hubtel Logo SVG
@@ -41,12 +44,14 @@ const HUBTEL_BILLERS = [
 // Recurring frequencies
 const RECURRING_FREQUENCIES = [
   { value: 'weekly', label: 'Weekly', days: 7 },
-  { value: 'biweekly', label: 'Every 2 Weeks', days: 14 },
   { value: 'monthly', label: 'Monthly', days: 30 },
   { value: 'quarterly', label: 'Quarterly', days: 90 }
 ];
 
-export default function BillPayment({ isAgent = false }) {
+export default function BillPayment({ isAgent = false, onClose, onSuccess }) {
+  // Get user from auth context
+  const { user } = useAuth();
+  
   const [selectedBiller, setSelectedBiller] = useState(null);
   const [accountNumber, setAccountNumber] = useState('');
   const [amount, setAmount] = useState('');
@@ -59,6 +64,12 @@ export default function BillPayment({ isAgent = false }) {
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [billDetails, setBillDetails] = useState(null);
+  const [processingRefund, setProcessingRefund] = useState(false);
+  
+  // ECG Multi-meter states
+  const [metersList, setMetersList] = useState([]);
+  const [selectedMeter, setSelectedMeter] = useState(null);
+  const [phoneError, setPhoneError] = useState('');
   
   // Recurring bill states
   const [showRecurring, setShowRecurring] = useState(false);
@@ -80,6 +91,35 @@ export default function BillPayment({ isAgent = false }) {
   const [fundStep, setFundStep] = useState(1);
   const [copied, setCopied] = useState(false);
 
+  // Helper to check if phone is required for current biller
+  const requiresPhone = selectedBiller?.code === 'ECG' || selectedBiller?.code === 'GWCL';
+
+  // Determine which API endpoints to use
+  const getEndpoints = () => {
+    if (isAgent) {
+      return {
+        validate: '/agent/bills/validate',
+        pay: '/agent/bills/pay',
+        history: '/agent/bills/history',
+        recurring: '/agent/bills/recurring',
+        recurringAdd: '/agent/bills/recurring',
+        recurringToggle: '/agent/bills/recurring',
+        recurringRemove: '/agent/bills/recurring'
+      };
+    }
+    return {
+      validate: '/user/bills/validate',
+      pay: '/user/bills/pay',
+      history: '/user/bills/history',
+      recurring: '/user/bills/recurring',
+      recurringAdd: '/user/bills/recurring',
+      recurringToggle: '/user/bills/recurring',
+      recurringRemove: '/user/bills/recurring'
+    };
+  };
+
+  const endpoints = getEndpoints();
+
   useEffect(() => {
     fetchPaymentHistory();
     fetchRecurringBills();
@@ -87,8 +127,7 @@ export default function BillPayment({ isAgent = false }) {
 
   const fetchPaymentHistory = async () => {
     try {
-      const endpoint = isAgent ? '/agent/bills/history' : '/user/bills/history';
-      const res = await api.get(endpoint);
+      const res = await api.get(endpoints.history);
       setPaymentHistory(res.data.data || []);
     } catch (error) {
       console.error('Failed to fetch bill payment history');
@@ -97,51 +136,198 @@ export default function BillPayment({ isAgent = false }) {
 
   const fetchRecurringBills = async () => {
     try {
-      const endpoint = isAgent ? '/agent/bills/recurring' : '/user/bills/recurring';
-      const res = await api.get(endpoint);
+      const res = await api.get(endpoints.recurring);
       setRecurringBills(res.data.data || []);
     } catch (error) {
       console.error('Failed to fetch recurring bills');
     }
   };
 
+  // ========== REFUND REQUEST HANDLER ==========
+  const requestRefund = async (payment) => {
+    const paymentDate = new Date(payment.created_at);
+    const daysSincePayment = (new Date() - paymentDate) / (1000 * 60 * 60 * 24);
+    
+    if (daysSincePayment > 45) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Refund Not Available',
+        html: `
+          <p>This payment is <strong>${Math.floor(daysSincePayment)} days old</strong>.</p>
+          <p>Hubtel only allows refunds for transactions within the last 45 days.</p>
+          <p>For older transactions, please contact support.</p>
+        `,
+        confirmButtonColor: '#8B0000'
+      });
+      return;
+    }
+    
+    const result = await Swal.fire({
+      title: 'Request Refund',
+      html: `
+        <div style="text-align: left;">
+          <p><strong>Biller:</strong> ${payment.biller_name}</p>
+          <p><strong>Account:</strong> ${payment.account_number}</p>
+          <p><strong>Amount:</strong> <strong style="color: #8B0000;">₵${payment.amount.toFixed(2)}</strong></p>
+          <p><strong>Date:</strong> ${new Date(payment.created_at).toLocaleDateString()}</p>
+          <div class="form-group" style="margin-top: 15px;">
+            <label>Reason for Refund (Optional)</label>
+            <textarea id="refund-reason" class="form-control" rows="3" placeholder="Please explain why you need a refund..."></textarea>
+          </div>
+          <p style="margin-top: 15px; color: #ff9800;">
+            ⚠️ Note: Refunds may take 3-5 business days to process.
+            Funds will be returned to your Roamsmart wallet.
+          </p>
+        </div>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      confirmButtonText: 'Yes, Request Refund',
+      cancelButtonText: 'Cancel',
+      preConfirm: () => {
+        const reason = document.getElementById('refund-reason')?.value || '';
+        return { reason };
+      }
+    });
+    
+    if (result.isConfirmed) {
+      setProcessingRefund(true);
+      try {
+        const response = await api.post('/refund/request', {
+          order_id: payment.reference,
+          reason: result.value.reason || 'Customer requested refund'
+        });
+        
+        if (response.data.success) {
+          toast.success(`Refund request submitted! Reference: ${response.data.data.order_id}`);
+          
+          Swal.fire({
+            icon: 'success',
+            title: 'Refund Request Submitted',
+            html: `
+              <p>Your refund request has been submitted successfully.</p>
+              <p><strong>Status:</strong> ${response.data.data.status}</p>
+              <p><strong>Reference:</strong> ${response.data.data.order_id}</p>
+            `,
+            confirmButtonColor: '#28a745'
+          });
+          
+          fetchPaymentHistory();
+        } else {
+          toast.error(response.data.error || 'Refund request failed');
+        }
+      } catch (error) {
+        console.error('Refund error:', error);
+        toast.error(error.response?.data?.error || 'Failed to process refund request');
+      } finally {
+        setProcessingRefund(false);
+      }
+    }
+  };
+
+  // Phone number validation helper
+  const validatePhoneNumber = (phone) => {
+    const phoneRegex = /^(024|025|026|027|028|020|054|055|059|050|057|053|056)[0-9]{7}$/;
+    return phoneRegex.test(phone);
+  };
+
+  // Handle phone input change
+  const handlePhoneChange = (e) => {
+    const phone = e.target.value;
+    setCustomerPhone(phone);
+    
+    if (requiresPhone && phone && !validatePhoneNumber(phone)) {
+      setPhoneError('Please enter a valid Ghana phone number (e.g., 024XXXXXXX)');
+    } else {
+      setPhoneError('');
+    }
+  };
+
+  // ========== VALIDATE ACCOUNT ==========
   const validateAccount = async () => {
     if (!selectedBiller || !accountNumber) {
       toast.error('Please select a biller and enter account number');
       return;
     }
 
+    if (requiresPhone && !customerPhone) {
+      toast.error('Phone number is required for validation. Please enter your phone number.');
+      return;
+    }
+
     setValidating(true);
     try {
-      const endpoint = isAgent ? '/agent/bills/validate' : '/bills/validate';
-      const res = await api.post(endpoint, {
+      const payload = {
         biller_code: selectedBiller.code,
         account_number: accountNumber
-      });
+      };
+      
+      if (requiresPhone) {
+        payload.phone_number = customerPhone;
+      }
+      
+      if (selectedBiller.code === 'GWCL') {
+        payload.meter_number = accountNumber;
+      }
+      
+      console.log('Validation payload:', payload);
+      
+      const res = await api.post(endpoints.validate, payload);
       
       if (res.data.success) {
-        setValidatedAccount(res.data.data);
-        setBillDetails(res.data.data);
-        setCustomerName(res.data.data.customer_name || '');
-        setCustomerEmail(res.data.data.customer_email || '');
-        setCustomerPhone(res.data.data.customer_phone || '');
+        const data = res.data.data;
         
-        if (res.data.data.amount_due) {
-          setAmount(res.data.data.amount_due);
+        let amountDue = 0;
+        if (data.amount_due !== undefined && data.amount_due !== null) {
+          amountDue = parseFloat(data.amount_due);
+          if (isNaN(amountDue)) amountDue = 0;
+          if (amountDue < 0) amountDue = 0;
         }
         
-        toast.success(`Account validated on ${COMPANY.shortName}`);
+        if (data.meters && Array.isArray(data.meters)) {
+          setMetersList(data.meters);
+          setValidatedAccount({
+            ...data,
+            amount_due: amountDue,
+            is_multi_meter: true
+          });
+          setBillDetails({
+            ...data,
+            amount_due: amountDue
+          });
+          toast.success(`Found ${data.meters.length} meter(s) linked to this phone number`);
+        } else {
+          setValidatedAccount({
+            ...data,
+            amount_due: amountDue
+          });
+          setBillDetails({
+            ...data,
+            amount_due: amountDue
+          });
+          setCustomerName(data.customer_name || customerName);
+          setCustomerEmail(data.customer_email || '');
+          setCustomerPhone(data.customer_phone || customerPhone);
+          
+          if (amountDue > 0) {
+            setAmount(amountDue);
+          }
+          
+          toast.success(`Account validated on ${COMPANY.shortName}`);
+        }
       } else {
         toast.error(res.data.error || 'Invalid account number');
       }
     } catch (error) {
       console.error('Validation error:', error);
-      toast.error(error.response?.data?.error || 'Validation failed. Please check the account number.');
+      toast.error(error.response?.data?.error || 'Validation failed. Please check the account number and phone number.');
     } finally {
       setValidating(false);
     }
   };
 
+  // ========== PAY BILL ==========
   const handlePayment = async () => {
     if (!selectedBiller || !accountNumber || !amount) {
       toast.error('Please fill all required fields');
@@ -154,12 +340,42 @@ export default function BillPayment({ isAgent = false }) {
       return;
     }
 
+    let meterNumber = null;
+    if (selectedBiller.code === 'ECG') {
+      if (selectedMeter) {
+        meterNumber = selectedMeter.meter_number;
+      } else if (validatedAccount?.selected_meter) {
+        meterNumber = validatedAccount.selected_meter;
+      } else if (metersList.length === 1) {
+        meterNumber = metersList[0].meter_number;
+      } else {
+        meterNumber = accountNumber;
+      }
+      
+      if (!meterNumber) {
+        toast.error('Please select a meter number for ECG');
+        return;
+      }
+    }
+
+    let waterMeterNumber = null;
+    let waterSessionId = null;
+    if (selectedBiller.code === 'GWCL') {
+      waterMeterNumber = accountNumber;
+      waterSessionId = validatedAccount?.session_id;
+      if (!waterSessionId) {
+        toast.error('Please validate the water account first');
+        return;
+      }
+    }
+
     const result = await Swal.fire({
       title: 'Confirm Bill Payment',
       html: `
         <div style="text-align: left;">
           <p><strong>Biller:</strong> ${selectedBiller.name}</p>
           <p><strong>Account Number:</strong> ${accountNumber}</p>
+          ${selectedBiller.code === 'ECG' ? `<p><strong>Meter Number:</strong> ${meterNumber}</p>` : ''}
           <p><strong>Customer:</strong> ${customerName || 'N/A'}</p>
           <p><strong>Amount:</strong> <strong style="color: #8B0000;">₵${amountNum.toFixed(2)}</strong></p>
           <p>This amount will be deducted from your ${COMPANY.shortName} wallet.</p>
@@ -176,20 +392,31 @@ export default function BillPayment({ isAgent = false }) {
 
     setPaying(true);
     try {
-      const endpoint = isAgent ? '/agent/bills/pay' : '/bills/pay';
-      const res = await api.post(endpoint, {
+      const payload = {
         biller_code: selectedBiller.code,
         account_number: accountNumber,
         amount: amountNum,
-        customer_name: customerName,
+        customer_name: customerName || 'Customer',
         customer_email: customerEmail,
-        customer_phone: customerPhone
-      });
+        customer_phone: customerPhone || user?.phone || '' // Use user from auth context
+      };
+      
+      if (selectedBiller.code === 'ECG') {
+        payload.meter_number = meterNumber;
+      }
+      
+      if (selectedBiller.code === 'GWCL') {
+        payload.meter_number = waterMeterNumber;
+        payload.session_id = waterSessionId;
+      }
+      
+      console.log('Payment payload:', payload);
+      
+      const res = await api.post(endpoints.pay, payload);
       
       if (res.data.success) {
         toast.success(`Bill paid successfully on ${COMPANY.shortName}!`);
         
-        // Reset form
         setAccountNumber('');
         setAmount('');
         setValidatedAccount(null);
@@ -198,6 +425,8 @@ export default function BillPayment({ isAgent = false }) {
         setCustomerName('');
         setCustomerEmail('');
         setCustomerPhone('');
+        setMetersList([]);
+        setSelectedMeter(null);
         
         fetchPaymentHistory();
         
@@ -207,9 +436,14 @@ export default function BillPayment({ isAgent = false }) {
           html: `
             <p>Your payment of <strong>₵${amountNum.toFixed(2)}</strong> to <strong>${selectedBiller.name}</strong> has been processed.</p>
             <p>Transaction Reference: ${res.data.data?.reference || res.data.reference}</p>
+            ${res.data.data?.commission ? `<p>Commission Earned: <strong>₵${res.data.data.commission.you_earned?.toFixed(4)}</strong></p>` : ''}
           `,
           confirmButtonColor: '#8B0000'
         });
+        
+        if (typeof onClose === 'function') {
+          onClose();
+        }
       } else {
         toast.error(res.data.error || 'Payment failed. Please try again.');
       }
@@ -221,8 +455,80 @@ export default function BillPayment({ isAgent = false }) {
     }
   };
 
+  // ========== RECURRING BILL HANDLERS ==========
+  const addRecurringBill = async () => {
+    if (!selectedBiller || !accountNumber) {
+      toast.error('Please select a biller and enter account number');
+      return;
+    }
+
+    setAddingRecurring(true);
+    try {
+      const res = await api.post(endpoints.recurringAdd, {
+        biller_code: selectedBiller.code,
+        biller_name: selectedBiller.name,
+        account_number: accountNumber,
+        customer_name: customerName || 'Customer',
+        frequency: newRecurring.frequency,
+        auto_pay: newRecurring.autoPay,
+        max_amount: newRecurring.maxAmount || parseFloat(amount) || 0
+      });
+      
+      if (res.data.success) {
+        toast.success('Recurring bill set up successfully!');
+        fetchRecurringBills();
+        setShowRecurring(false);
+        setAddingRecurring(false);
+        setNewRecurring({
+          enabled: false,
+          frequency: 'monthly',
+          autoPay: true,
+          maxAmount: 0
+        });
+      } else {
+        toast.error(res.data.error || 'Failed to set up recurring bill');
+      }
+    } catch (error) {
+      console.error('Add recurring bill error:', error);
+      toast.error(error.response?.data?.error || 'Failed to set up recurring bill');
+    } finally {
+      setAddingRecurring(false);
+    }
+  };
+
+  const removeRecurringBill = async (billId) => {
+    const result = await Swal.fire({
+      title: 'Remove Recurring Bill?',
+      text: 'This will cancel automatic payments for this bill.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      confirmButtonText: 'Yes, Remove',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await api.delete(`${endpoints.recurringRemove}/${billId}`);
+        toast.success('Recurring bill removed');
+        fetchRecurringBills();
+      } catch (error) {
+        toast.error('Failed to remove recurring bill');
+      }
+    }
+  };
+
+  const toggleRecurringStatus = async (billId, currentStatus) => {
+    try {
+      await api.put(`${endpoints.recurringToggle}/${billId}`, { enabled: !currentStatus });
+      toast.success(`Recurring bill ${!currentStatus ? 'enabled' : 'disabled'}`);
+      fetchRecurringBills();
+    } catch (error) {
+      toast.error('Failed to update recurring bill');
+    }
+  };
+
   // ========== MANUAL PAYMENT HANDLERS ==========
-  
   const generateManualReference = async (amount, phone) => {
     try {
       const res = await api.post('/wallet/generate-reference', { amount, phone });
@@ -346,81 +652,7 @@ INSTRUCTIONS:
     }
   };
 
-  const addRecurringBill = async () => {
-    if (!selectedBiller || !accountNumber) {
-      toast.error('Please select a biller and enter account number');
-      return;
-    }
-
-    setAddingRecurring(true);
-    try {
-      const endpoint = isAgent ? '/agent/bills/recurring/add' : '/user/bills/recurring/add';
-      const res = await api.post(endpoint, {
-        biller_code: selectedBiller.code,
-        biller_name: selectedBiller.name,
-        account_number: accountNumber,
-        customer_name: customerName,
-        frequency: newRecurring.frequency,
-        auto_pay: newRecurring.autoPay,
-        max_amount: newRecurring.maxAmount || parseFloat(amount) || 0
-      });
-      
-      if (res.data.success) {
-        toast.success('Recurring bill set up successfully!');
-        fetchRecurringBills();
-        setShowRecurring(false);
-        setAddingRecurring(false);
-        setNewRecurring({
-          enabled: false,
-          frequency: 'monthly',
-          autoPay: true,
-          maxAmount: 0
-        });
-      } else {
-        toast.error(res.data.error || 'Failed to set up recurring bill');
-      }
-    } catch (error) {
-      console.error('Add recurring bill error:', error);
-      toast.error(error.response?.data?.error || 'Failed to set up recurring bill');
-    } finally {
-      setAddingRecurring(false);
-    }
-  };
-
-  const removeRecurringBill = async (billId) => {
-    const result = await Swal.fire({
-      title: 'Remove Recurring Bill?',
-      text: 'This will cancel automatic payments for this bill.',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#dc3545',
-      confirmButtonText: 'Yes, Remove',
-      cancelButtonText: 'Cancel'
-    });
-
-    if (result.isConfirmed) {
-      try {
-        const endpoint = isAgent ? '/agent/bills/recurring/remove' : '/user/bills/recurring/remove';
-        await api.delete(`${endpoint}/${billId}`);
-        toast.success('Recurring bill removed');
-        fetchRecurringBills();
-      } catch (error) {
-        toast.error('Failed to remove recurring bill');
-      }
-    }
-  };
-
-  const toggleRecurringStatus = async (billId, currentStatus) => {
-    try {
-      const endpoint = isAgent ? '/agent/bills/recurring/toggle' : '/user/bills/recurring/toggle';
-      await api.put(`${endpoint}/${billId}`, { enabled: !currentStatus });
-      toast.success(`Recurring bill ${!currentStatus ? 'enabled' : 'disabled'}`);
-      fetchRecurringBills();
-    } catch (error) {
-      toast.error('Failed to update recurring bill');
-    }
-  };
-
+  // Helper functions
   const getStatusBadge = (status) => {
     switch(status) {
       case 'completed':
@@ -430,6 +662,8 @@ INSTRUCTIONS:
         return <span className="badge-warning"><FaSpinner className="spinning" /> Pending</span>;
       case 'failed':
         return <span className="badge-danger">Failed</span>;
+      case 'refunded':
+        return <span className="badge-info"><FaUndo /> Refunded</span>;
       default:
         return <span className="badge-secondary">{status}</span>;
     }
@@ -450,6 +684,7 @@ INSTRUCTIONS:
     return freq?.label || frequency;
   };
 
+  // ========== RENDER ==========
   return (
     <div className="bill-payment-section">
       {/* Fund Wallet Button */}
@@ -487,6 +722,9 @@ INSTRUCTIONS:
               setAccountNumber('');
               setAmount('');
               setCustomerName('');
+              setCustomerPhone('');
+              setMetersList([]);
+              setPhoneError('');
             }}
           >
             <div className="biller-icon" style={{ color: biller.color }}>
@@ -525,6 +763,32 @@ INSTRUCTIONS:
             </div>
           </div>
           
+          {/* Phone Number Field - Required for ECG and GWCL */}
+          {requiresPhone && (
+            <div className="form-group">
+              <label>
+                Phone Number <span className="required-star" style={{ color: '#dc3545' }}>*</span>
+              </label>
+              <input 
+                type="tel" 
+                className={`form-control ${phoneError ? 'is-invalid' : ''}`}
+                placeholder="024XXXXXXX"
+                value={customerPhone}
+                onChange={handlePhoneChange}
+              />
+              {phoneError && (
+                <div className="invalid-feedback" style={{ color: '#dc3545', fontSize: '0.8rem' }}>
+                  {phoneError}
+                </div>
+              )}
+              <small className="text-muted">
+                {selectedBiller?.code === 'ECG' 
+                  ? 'Phone number linked to your ECG account (required for validation)'
+                  : 'Phone number registered with Ghana Water (required for validation)'}
+              </small>
+            </div>
+          )}
+          
           {/* Validated Account Info */}
           {validatedAccount && (
             <motion.div className="validated-info" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -532,10 +796,40 @@ INSTRUCTIONS:
               <p><strong>Customer Name:</strong> {validatedAccount.customer_name || 'N/A'}</p>
               {validatedAccount.customer_email && <p><strong>Email:</strong> {validatedAccount.customer_email}</p>}
               {validatedAccount.customer_phone && <p><strong>Phone:</strong> {validatedAccount.customer_phone}</p>}
-              {validatedAccount.amount_due && (
-                <p><strong>Amount Due:</strong> <strong style={{ color: '#8B0000' }}>₵{validatedAccount.amount_due.toFixed(2)}</strong></p>
+              {validatedAccount.amount_due !== undefined && validatedAccount.amount_due !== null && (
+                <p><strong>Amount Due:</strong> <strong style={{ color: '#8B0000' }}>₵{parseFloat(validatedAccount.amount_due || 0).toFixed(2)}</strong></p>
               )}
             </motion.div>
+          )}
+          
+          {/* ECG Meter Selection */}
+          {metersList.length > 0 && (
+            <div className="meters-selection">
+              <h5>Select Meter to Pay</h5>
+              <div className="meters-list">
+                {metersList.map((meter, index) => (
+                  <div 
+                    key={index}
+                    className={`meter-card ${selectedMeter?.meter_number === meter.meter_number ? 'selected' : ''}`}
+                    onClick={() => {
+                      setSelectedMeter(meter);
+                      setAccountNumber(meter.meter_number);
+                      setCustomerName(meter.customer_name);
+                      const amountDue = Math.abs(meter.amount_due || 0);
+                      setAmount(amountDue);
+                    }}
+                  >
+                    <div className="meter-info">
+                      <strong>{meter.customer_name}</strong>
+                      <span className="meter-number">{meter.meter_number}</span>
+                    </div>
+                    <div className="meter-amount">
+                      ₵{Math.abs(meter.amount_due || 0).toFixed(2)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
           
           <div className="form-group">
@@ -553,7 +847,7 @@ INSTRUCTIONS:
               <small className="text-muted">Minimum amount: ₵{billDetails.minimum_amount}</small>
             )}
           </div>
-          
+
           <div className="form-row">
             <div className="form-group">
               <label>Customer Name (Optional)</label>
@@ -566,26 +860,26 @@ INSTRUCTIONS:
               />
             </div>
             <div className="form-group">
-              <label>Customer Phone (Optional)</label>
+              <label>Customer Email (Optional)</label>
               <input 
-                type="tel" 
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="024XXXXXXX"
+                type="email" 
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+                placeholder="email@example.com"
                 className="form-control"
               />
             </div>
           </div>
-          
+
           <button 
             className="btn-primary btn-block" 
             onClick={handlePayment}
-            disabled={paying || !amount || !accountNumber}
+            disabled={paying || !amount || !accountNumber || (requiresPhone && !customerPhone)}
           >
             {paying ? <FaSpinner className="spinning" /> : <FaCheckCircle />}
             {paying ? ` Processing on ${COMPANY.shortName}...` : ` Pay ₵${amount || '0'} via Hubtel`}
           </button>
-          
+
           <div className="payment-note">
             <small>🔒 Secure payments via Hubtel • Instant processing • 24/7 support</small>
           </div>
@@ -751,7 +1045,7 @@ INSTRUCTIONS:
         )}
       </div>
       
-      {/* Payment History */}
+      {/* Payment History with Refund Button */}
       {paymentHistory.length > 0 && (
         <div className="payment-history">
           <div className="history-header" onClick={() => setShowHistory(!showHistory)}>
@@ -776,10 +1070,11 @@ INSTRUCTIONS:
                       <th>Account</th>
                       <th>Amount</th>
                       <th>Status</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {paymentHistory.slice(0, 5).map(payment => (
+                    {paymentHistory.slice(0, 10).map(payment => (
                       <tr key={payment.id}>
                         <td className="date">{new Date(payment.created_at).toLocaleDateString()}</td>
                         <td>
@@ -790,6 +1085,24 @@ INSTRUCTIONS:
                         <td className="account">{payment.account_number}</td>
                         <td className="amount">₵{payment.amount?.toFixed(2) || payment.amount}</td>
                         <td>{getStatusBadge(payment.status)}</td>
+                        <td className="actions">
+                          {payment.status === 'completed' && (
+                            <button 
+                              className="btn-refund"
+                              onClick={() => requestRefund(payment)}
+                              disabled={processingRefund}
+                              title="Request Refund"
+                            >
+                              {processingRefund ? <FaSpinner className="spinning" /> : <FaUndo />}
+                              Refund
+                            </button>
+                          )}
+                          {payment.status === 'refunded' && (
+                            <span className="refunded-badge">
+                              <FaCheckCircle /> Refunded
+                            </span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

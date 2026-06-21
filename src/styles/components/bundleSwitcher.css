@@ -1,0 +1,296 @@
+/* src/styles/components/bundleSwitcher.css - REDUCED VERSION */
+
+.bundle-switcher {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 16px;
+  margin: 12px 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-color);
+}
+
+/* Header */
+.switcher-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.header-left h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.bundle-info {
+  font-size: 0.7rem;
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.refresh-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  padding: 4px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: var(--primary);
+  color: white;
+}
+
+.refresh-btn:disabled {
+  opacity: 0.5;
+}
+
+/* Options Grid */
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* Bundle Option Card - SMALLER */
+.bundle-option-card {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.bundle-option-card.selected {
+  border-color: var(--primary);
+  background: rgba(139, 0, 0, 0.05);
+}
+
+.bundle-option-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Card Header - SMALLER */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.icon-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  border: 1px solid;
+}
+
+.title-section h4 {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.recommended-badge {
+  font-size: 0.6rem;
+  background: #28a745;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.selected-badge {
+  background: var(--primary);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Delivery Stats - COMPACT */
+.delivery-stats {
+  margin: 10px 0;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.stat-icon {
+  font-size: 0.7rem;
+}
+
+.stat-label {
+  font-size: 0.7rem;
+}
+
+.stat-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.stat-avg {
+  font-size: 0.65rem;
+}
+
+/* Progress Bar - THINNER */
+.progress-bar {
+  height: 3px;
+  background: var(--bg-primary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  transition: width 0.3s;
+}
+
+.status-badge {
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+/* Description - SHORTER */
+.option-description {
+  font-size: 0.7rem;
+  margin: 8px 0;
+  line-height: 1.3;
+}
+
+/* Select Button - SMALLER */
+.select-btn {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* Footer - COMPACT */
+.switcher-footer {
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.speed-warning {
+  padding: 10px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 0.75rem;
+}
+
+.speed-warning svg {
+  font-size: 0.9rem;
+}
+
+.speed-warning span {
+  font-size: 0.75rem;
+}
+
+.switch-fastest-btn {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  gap: 4px;
+}
+
+.info-note {
+  font-size: 0.6rem;
+}
+
+/* Loading State - COMPACT */
+.bundle-switcher-loading {
+  padding: 20px;
+  gap: 10px;
+}
+
+.bundle-switcher-loading .spinning {
+  font-size: 1.5rem;
+}
+
+/* Error & Empty States */
+.bundle-switcher-error,
+.bundle-switcher-empty {
+  padding: 20px;
+  font-size: 0.8rem;
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  .bundle-option-card {
+    background: #1e1e2e;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .bundle-switcher {
+    padding: 12px;
+  }
+  
+  .options-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  .switcher-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .speed-warning {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+/* Animation */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bundle-option-card {
+  animation: slideIn 0.2s ease-out;
+}

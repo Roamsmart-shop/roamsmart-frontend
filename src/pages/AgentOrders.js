@@ -1,4 +1,5 @@
-// src/pages/AgentOrders.js
+// src/pages/AgentOrders.js - AUTO-REFRESH REMOVED
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -12,7 +13,7 @@ import toast from 'react-hot-toast';
 import Swal from 'sweetalert2';
 import OrderProgressTracker from '../components/OrderProgressTracker';
 import io from 'socket.io-client';
-
+import '../styles/pages/AgentOrders.css';
 // Company Configuration
 const COMPANY = {
   name: 'Roamsmart Digital Service',
@@ -33,6 +34,20 @@ export default function AgentOrders() {
   const [syncingOrders, setSyncingOrders] = useState({});
   const [adminRole] = useState('agent');
   const socketRef = useRef(null);
+
+  // In AgentOrders.js
+const [darkMode, setDarkMode] = useState(false);
+
+// Toggle function
+const toggleDarkMode = () => {
+  setDarkMode(!darkMode);
+  document.documentElement.classList.toggle('dark');
+};
+
+// In the render
+<div className={`agent-orders-page ${darkMode ? 'dark' : 'light'}`}>
+  {/* ... */}
+</div>
 
   // Connect to WebSocket for real-time updates
   useEffect(() => {
@@ -236,11 +251,8 @@ export default function AgentOrders() {
 
   useEffect(() => {
     fetchOrdersWithRealTimeStatus();
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => {
-      fetchOrdersWithRealTimeStatus();
-    }, 30000);
-    return () => clearInterval(interval);
+    // Auto-refresh every 30 seconds - REMOVED
+    return () => {};
   }, [fetchOrdersWithRealTimeStatus]);
 
   const updateOrderStatus = async (orderId, newStatus) => {

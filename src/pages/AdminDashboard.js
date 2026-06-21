@@ -1,4 +1,4 @@
-// src/pages/AdminDashboard.js - WITH FAILED ORDERS TAB
+// src/pages/AdminDashboard.js - WITH FAILED ORDERS TAB & HUBTEL INTEGRATION
 // Add FaExclamationTriangle to imports
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -241,6 +241,41 @@ export default function AdminDashboard() {
     error: null
   });
   
+  // NEW STATE: Hubtel Balance
+  const [hubtelBalance, setHubtelBalance] = useState({
+    account_balance: 0,
+    wallet_balance: 0,
+    currency: 'GHS',
+    loading: true,
+    error: null
+  });
+
+  // NEW STATE: Bill Commission Stats
+  const [billCommissionStats, setBillCommissionStats] = useState({
+    total_bill_commission: 0,
+    total_bill_volume: 0,
+    total_bills_paid: 0,
+    commission_by_biller: {},
+    monthly_commission: 0,
+    pending_commission: 0
+  });
+
+  // NEW STATE: Failed Bill Payments
+  const [failedBillPayments, setFailedBillPayments] = useState([]);
+  const [failedBillPaymentsSummary, setFailedBillPaymentsSummary] = useState({
+    total_failed: 0,
+    total_amount: 0,
+    pending_resolution: 0
+  });
+  const [failedBillPagination, setFailedBillPagination] = useState({ 
+    page: 1, 
+    total: 0, 
+    pages: 0, 
+    has_prev: false, 
+    has_next: false 
+  });
+  const [resolvingBill, setResolvingBill] = useState(null);
+  
   // NEW STATE: Total Sales from Database
   const [totalSales, setTotalSales] = useState({
     today: 0,
@@ -311,6 +346,152 @@ export default function AdminDashboard() {
     };
   }, [adminRole]);
 
+  // ========== FETCH HUBTEL BALANCE ==========
+  const fetchHubtelBalance = async () => {
+    try {
+      const res = await api.get('/admin/hubtel-balance');
+      if (res.data.success) {
+        let balance = 0;
+        let currency = 'GHS';
+        
+        if (res.data.data) {
+          balance = res.data.data.wallet_balance || res.data.data.balance || res.data.data.account_balance || 0;
+          currency = res.data.data.currency || 'GHS';
+        } else if (res.data.wallet_balance) {
+          balance = res.data.wallet_balance;
+        }
+        
+        setHubtelBalance({
+          wallet_balance: parseFloat(balance),
+          account_balance: parseFloat(balance),
+          currency: currency,
+          loading: false,
+          error: null
+        });
+      } else {
+        setHubtelBalance(prev => ({
+          ...prev,
+          loading: false,
+          error: res.data.error || 'Failed to fetch Hubtel balance'
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch Hubtel balance:', error);
+      setHubtelBalance(prev => ({
+        ...prev,
+        loading: false,
+        error: 'Could not connect to Hubtel API'
+      }));
+    }
+  };
+
+  // ========== FETCH BILL COMMISSION STATS ==========
+  const fetchBillCommissionStats = async () => {
+    try {
+      const res = await api.get('/admin/bill-commission-stats');
+      if (res.data.success) {
+        setBillCommissionStats(res.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch bill commission stats:', error);
+    }
+  };
+
+  // ========== FETCH FAILED BILL PAYMENTS ==========
+  const fetchFailedBillPayments = async (page = 1) => {
+    try {
+      const res = await api.get(`/admin/failed-bill-payments?page=${page}&limit=20`);
+      if (res.data.success) {
+        setFailedBillPayments(res.data.data);
+        setFailedBillPaymentsSummary(res.data.summary);
+        setFailedBillPagination(res.data.pagination);
+      }
+    } catch (error) {
+      console.error('Failed to fetch failed bill payments:', error);
+    }
+  };
+
+  // ========== HANDLE RETRY BILL PAYMENT ==========
+  const handleRetryBill = async (billPayment) => {
+    const result = await Swal.fire({
+      title: 'Retry Bill Payment?',
+      html: `
+        <div style="text-align: left;">
+          <p><strong>Bill ID:</strong> ${billPayment.order_id || billPayment.id}</p>
+          <p><strong>Biller:</strong> ${billPayment.biller_name}</p>
+          <p><strong>Customer:</strong> ${billPayment.customer_name}</p>
+          <p><strong>Account:</strong> ${billPayment.account_number}</p>
+          <p><strong>Amount:</strong> ₵${billPayment.amount.toFixed(2)}</p>
+          <p style="color: #ff9800;">⚠️ This will attempt to process the bill payment again.</p>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#28a745',
+      confirmButtonText: 'Yes, Retry Bill',
+      cancelButtonText: 'Cancel'
+    });
+    
+    if (result.isConfirmed) {
+      setResolvingBill(billPayment.id);
+      try {
+        const res = await api.post(`/admin/resolve-failed-bill/${billPayment.id}`, { action: 'retry' });
+        if (res.data.success) {
+          toast.success(res.data.message);
+          fetchFailedBillPayments(failedBillPagination.page);
+          fetchBillCommissionStats();
+          fetchAllData();
+        } else {
+          toast.error(res.data.error || 'Retry failed');
+        }
+      } catch (error) {
+        toast.error(error.response?.data?.error || 'Retry failed');
+      } finally {
+        setResolvingBill(null);
+      }
+    }
+  };
+
+  // ========== HANDLE REFUND BILL PAYMENT ==========
+  const handleRefundBill = async (billPayment) => {
+    const result = await Swal.fire({
+      title: 'Refund Bill Payment?',
+      html: `
+        <div style="text-align: left;">
+          <p><strong>Bill ID:</strong> ${billPayment.order_id || billPayment.id}</p>
+          <p><strong>Biller:</strong> ${billPayment.biller_name}</p>
+          <p><strong>Customer:</strong> ${billPayment.customer_name}</p>
+          <p><strong>Amount to Refund:</strong> <strong class="text-success">₵${billPayment.amount.toFixed(2)}</strong></p>
+          <p style="color: #dc3545;">⚠️ This will credit the user's wallet with ₵${billPayment.amount.toFixed(2)}.</p>
+        </div>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc3545',
+      confirmButtonText: 'Yes, Refund',
+      cancelButtonText: 'Cancel'
+    });
+    
+    if (result.isConfirmed) {
+      setResolvingBill(billPayment.id);
+      try {
+        const res = await api.post(`/admin/resolve-failed-bill/${billPayment.id}`, { action: 'refund' });
+        if (res.data.success) {
+          toast.success(res.data.message);
+          fetchFailedBillPayments(failedBillPagination.page);
+          fetchBillCommissionStats();
+          fetchAllData();
+        } else {
+          toast.error(res.data.error || 'Refund failed');
+        }
+      } catch (error) {
+        toast.error(error.response?.data?.error || 'Refund failed');
+      } finally {
+        setResolvingBill(null);
+      }
+    }
+  };
+
   // Data fetching on mount
   useEffect(() => {
     fetchAllData();
@@ -326,7 +507,10 @@ export default function AdminDashboard() {
     fetchMasterInventory();
     fetchAgentApplications();
     fetchRegionalStats();
-    fetchFailedOrders(); // NEW: Fetch failed orders
+    fetchFailedOrders();
+    fetchHubtelBalance();
+    fetchBillCommissionStats();
+    fetchFailedBillPayments();
   }, []);
 
   // Africa's Talking balance polling
@@ -340,6 +524,13 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchDigimallBalance();
     const interval = setInterval(fetchDigimallBalance, 2 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  // Hubtel balance polling
+  useEffect(() => {
+    fetchHubtelBalance();
+    const interval = setInterval(fetchHubtelBalance, 2 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
   
@@ -1689,7 +1880,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Stats Grid with Total Sales, Digimall Balance & Africa's Talking Balance */}
+      {/* Stats Grid with Total Sales, Digimall Balance, Africa's Talking Balance & Hubtel Balance */}
       <div className="stats-grid">
         <div className="stat-card"><div className="stat-icon"><FaUsers /></div><div className="stat-value">{stats.total_users || 0}</div><div className="stat-label">Total Users</div></div>
         <div className="stat-card"><div className="stat-icon"><FaUserCheck /></div><div className="stat-value">{stats.total_agents || 0}</div><div className="stat-label">Total Agents</div></div>
@@ -1763,6 +1954,34 @@ export default function AdminDashboard() {
             <FaSync className={africasTalkingBalance.loading ? 'spinning' : ''} />
           </button>
         </div>
+
+        {/* Hubtel Balance Card */}
+        <div className="stat-card hubtel-card">
+          <div className="stat-icon"><FaMobileAlt /></div>
+          <div className="stat-value">
+            {hubtelBalance.loading ? (
+              <FaSpinner className="spinning" />
+            ) : hubtelBalance.error ? (
+              <span className="text-danger" style={{ fontSize: '0.8rem' }}>Error</span>
+            ) : (
+              `${hubtelBalance.currency || 'GHS'} ${parseFloat(hubtelBalance.wallet_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            )}
+          </div>
+          <div className="stat-label">
+            Hubtel Balance
+            <small style={{ display: 'block', fontSize: '0.65rem', marginTop: '5px' }}>
+              💳 Bill Payment Balance
+            </small>
+          </div>
+          <button 
+            className="refresh-balance-btn" 
+            onClick={fetchHubtelBalance} 
+            disabled={hubtelBalance.loading}
+            title="Refresh Hubtel Balance"
+          >
+            <FaSync className={hubtelBalance.loading ? 'spinning' : ''} />
+          </button>
+        </div>
       </div>
 
       {/* Sales Breakdown Section */}
@@ -1790,6 +2009,49 @@ export default function AdminDashboard() {
             <div className="sales-amount">₵{(totalSales.all_time || 0).toFixed(2)}</div>
           </div>
         </div>
+      </div>
+
+      {/* Bill Commission Stats Section */}
+      <div className="bill-commission-section">
+        <h3><FaMoneyBillWave /> Bill Commission Stats</h3>
+        <div className="commission-stats-grid">
+          <div className="commission-card">
+            <div className="commission-value">₵{billCommissionStats.total_bill_commission?.toFixed(2) || '0.00'}</div>
+            <div className="commission-label">Total Commission Earned</div>
+          </div>
+          <div className="commission-card">
+            <div className="commission-value">₵{billCommissionStats.total_bill_volume?.toFixed(2) || '0.00'}</div>
+            <div className="commission-label">Total Bill Volume</div>
+          </div>
+          <div className="commission-card">
+            <div className="commission-value">{billCommissionStats.total_bills_paid || 0}</div>
+            <div className="commission-label">Total Bills Paid</div>
+          </div>
+          <div className="commission-card">
+            <div className="commission-value">₵{billCommissionStats.monthly_commission?.toFixed(2) || '0.00'}</div>
+            <div className="commission-label">This Month's Commission</div>
+          </div>
+          <div className="commission-card warning">
+            <div className="commission-value">₵{billCommissionStats.pending_commission?.toFixed(2) || '0.00'}</div>
+            <div className="commission-label">Pending Commission</div>
+          </div>
+        </div>
+        
+        {/* Commission by Biller */}
+        {billCommissionStats.commission_by_biller && Object.keys(billCommissionStats.commission_by_biller).length > 0 && (
+          <div className="biller-commission-breakdown">
+            <h4>Commission by Biller</h4>
+            <div className="biller-grid">
+              {Object.entries(billCommissionStats.commission_by_biller).map(([biller, data]) => (
+                <div key={biller} className="biller-card">
+                  <span className="biller-name">{biller}</span>
+                  <span className="biller-count">{data.count} bills</span>
+                  <span className="biller-amount">₵{data.commission.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Second Row Stats */}
@@ -1913,6 +2175,7 @@ export default function AdminDashboard() {
         <button className={`tab-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}><FaUsers /> All Users</button>
         <button className={`tab-btn ${activeTab === 'agents-list' ? 'active' : ''}`} onClick={() => setActiveTab('agents-list')}><FaUserCheck /> Agents List</button>
         <button className={`tab-btn ${activeTab === 'failed-orders' ? 'active' : ''}`} onClick={() => setActiveTab('failed-orders')}><FaExclamationTriangle /> Failed Orders ({failedOrdersCount})</button>
+        <button className={`tab-btn ${activeTab === 'failed-bills' ? 'active' : ''}`} onClick={() => setActiveTab('failed-bills')}><FaExclamationTriangle /> Failed Bills ({failedBillPaymentsSummary.total_failed || 0})</button>
         <button className={`tab-btn ${activeTab === 'waec' ? 'active' : ''}`} onClick={() => setActiveTab('waec')}><FaGraduationCap /> WAEC Vouchers</button>
         <button className={`tab-btn ${activeTab === 'bills' ? 'active' : ''}`} onClick={() => setActiveTab('bills')}><FaBolt /> Bill Payments</button>
         <button className={`tab-btn ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}><FaDatabase /> Inventory</button>
@@ -1920,7 +2183,7 @@ export default function AdminDashboard() {
         <button className={`tab-btn ${activeTab === 'webhooks' ? 'active' : ''}`} onClick={() => setActiveTab('webhooks')}><FaPlug /> Webhooks</button>
       </div>
 
-      {/* ========== FAILED ORDERS TAB - NEW ========== */}
+      {/* ========== FAILED ORDERS TAB ========== */}
       {activeTab === 'failed-orders' && (
         <div className="panel">
           <div className="panel-header">
@@ -2018,6 +2281,122 @@ export default function AdminDashboard() {
               <button 
                 onClick={() => fetchFailedOrders(failedOrdersPagination.page + 1)}
                 disabled={!failedOrdersPagination.has_next}
+                className="btn-sm btn-secondary"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========== FAILED BILL PAYMENTS TAB ========== */}
+      {activeTab === 'failed-bills' && (
+        <div className="panel">
+          <div className="panel-header">
+            <h3><FaExclamationTriangle /> Failed Bill Payments</h3>
+            <div className="failed-summary" style={{ display: 'flex', gap: '15px' }}>
+              <div className="summary-badge danger" style={{ background: '#dc3545', color: 'white', padding: '8px 16px', borderRadius: '8px', textAlign: 'center' }}>
+                <span>Total Failed</span>
+                <strong style={{ display: 'block', fontSize: '20px' }}>{failedBillPaymentsSummary.total_failed || 0}</strong>
+              </div>
+              <div className="summary-badge warning" style={{ background: '#ffc107', color: '#333', padding: '8px 16px', borderRadius: '8px', textAlign: 'center' }}>
+                <span>Total Amount</span>
+                <strong style={{ display: 'block', fontSize: '20px' }}>₵{(failedBillPaymentsSummary.total_amount || 0).toFixed(2)}</strong>
+              </div>
+              <div className="summary-badge info" style={{ background: '#17a2b8', color: 'white', padding: '8px 16px', borderRadius: '8px', textAlign: 'center' }}>
+                <span>Pending Resolution</span>
+                <strong style={{ display: 'block', fontSize: '20px' }}>{failedBillPaymentsSummary.pending_resolution || 0}</strong>
+              </div>
+            </div>
+          </div>
+          
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Bill ID</th>
+                  <th>Biller</th>
+                  <th>Customer</th>
+                  <th>Account</th>
+                  <th>Amount</th>
+                  <th>Error</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {failedBillPayments.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="text-center">
+                      <div className="empty-state" style={{ padding: '40px', textAlign: 'center' }}>
+                        <FaCheckCircle size={40} color="#28a745" />
+                        <p style={{ marginTop: '10px' }}>No failed bill payments found!</p>
+                        <small>All bill payments processed successfully</small>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  failedBillPayments.map(bill => (
+                    <tr key={bill.id}>
+                      <td className="order-id"><code>{bill.order_id || bill.id}</code></td>
+                      <td>
+                        <strong>{bill.biller_name || 'Unknown'}</strong>
+                        <br/>
+                        <small className="text-muted">{bill.biller_code || ''}</small>
+                      </td>
+                      <td>
+                        <strong>{bill.customer_name || 'Unknown'}</strong>
+                        <br/>
+                        <small>{bill.customer_phone || ''}</small>
+                      </td>
+                      <td>{bill.account_number || 'N/A'}</td>
+                      <td className="amount">₵{bill.amount?.toFixed(2) || 0}</td>
+                      <td className="error-message">
+                        <span title={bill.error_message} style={{ fontSize: '12px', color: '#dc3545' }}>
+                          {bill.error_message?.substring(0, 50)}...
+                        </span>
+                      </td>
+                      <td>{bill.created_at ? new Date(bill.created_at).toLocaleString() : 'N/A'}</td>
+                      <td className="actions">
+                        <button 
+                          className="btn-sm btn-success" 
+                          onClick={() => handleRetryBill(bill)}
+                          disabled={resolvingBill === bill.id}
+                          style={{ marginRight: '5px' }}
+                        >
+                          {resolvingBill === bill.id ? <FaSpinner className="spinning" /> : <FaSync />}
+                          Retry
+                        </button>
+                        <button 
+                          className="btn-sm btn-danger" 
+                          onClick={() => handleRefundBill(bill)}
+                          disabled={resolvingBill === bill.id}
+                        >
+                          <FaMoneyBillWave /> Refund
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Pagination */}
+          {failedBillPagination.pages > 1 && (
+            <div className="pagination" style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '20px' }}>
+              <button 
+                onClick={() => fetchFailedBillPayments(failedBillPagination.page - 1)}
+                disabled={!failedBillPagination.has_prev}
+                className="btn-sm btn-secondary"
+              >
+                Previous
+              </button>
+              <span>Page {failedBillPagination.page} of {failedBillPagination.pages}</span>
+              <button 
+                onClick={() => fetchFailedBillPayments(failedBillPagination.page + 1)}
+                disabled={!failedBillPagination.has_next}
                 className="btn-sm btn-secondary"
               >
                 Next
@@ -2776,80 +3155,7 @@ export default function AdminDashboard() {
 
       {/* Settings Modal */}
       <AnimatePresence>{showSettingsModal && (<motion.div className="modal-overlay" onClick={() => setShowSettingsModal(false)}><motion.div className="modal-content settings-modal" onClick={e => e.stopPropagation()}><button className="modal-close" onClick={() => setShowSettingsModal(false)}>×</button><h3><FaCog /> System Settings</h3><div className="settings-grid"><div className="setting-group"><h4>Commission Rates</h4><label>Bronze: <input type="number" value={systemSettings.commission_rates?.bronze || 10} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, bronze: parseInt(e.target.value)}})} /></label><label>Silver: <input type="number" value={systemSettings.commission_rates?.silver || 15} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, silver: parseInt(e.target.value)}})} /></label><label>Gold: <input type="number" value={systemSettings.commission_rates?.gold || 20} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, gold: parseInt(e.target.value)}})} /></label><label>Platinum: <input type="number" value={systemSettings.commission_rates?.platinum || 25} onChange={(e) => setSystemSettings({...systemSettings, commission_rates: {...systemSettings.commission_rates, platinum: parseInt(e.target.value)}})} /></label></div><div className="setting-group"><h4>WAEC & Bills</h4><label>WAEC Commission: <input type="number" value={systemSettings.waec_commission || 10} onChange={(e) => setSystemSettings({...systemSettings, waec_commission: parseInt(e.target.value)})} />%</label><label>Bill Commission: <input type="number" value={systemSettings.bill_commission || 5} onChange={(e) => setSystemSettings({...systemSettings, bill_commission: parseInt(e.target.value)})} />%</label></div><div className="setting-group"><h4>Support Contact</h4><label>Support Email: <input type="email" value={systemSettings.support_email} onChange={(e) => setSystemSettings({...systemSettings, support_email: e.target.value})} /></label><label>Support Phone: <input type="tel" value={systemSettings.support_phone} onChange={(e) => setSystemSettings({...systemSettings, support_phone: e.target.value})} /></label></div></div><div className="modal-actions"><button className="btn-secondary" onClick={() => setShowSettingsModal(false)}>Cancel</button><button className="btn-primary" onClick={() => { api.put('/admin/settings', systemSettings); toast.success('Settings saved'); setShowSettingsModal(false); }}>Save Settings</button></div></motion.div></motion.div>)}</AnimatePresence>
-
-      {/* CSS Styles for new components */}
-      <style jsx>{`
-        .stat-card.sales-card,
-        .stat-card.digimall-card,
-        .stat-card.africastalking-card {
-          position: relative;
-          overflow: visible;
-        }
-
-        .refresh-balance-btn {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          background: rgba(255, 255, 255, 0.2);
-          border: none;
-          border-radius: 50%;
-          width: 28px;
-          height: 28px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          color: inherit;
-          transition: all 0.2s;
-        }
-
-        .refresh-balance-btn:hover {
-          background: rgba(255, 255, 255, 0.3);
-          transform: rotate(45deg);
-        }
-
-        .sales-breakdown-section {
-          background: white;
-          border-radius: 12px;
-          padding: 20px;
-          margin: 20px 0;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .sales-breakdown-section h3 {
-          margin-bottom: 15px;
-          color: #8B0000;
-        }
-
-        .sales-breakdown-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-          gap: 15px;
-        }
-
-        .sales-card-small {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          border-radius: 10px;
-          padding: 15px;
-          text-align: center;
-          color: white;
-        }
-
-        .sales-card-small.total {
-          background: linear-gradient(135deg, #8B0000 0%, #D2691E 100%);
-        }
-
-        .sales-label {
-          font-size: 14px;
-          opacity: 0.9;
-          margin-bottom: 8px;
-        }
-
-        .sales-amount {
-          font-size: 24px;
-          font-weight: bold;
-        }
-      `}</style>
-    </motion.div>
+      </motion.div>
+    
   );
 }

@@ -1,0 +1,924 @@
+/* src/styles/pages/AgentOrders.css */
+
+/* ========== BASE CONTAINER ========== */
+.agent-orders-page {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: var(--bg-primary, #f5f6fa);
+  transition: background 0.3s ease;
+}
+
+/* ========== DARK MODE VARIABLES ========== */
+.agent-orders-page.dark {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-card: #1f1f3a;
+  --bg-table: #1a1a2e;
+  --bg-table-header: #2a2a4a;
+  --bg-table-row: #1f1f3a;
+  --bg-table-row-hover: #2a2a4a;
+  --text-primary: #ffffff;
+  --text-secondary: #b0b0c0;
+  --text-muted: #8888aa;
+  --border-color: #2a2a4a;
+  --shadow-color: rgba(0, 0, 0, 0.4);
+  --input-bg: #2a2a4a;
+  --input-text: #ffffff;
+  --badge-pending: #ffc107;
+  --badge-processing: #17a2b8;
+  --badge-sending: #007bff;
+  --badge-delivered: #28a745;
+  --badge-completed: #28a745;
+  --badge-failed: #dc3545;
+  --badge-cancelled: #6c757d;
+}
+
+/* ========== LIGHT MODE VARIABLES ========== */
+.agent-orders-page.light {
+  --bg-primary: #f5f6fa;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-table: #ffffff;
+  --bg-table-header: #f0f0f5;
+  --bg-table-row: #ffffff;
+  --bg-table-row-hover: #f8f9fa;
+  --text-primary: #1a1a2e;
+  --text-secondary: #4a4a5e;
+  --text-muted: #8888aa;
+  --border-color: #e0e0e5;
+  --shadow-color: rgba(0, 0, 0, 0.08);
+  --input-bg: #ffffff;
+  --input-text: #1a1a2e;
+}
+
+/* ========== PAGE HEADER ========== */
+.agent-orders-page .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 24px;
+}
+
+.agent-orders-page .page-header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.agent-orders-page .page-header p {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin: 4px 0 0 0;
+}
+
+.agent-orders-page .header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ========== LIVE UPDATES PANEL ========== */
+.agent-orders-page .live-updates-panel {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.agent-orders-page .live-updates-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.agent-orders-page .pulse-ring {
+  animation: pulse-ring 2s infinite;
+  color: #28a745;
+}
+
+@keyframes pulse-ring {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.agent-orders-page .live-updates-list {
+  max-height: 80px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agent-orders-page .live-update-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  padding: 2px 0;
+}
+
+.agent-orders-page .live-update-item .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.agent-orders-page .live-update-item .dot.pending {
+  background: var(--badge-pending);
+}
+.agent-orders-page .live-update-item .dot.processing {
+  background: var(--badge-processing);
+}
+.agent-orders-page .live-update-item .dot.delivered {
+  background: var(--badge-delivered);
+}
+.agent-orders-page .live-update-item .dot.failed {
+  background: var(--badge-failed);
+}
+
+.agent-orders-page .live-update-item small {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ========== STATS CARDS ========== */
+.agent-orders-page .stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.agent-orders-page .stat-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px var(--shadow-color);
+  transition: transform 0.2s ease;
+}
+
+.agent-orders-page .stat-card:hover {
+  transform: translateY(-2px);
+}
+
+.agent-orders-page .stat-card .stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.agent-orders-page .stat-card .stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.agent-orders-page .stat-card.warning .stat-value {
+  color: #ffc107;
+}
+.agent-orders-page .stat-card.info .stat-value {
+  color: #17a2b8;
+}
+.agent-orders-page .stat-card.success .stat-value {
+  color: #28a745;
+}
+.agent-orders-page .stat-card.danger .stat-value {
+  color: #dc3545;
+}
+
+/* ========== FILTERS BAR ========== */
+.agent-orders-page .filters-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.agent-orders-page .search-box {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0 12px;
+  transition: border-color 0.2s;
+}
+
+.agent-orders-page .search-box:focus-within {
+  border-color: #8B0000;
+}
+
+.agent-orders-page .search-box svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.agent-orders-page .search-box input {
+  background: transparent;
+  border: none;
+  padding: 10px 12px;
+  flex: 1;
+  font-size: 0.9rem;
+  color: var(--input-text);
+  outline: none;
+  min-width: 100px;
+}
+
+.agent-orders-page .search-box input::placeholder {
+  color: var(--text-muted);
+}
+
+.agent-orders-page .filter-select {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--input-bg);
+  color: var(--input-text);
+  font-size: 0.9rem;
+  cursor: pointer;
+  min-width: 140px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+/* ========== ORDER TABLE ========== */
+.agent-orders-page .orders-table-container {
+  background: var(--bg-card);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.agent-orders-page .orders-table-container .data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.agent-orders-page .orders-table-container .data-table thead {
+  background: var(--bg-table-header);
+}
+
+.agent-orders-page .orders-table-container .data-table thead th {
+  padding: 12px 14px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+.agent-orders-page .orders-table-container .data-table tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.agent-orders-page .orders-table-container .data-table tbody tr {
+  background: var(--bg-table-row);
+  transition: background 0.15s ease;
+}
+
+.agent-orders-page .orders-table-container .data-table tbody tr:hover {
+  background: var(--bg-table-row-hover);
+}
+
+/* ========== ORDER ID ========== */
+.agent-orders-page .order-id {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+/* ========== CUSTOMER INFO ========== */
+.agent-orders-page .customer-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 80px;
+}
+
+.agent-orders-page .customer-info strong {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.agent-orders-page .customer-info small {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+/* ========== AMOUNT ========== */
+.agent-orders-page .amount {
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+/* ========== STATUS BADGES ========== */
+.agent-orders-page .status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.agent-orders-page .status-badge.badge-warning {
+  background: #fff3cd;
+  color: #856404;
+}
+.agent-orders-page .status-badge.badge-info {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+.agent-orders-page .status-badge.badge-primary {
+  background: #cce5ff;
+  color: #004085;
+}
+.agent-orders-page .status-badge.badge-success {
+  background: #d4edda;
+  color: #155724;
+}
+.agent-orders-page .status-badge.badge-danger {
+  background: #f8d7da;
+  color: #721c24;
+}
+.agent-orders-page .status-badge.badge-secondary {
+  background: #e2e3e5;
+  color: #383d41;
+}
+
+/* Dark mode status badges */
+.agent-orders-page.dark .status-badge.badge-warning {
+  background: #3d3200;
+  color: #ffd700;
+}
+.agent-orders-page.dark .status-badge.badge-info {
+  background: #003d4d;
+  color: #5bc0de;
+}
+.agent-orders-page.dark .status-badge.badge-primary {
+  background: #003366;
+  color: #66b0ff;
+}
+.agent-orders-page.dark .status-badge.badge-success {
+  background: #003d1a;
+  color: #5cb85c;
+}
+.agent-orders-page.dark .status-badge.badge-danger {
+  background: #4d0000;
+  color: #ff6b6b;
+}
+.agent-orders-page.dark .status-badge.badge-secondary {
+  background: #2a2a2a;
+  color: #aaaaaa;
+}
+
+/* ========== PROGRESS INDICATOR ========== */
+.agent-orders-page .progress-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 100px;
+}
+
+.agent-orders-page .progress-bar-small {
+  width: 100%;
+  height: 6px;
+  background: var(--border-color);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.agent-orders-page .progress-fill-small {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+  background: linear-gradient(90deg, #8B0000, #D2691E);
+}
+
+.agent-orders-page .progress-text {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ========== ACTION BUTTONS ========== */
+.agent-orders-page .actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.agent-orders-page .actions .btn-sm {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.agent-orders-page .actions .btn-sm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.agent-orders-page .actions .btn-sm.btn-info {
+  background: #17a2b8;
+  color: white;
+}
+.agent-orders-page .actions .btn-sm.btn-info:hover {
+  background: #138496;
+}
+
+.agent-orders-page .actions .btn-sm.btn-primary {
+  background: #007bff;
+  color: white;
+}
+.agent-orders-page .actions .btn-sm.btn-primary:hover {
+  background: #0069d9;
+}
+
+.agent-orders-page .actions .btn-sm.btn-success {
+  background: #28a745;
+  color: white;
+}
+.agent-orders-page .actions .btn-sm.btn-success:hover {
+  background: #1e7e34;
+}
+
+.agent-orders-page .actions .btn-sm.btn-warning {
+  background: #ffc107;
+  color: #1a1a2e;
+}
+.agent-orders-page .actions .btn-sm.btn-warning:hover {
+  background: #e0a800;
+}
+
+/* ========== EMPTY STATE ========== */
+.agent-orders-page .empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.agent-orders-page .empty-state .icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.agent-orders-page .empty-state h3 {
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+/* ========== LOADING SCREEN ========== */
+.agent-orders-page .loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: var(--text-secondary);
+}
+
+.agent-orders-page .loading-screen .spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--border-color);
+  border-top: 4px solid #8B0000;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.agent-orders-page .spinning {
+  animation: spin 0.8s linear infinite;
+}
+
+/* ========== ORDER DETAILS MODAL ========== */
+.agent-orders-page .modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.agent-orders-page .modal-content {
+  background: var(--bg-card);
+  border-radius: 16px;
+  max-width: 700px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  position: relative;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.agent-orders-page .modal-close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.agent-orders-page .modal-close:hover {
+  color: var(--text-primary);
+}
+
+.agent-orders-page .order-details-section {
+  margin-top: 20px;
+}
+
+.agent-orders-page .order-details-section h4 {
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.agent-orders-page .details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.agent-orders-page .detail-item {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px;
+  background: var(--bg-table);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.agent-orders-page .detail-item label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.agent-orders-page .detail-item span {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-top: 2px;
+  word-break: break-word;
+}
+
+.agent-orders-page .detail-item .amount {
+  color: #8B0000;
+}
+
+/* ========== MODAL ACTIONS ========== */
+.agent-orders-page .modal-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.agent-orders-page .modal-actions .btn-outline {
+  padding: 8px 16px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  border-radius: 8px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.agent-orders-page .modal-actions .btn-outline:hover {
+  background: var(--bg-table-row-hover);
+  border-color: #8B0000;
+}
+
+.agent-orders-page .modal-actions .btn-secondary {
+  padding: 8px 24px;
+  border: none;
+  background: var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s ease;
+}
+
+.agent-orders-page .modal-actions .btn-secondary:hover {
+  background: var(--text-muted);
+}
+
+.agent-orders-page .modal-footer-note {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 1024px) {
+  .agent-orders-page .details-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .agent-orders-page {
+    padding: 12px;
+  }
+
+  .agent-orders-page .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .agent-orders-page .page-header h1 {
+    font-size: 1.2rem;
+  }
+
+  .agent-orders-page .header-actions {
+    flex-wrap: wrap;
+  }
+
+  .agent-orders-page .header-actions .btn-outline {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+  }
+
+  .agent-orders-page .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 8px;
+  }
+
+  .agent-orders-page .stat-card {
+    padding: 10px;
+  }
+
+  .agent-orders-page .stat-card .stat-value {
+    font-size: 1.1rem;
+  }
+
+  .agent-orders-page .stat-card .stat-label {
+    font-size: 0.65rem;
+  }
+
+  .agent-orders-page .filters-bar {
+    flex-direction: column;
+  }
+
+  .agent-orders-page .search-box {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .agent-orders-page .filter-select {
+    width: 100%;
+    min-width: unset;
+  }
+
+  /* Mobile Table - Horizontal Scroll */
+  .agent-orders-page .orders-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .agent-orders-page .orders-table-container .data-table {
+    font-size: 0.75rem;
+    min-width: 700px;
+  }
+
+  .agent-orders-page .orders-table-container .data-table thead th {
+    padding: 8px 10px;
+    font-size: 0.6rem;
+  }
+
+  .agent-orders-page .orders-table-container .data-table tbody td {
+    padding: 8px 10px;
+  }
+
+  .agent-orders-page .actions .btn-sm {
+    padding: 2px 6px;
+    font-size: 0.65rem;
+  }
+
+  .agent-orders-page .progress-indicator {
+    min-width: 70px;
+  }
+
+  .agent-orders-page .progress-text {
+    font-size: 0.55rem;
+  }
+
+  /* Modal Mobile */
+  .agent-orders-page .modal-content {
+    padding: 16px;
+    max-width: 100%;
+    margin: 10px;
+    max-height: 95vh;
+  }
+
+  .agent-orders-page .details-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .agent-orders-page .detail-item {
+    padding: 6px 10px;
+  }
+
+  .agent-orders-page .detail-item label {
+    font-size: 0.55rem;
+  }
+
+  .agent-orders-page .detail-item span {
+    font-size: 0.8rem;
+  }
+
+  .agent-orders-page .modal-actions {
+    flex-direction: column;
+  }
+
+  .agent-orders-page .modal-actions .btn-outline,
+  .agent-orders-page .modal-actions .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .agent-orders-page .live-updates-panel {
+    padding: 8px 12px;
+  }
+
+  .agent-orders-page .live-update-item {
+    font-size: 0.75rem;
+  }
+
+  .agent-orders-page .customer-info strong {
+    font-size: 0.75rem;
+  }
+
+  .agent-orders-page .customer-info small {
+    font-size: 0.6rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .agent-orders-page .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .agent-orders-page .orders-table-container .data-table {
+    min-width: 600px;
+    font-size: 0.7rem;
+  }
+
+  .agent-orders-page .orders-table-container .data-table thead th,
+  .agent-orders-page .orders-table-container .data-table tbody td {
+    padding: 6px 8px;
+  }
+
+  .agent-orders-page .details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-orders-page .order-id {
+    font-size: 0.7rem;
+  }
+}
+
+/* ========== SCROLLBAR STYLING ========== */
+.agent-orders-page .orders-table-container::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.agent-orders-page .orders-table-container::-webkit-scrollbar-track {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+.agent-orders-page .orders-table-container::-webkit-scrollbar-thumb {
+  background: #8B0000;
+  border-radius: 3px;
+}
+
+.agent-orders-page .orders-table-container::-webkit-scrollbar-thumb:hover {
+  background: #D2691E;
+}
+
+/* ========== DARK MODE TOGGLE (if using class-based) ========== */
+.agent-orders-page .dark-mode-toggle {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 999;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 12px var(--shadow-color);
+  transition: all 0.3s ease;
+  color: var(--text-primary);
+}
+
+.agent-orders-page .dark-mode-toggle:hover {
+  transform: scale(1.05);
+}
+
+/* ========== PRINT STYLES ========== */
+@media print {
+  .agent-orders-page .header-actions,
+  .agent-orders-page .filters-bar,
+  .agent-orders-page .actions,
+  .agent-orders-page .live-updates-panel,
+  .agent-orders-page .modal-overlay {
+    display: none !important;
+  }
+
+  .agent-orders-page .orders-table-container {
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+  }
+
+  .agent-orders-page .orders-table-container .data-table {
+    font-size: 10pt !important;
+  }
+
+  .agent-orders-page .stat-card {
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+  }
+}

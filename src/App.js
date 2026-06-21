@@ -347,14 +347,14 @@ function AppContent() {
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/refund" element={<RefundPolicy />} />
-                
+                <Route path="/store/:slug" element={<PublicStore />} />
                 {/* User Routes - With Sidebar */}
                 <Route path="/dashboard" element={
                   <PrivateRoute>
                     <UserDashboard />
                   </PrivateRoute>
                 } />
-                <Route path="/store/:slug" element={<PublicStore />} />
+                
                 {/* BILL PAYMENT ROUTES - ADDED */}
                 <Route path="/bills" element={
                   <PrivateRoute>

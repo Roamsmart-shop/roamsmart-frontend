@@ -1927,3 +1927,96 @@
     background: var(--bg-secondary) !important;
   }
 }
+
+/* Bundle Switcher Section in Agent Dashboard */
+.bundle-switcher-section-agent {
+  margin: 20px 0;
+  padding: 0;
+}
+
+.sell-action-agent {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.sell-action-agent .btn-lg {
+  padding: 14px 40px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 50px;
+  background: linear-gradient(135deg, var(--success), #20c997);
+  transition: all 0.3s ease;
+}
+
+.sell-action-agent .btn-lg:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(40,167,69,0.3);
+}
+
+.delivery-estimate {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* Dark mode for delivery estimate */
+@media (prefers-color-scheme: dark) {
+  .delivery-estimate {
+    color: var(--text-secondary);
+  }
+}
+
+/* Network/Biller Badges */
+.network-badge.biller {
+  background: #6c757d;
+  color: white;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.network-badge.biller.ECG {
+  background: #f39c12;
+  color: #333;
+}
+
+.network-badge.biller.DSTV {
+  background: #e74c3c;
+  color: white;
+}
+
+.network-badge.biller.GOTV {
+  background: #2ecc71;
+  color: #333;
+}
+
+.network-badge.biller.STARTIMES {
+  background: #9b59b6;
+  color: white;
+}
+
+.network-badge.biller.GWCL {
+  background: #3498db;
+  color: white;
+}
+
+/* Status Badges */
+.status-badge.refunded {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.refunded-badge {
+  font-size: 0.6rem;
+  color: #17a2b8;
+  background: #d1ecf1;
+  padding: 2px 8px;
+  border-radius: 10px;
+  display: inline-block;
+}

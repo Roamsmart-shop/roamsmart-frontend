@@ -1252,3 +1252,214 @@
     animation: none;
   }
 }
+
+/* Add to AdminPriceManagement.css */
+
+/* Delivery Pricing Tab */
+.delivery-network-section {
+  margin-bottom: 32px;
+  padding: 20px;
+  background: var(--bg-card, #fff);
+  border-radius: 16px;
+  border: 1px solid var(--border-color, #e0e0e0);
+}
+
+.delivery-network-title {
+  font-size: 1.2rem;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--primary, #8B0000);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.delivery-network-title small {
+  font-size: 0.8rem;
+  font-weight: normal;
+  color: var(--text-secondary, #666);
+}
+
+.delivery-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.delivery-option-card {
+  background: var(--bg-secondary, #f8f9fa);
+  border-radius: 16px;
+  padding: 16px;
+  border-top: 4px solid;
+  transition: all 0.2s;
+}
+
+.delivery-option-card.inactive {
+  opacity: 0.6;
+  filter: grayscale(0.2);
+}
+
+.delivery-option-card.standard { border-top-color: #3498db; }
+.delivery-option-card.express { border-top-color: #f39c12; }
+.delivery-option-card.economy { border-top-color: #28a745; }
+.delivery-option-card.premium { border-top-color: #9b59b6; }
+
+.delivery-option-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.delivery-option-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.delivery-option-info {
+  flex: 1;
+}
+
+.delivery-option-info h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.delivery-option-info small {
+  font-size: 0.7rem;
+  color: var(--text-secondary, #666);
+}
+
+.delivery-toggle-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.delivery-toggle-btn.active {
+  color: #28a745;
+}
+
+.delivery-toggle-btn.inactive {
+  color: #dc3545;
+}
+
+.delivery-option-pricing {
+  margin-bottom: 16px;
+}
+
+.delivery-pricing-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light, #e8e8e8);
+}
+
+.delivery-pricing-row span:first-child {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #666);
+}
+
+.pricing-hint {
+  font-size: 0.65rem;
+  color: var(--text-muted, #999);
+  margin-left: 4px;
+}
+
+.delivery-time-config {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--bg-card, #fff);
+  border-radius: 12px;
+}
+
+.time-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.time-row span:first-child {
+  font-size: 0.7rem;
+  color: var(--text-secondary, #666);
+}
+
+.delivery-example {
+  padding: 10px;
+  background: rgba(139,0,0,0.05);
+  border-radius: 8px;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.delivery-example strong {
+  color: var(--primary, #8B0000);
+  margin-left: 8px;
+}
+
+.delivery-info-note {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(52, 152, 219, 0.1);
+  border-radius: 12px;
+  margin-top: 20px;
+}
+
+.delivery-info-note svg {
+  color: #3498db;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.delivery-info-note ul {
+  margin: 8px 0 0 20px;
+  padding: 0;
+}
+
+.delivery-info-note li {
+  font-size: 0.8rem;
+  margin: 4px 0;
+}
+
+.note-text {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--primary, #8B0000);
+  font-weight: 500;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .delivery-option-card {
+    background: var(--dark-card, #1e1e2e);
+  }
+  
+  .delivery-time-config {
+    background: var(--dark-bg, #2a2a3a);
+  }
+}
+
+/* Add to AdminPriceManagement.css */
+.price-add-btn {
+  transition: all 0.2s;
+}
+
+.price-add-btn:hover {
+  background: #218838 !important;
+  transform: scale(1.05);
+}

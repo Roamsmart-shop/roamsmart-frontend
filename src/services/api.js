@@ -1,7 +1,7 @@
 
 import axios from 'axios';
 
-const API_URL = 'https://roamsmart-backend-production.up.railway.app/api';
+const API_URL = 'https://api.roamsmart.shop/api';
 // Company Configuration
 export const COMPANY_CONFIG = {
   name: 'Roamsmart Digital Service',
@@ -10,7 +10,7 @@ export const COMPANY_CONFIG = {
   phone: '0557388622',
   website: 'https://roamsmart.shop',
   domain: 'roamsmart.shop',
-  apiUrl: 'https://roamsmart-backend-production.up.railway.app'
+ 
 };
 
 
@@ -89,6 +89,8 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+
 
 export const auth = {
   getToken: () => localStorage.getItem(STORAGE_KEYS.TOKEN),
@@ -173,6 +175,110 @@ export const paymentAPI = {
     api.post('/wallet/withdraw', { amount, mobile_money: mobileMoney }),
   getWithdrawalHistory: (page = 1, limit = 20) => 
     api.get(`/wallet/withdrawals?page=${page}&limit=${limit}`)
+};
+
+
+export const billAPI = {
+  // User endpoints (for regular users)
+  user: {
+    // Validate bill
+    validate: (data) => api.post('/user/bills/validate', data),
+    
+    // Pay bill
+    pay: (data) => api.post('/user/bills/pay', data),
+    
+    // Get bill history
+    getHistory: (params) => api.get('/user/bills/history', { params }),
+    
+    // Get bill stats
+    getStats: () => api.get('/user/bills/stats'),
+    
+    // Get recurring bills
+    getRecurring: () => api.get('/user/bills/recurring'),
+    
+    // Create recurring bill
+    createRecurring: (data) => api.post('/user/bills/recurring', data),
+    
+    // Update recurring bill
+    updateRecurring: (id, data) => api.put(`/user/bills/recurring/${id}`, data),
+    
+    // Delete recurring bill
+    deleteRecurring: (id) => api.delete(`/user/bills/recurring/${id}`),
+    
+    // Pay recurring bill
+    payRecurring: (id, data) => api.post(`/user/bills/recurring/${id}/pay`, data),
+    
+    // Toggle auto-pay
+    toggleAutoPay: (id, data) => api.post(`/user/bills/recurring/${id}/auto-pay`, data),
+    
+    // Skip next payment
+    skipRecurring: (id) => api.post(`/user/bills/recurring/${id}/skip`),
+    
+    // Check due bills
+    checkDue: () => api.get('/user/bills/recurring/check-due'),
+  },
+  
+  // Agent endpoints (for agents)
+  agent: {
+    // Validate bill for customer
+    validate: (data) => api.post('/agent/bills/validate', data),
+    
+    // Pay bill for customer
+    pay: (data) => api.post('/agent/bills/pay', data),
+    
+    // Get bill history
+    getHistory: (params) => api.get('/agent/bills/history', { params }),
+    
+    // Get bill stats
+    getStats: () => api.get('/agent/bills/stats'),
+    
+    // Get recurring bills for customers
+    getRecurring: () => api.get('/agent/bills/recurring'),
+    
+    // Create recurring bill for customer
+    createRecurring: (data) => api.post('/agent/bills/recurring', data),
+    
+    // Update recurring bill
+    updateRecurring: (id, data) => api.put(`/agent/bills/recurring/${id}`, data),
+    
+    // Delete recurring bill
+    deleteRecurring: (id) => api.delete(`/agent/bills/recurring/${id}`),
+  }
+};
+
+
+
+export const commissionAPI = {
+  // Get commission stats
+  getStats: () => api.get('/user/commission-stats'),
+  
+  // Get commission transactions
+  getTransactions: (params) => api.get('/user/commission-transactions', { params }),
+  
+  
+  getSummary: () => api.get('/user/commission-summary'),
+};
+
+api.userValidateBill = (data) => api.post('/user/bills/validate', data);
+api.userPayBill = (data) => api.post('/user/bills/pay', data);
+api.userBillHistory = (params) => api.get('/user/bills/history', { params });
+api.userBillStats = () => api.get('/user/bills/stats');
+api.userGetRecurring = () => api.get('/user/bills/recurring');
+api.userCreateRecurring = (data) => api.post('/user/bills/recurring', data);
+api.userUpdateRecurring = (id, data) => api.put(`/user/bills/recurring/${id}`, data);
+api.userDeleteRecurring = (id) => api.delete(`/user/bills/recurring/${id}`);
+api.userPayRecurring = (id, data) => api.post(`/user/bills/recurring/${id}/pay`, data);
+api.userToggleAutoPay = (id, data) => api.post(`/user/bills/recurring/${id}/auto-pay`, data);
+api.userSkipRecurring = (id) => api.post(`/user/bills/recurring/${id}/skip`);
+api.userCheckDue = () => api.get('/user/bills/recurring/check-due');
+api.getCommissionStats = () => api.get('/user/commission-stats');
+api.getCommissionTransactions = (params) => api.get('/user/commission-transactions', { params });
+api.getCommissionSummary = () => api.get('/user/commission-summary');
+
+// Add to your api.js
+export const digimallAPI = {
+  checkOrderStatus: (identifier) => api.get(`/digimall/order-status/${identifier}`),
+  bulkCheckStatus: (identifiers) => api.post('/digimall/bulk-status', { identifiers })
 };
 
 // ========== AUTHENTICATION ENDPOINTS ==========

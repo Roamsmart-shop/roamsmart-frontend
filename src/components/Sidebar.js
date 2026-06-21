@@ -1,4 +1,5 @@
-// src/components/Sidebar.js
+// src/components/Sidebar.js - Updated with Referrals link
+
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -16,7 +17,7 @@ import {
   FaMinus, FaArrowUp, FaArrowDown, FaChartBar, FaPieChart,
   FaLineChart, FaBarChart, FaCalendarAlt, FaClock, FaFilter,
   FaArrowRight, FaArrowLeft, FaDollarSign, FaNewspaper,
-  FaReceipt
+  FaReceipt, FaCoins
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import { FaUserGraduate, FaGraduationCap } from 'react-icons/fa';
@@ -134,7 +135,7 @@ export default function Sidebar({ isOpen, onClose, user: propUser, isCollapsed, 
     return fallbackUrl;
   };
 
-  // ========== USER LINKS (with Blog and Bill Payment added) ==========
+  // ========== USER LINKS (with Referrals added) ==========
   const userLinks = [
     { to: '/dashboard', icon: <FaTachometerAlt />, label: 'Dashboard', description: 'Overview & Stats on Roamsmart' },
     { to: '/dashboard#bundles', icon: <FaDatabase />, label: 'Buy Data', description: 'Purchase data bundles on Roamsmart' },
@@ -145,13 +146,13 @@ export default function Sidebar({ isOpen, onClose, user: propUser, isCollapsed, 
     { to: '/waec-vouchers', icon: <FaGraduationCap />, label: 'WAEC Vouchers', description: 'Purchase WAEC result checker on Roamsmart' },
     { to: '/earnings', icon: <FaMoneyBillWave />, label: 'Earnings', description: 'Track your Roamsmart commissions' },
     { to: '/become-agent', icon: <FaUserPlus />, label: 'Become Roamsmart Agent', description: 'Start earning more' },
-    { to: '/referrals', icon: <FaGift />, label: 'Referrals', description: 'Invite & earn on Roamsmart' },
+    { to: '/referrals', icon: <FaGift />, label: 'Referrals', description: 'Invite friends & earn points on Roamsmart' },
     { to: '/blog', icon: <FaNewspaper />, label: 'Blog', description: 'Read latest articles on Roamsmart' },
     { to: '/support', icon: <FaHeadset />, label: 'Support', description: 'Get Roamsmart help 24/7' },
     { to: '/profile', icon: <FaCog />, label: 'Settings', description: 'Account settings on Roamsmart' }
   ];
 
-  // ========== AGENT LINKS (with Blog and Bill Payment added) ==========
+  // ========== AGENT LINKS (with Referrals added) ==========
   const agentLinks = [
     { to: '/agent/orders', icon: <FaShoppingCart />, label: 'Orders', description: 'Track customer orders on Roamsmart' },
     { to: '/agent/store', icon: <FaStore />, label: 'My Store', description: 'Your Roamsmart online store dashboard' },
@@ -165,12 +166,13 @@ export default function Sidebar({ isOpen, onClose, user: propUser, isCollapsed, 
     { to: '/agent/customers', icon: <FaUsers />, label: 'Customers', description: 'Your customer base on Roamsmart' },
     { to: '/transactions', icon: <FaExchangeAlt />, label: 'Sales History', description: 'Your Roamsmart sales records' },
     { to: '/agent/bills', icon: <FaReceipt />, label: 'Pay Bills', description: 'Pay bills for your customers on Roamsmart' },
+    { to: '/referrals', icon: <FaGift />, label: 'Referrals', description: 'Invite customers & earn points on Roamsmart' },
     { to: '/blog', icon: <FaNewspaper />, label: 'Blog', description: 'Read latest articles on Roamsmart' },
     { to: '/support', icon: <FaHeadset />, label: 'Support', description: 'Get Roamsmart help' },
     { to: '/profile', icon: <FaCog />, label: 'Settings', description: 'Account settings on Roamsmart' }
   ];
 
-  // ========== ADMIN LINKS (with Blog and Bill Payment added) ==========
+  // ========== ADMIN LINKS (with Referrals added) ==========
   const adminLinks = [
     { to: '/admin', icon: <FaTachometerAlt />, label: 'Dashboard', description: 'Roamsmart Overview & KPIs' },
     { to: '/admin#analytics', icon: <FaChartLine />, label: 'Analytics', description: 'Roamsmart Advanced analytics' },
@@ -187,7 +189,7 @@ export default function Sidebar({ isOpen, onClose, user: propUser, isCollapsed, 
     { to: '/blog', icon: <FaNewspaper />, label: 'Blog', description: 'Read latest articles on Roamsmart' }
   ];
 
-  // ========== SUPER ADMIN LINKS (with Blog and Bill Payment added) ==========
+  // ========== SUPER ADMIN LINKS ==========
   const superAdminLinks = [
     { to: '/admin/roles', icon: <FaUserCheck />, label: 'Admin Roles', description: 'Manage Roamsmart admins' },
     { to: '/admin/audit', icon: <FaHistory />, label: 'Audit Logs', description: 'Admin actions on Roamsmart' },
@@ -298,6 +300,25 @@ export default function Sidebar({ isOpen, onClose, user: propUser, isCollapsed, 
               </div>
             )}
 
+            {/* Points Balance for All Users */}
+            <div className="sidebar-points" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 12px',
+              background: 'rgba(255, 215, 0, 0.15)',
+              borderRadius: '8px',
+              marginTop: '8px',
+              fontSize: '0.8rem',
+              color: '#FFD700'
+            }}>
+              <FaCoins />
+              <span>{user?.points_balance || 0} pts</span>
+              <span style={{ fontSize: '0.65rem', opacity: 0.7 }}>
+                (₵{((user?.points_balance || 0) / 10).toFixed(2)})
+              </span>
+            </div>
+
             {/* Agent Commission Preview */}
             {isAgent && (
               <div className="sidebar-commission">
@@ -346,6 +367,32 @@ export default function Sidebar({ isOpen, onClose, user: propUser, isCollapsed, 
                 </button>
                 <button onClick={() => { navigate('/agent/bills'); onClose(); }} className="quick-action-btn">
                   <FaReceipt /> Pay Bills
+                </button>
+                <button onClick={() => { navigate('/referrals'); onClose(); }} className="quick-action-btn">
+                  <FaGift /> Referrals
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Quick Actions for Users */}
+          {!isAgent && !isAdmin && (
+            <div className="sidebar-quick-actions">
+              <div className="quick-actions-title">
+                <FaFire /> Quick Actions
+              </div>
+              <div className="quick-actions-grid">
+                <button onClick={() => { navigate('/dashboard#bundles'); onClose(); }} className="quick-action-btn">
+                  <FaDatabase /> Buy Data
+                </button>
+                <button onClick={() => { navigate('/bills'); onClose(); }} className="quick-action-btn">
+                  <FaReceipt /> Pay Bills
+                </button>
+                <button onClick={() => { navigate('/referrals'); onClose(); }} className="quick-action-btn">
+                  <FaGift /> Referrals
+                </button>
+                <button onClick={() => { navigate('/earnings'); onClose(); }} className="quick-action-btn">
+                  <FaMoneyBillWave /> Earnings
                 </button>
               </div>
             </div>

@@ -706,3 +706,46 @@
     justify-content: center;
   }
 }
+
+.btn-refund {
+  background: #ff9800;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  transition: all 0.2s;
+}
+
+.btn-refund:hover:not(:disabled) {
+  background: #e68900;
+  transform: translateY(-1px);
+}
+
+.btn-refund:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.refunded-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #28a745;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+}
+
+.badge-info {
+  background: #17a2b8;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+}

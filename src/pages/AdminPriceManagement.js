@@ -1,4 +1,5 @@
-// src/pages/AdminPriceManagement.js
+// src/pages/AdminPriceManagement.js - Using /api/admin/delivery/pricing endpoint
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
@@ -6,7 +7,8 @@ import {
   FaCheckCircle, FaChartLine, FaGraduationCap, FaUsers,
   FaMobileAlt, FaDatabase, FaLock, FaKey, FaEye, FaEyeSlash,
   FaShieldAlt, FaSignOutAlt, FaPlus, FaBan, FaCheck, 
-  FaToggleOn, FaToggleOff, FaTrash, FaExclamationTriangle
+  FaToggleOn, FaToggleOff, FaTrash, FaExclamationTriangle,
+  FaBolt, FaTachometerAlt, FaClock, FaRocket, FaMoneyBillWave, FaInfoCircle
 } from 'react-icons/fa';
 import api from '../services/api';
 import toast from 'react-hot-toast';
@@ -17,6 +19,9 @@ const COMPANY = {
   name: 'Roamsmart Digital Service',
   shortName: 'Roamsmart'
 };
+
+// All sizes based on Digimall data sizes
+const ALL_SIZES = ['1', '2', '3', '4', '5', '6', '7', '8', '10', '12', '15', '20', '25', '30', '40', '50', '100'];
 
 export default function AdminPriceManagement() {
   const [loading, setLoading] = useState(true);
@@ -41,24 +46,79 @@ export default function AdminPriceManagement() {
   const [showAddSize, setShowAddSize] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState('');
   
-  // NEW: Available sizes per network (which sizes are active)
-  const [availableSizes, setAvailableSizes] = useState({
-    mtn: { '1': true, '2': true, '5': true, '10': true, '20': true },
-    telecel: { '1': true, '2': true, '5': true, '10': true, '20': true },
-    airteltigo: { '1': false, '2': false, '5': true, '10': true, '20': true } // 1GB and 2GB disabled by default
+  // Delivery Pricing - Express Bundle (MTN Only)
+  const [deliveryPricing, setDeliveryPricing] = useState({
+    mtn: {
+      express: {
+        user_price: {},
+        agent_price: {}
+      }
+    }
   });
   
-  // Price states
+  // Available sizes per network
+  const [availableSizes, setAvailableSizes] = useState({
+    mtn: {
+      '1': true, '2': true, '3': true, '4': true, '5': true,
+      '6': true, '7': true, '8': true, '10': true, '12': true,
+      '15': true, '20': true, '25': true, '30': true, '40': true,
+      '50': true, '100': true
+    },
+    telecel: {
+      '1': true, '2': true, '3': true, '4': true, '5': true,
+      '6': true, '7': true, '8': true, '10': true, '12': true,
+      '15': true, '20': true, '25': true, '30': true, '40': true,
+      '50': true, '100': true
+    },
+    airteltigo: {
+      '1': true, '2': true, '3': true, '4': true, '5': true,
+      '6': true, '7': true, '8': true, '10': true, '12': true,
+      '15': true, '20': true, '25': true, '30': true, '40': true,
+      '50': true, '100': true
+    }
+  });
+  
+  // Price states - All sizes
   const [userPrices, setUserPrices] = useState({
-    mtn: { '1': 6.50, '2': 12.00, '5': 25.00, '10': 48.00, '20': 90.00 },
-    telecel: { '1': 6.00, '2': 11.00, '5': 23.00, '10': 44.00, '20': 85.00 },
-    airteltigo: { '1': 0, '2': 0, '5': 23.00, '10': 44.00, '20': 85.00 }
+    mtn: {
+      '1': 5.00, '2': 10.00, '3': 15.00, '4': 20.00, '5': 24.00,
+      '6': 28.00, '7': 0, '8': 37.00, '10': 45.00, '12': 0,
+      '15': 0, '20': 83.00, '25': 108.00, '30': 125.00, '40': 165.00,
+      '50': 204.00, '100': 0
+    },
+    telecel: {
+      '1': 5.00, '2': 9.00, '3': 34.00, '4': 44.00, '5': 23.00,
+      '6': 0, '7': 0, '8': 0, '10': 41.00, '12': 0,
+      '15': 62.00, '20': 80.00, '25': 0, '30': 115.00, '40': 149.00,
+      '50': 187.00, '100': 360.00
+    },
+    airteltigo: {
+      '1': 4.50, '2': 10.00, '3': 14.00, '4': 18.00, '5': 22.00,
+      '6': 26.00, '7': 30.00, '8': 0, '10': 0, '12': 0,
+      '15': 0, '20': 0, '25': 0, '30': 0, '40': 0,
+      '50': 0, '100': 0
+    }
   });
   
   const [agentPrices, setAgentPrices] = useState({
-    mtn: { '1': 5.50, '2': 10.00, '5': 22.00, '10': 42.00, '20': 80.00 },
-    telecel: { '1': 5.00, '2': 9.00, '5': 20.00, '10': 38.00, '20': 75.00 },
-    airteltigo: { '1': 0, '2': 0, '5': 20.00, '10': 38.00, '20': 75.00 }
+    mtn: {
+      '1': 5.00, '2': 10.00, '3': 15.00, '4': 20.00, '5': 24.00,
+      '6': 28.00, '7': 0, '8': 37.00, '10': 45.00, '12': 0,
+      '15': 0, '20': 83.00, '25': 108.00, '30': 125.00, '40': 165.00,
+      '50': 204.00, '100': 0
+    },
+    telecel: {
+      '1': 5.00, '2': 9.00, '3': 34.00, '4': 44.00, '5': 23.00,
+      '6': 0, '7': 0, '8': 0, '10': 41.00, '12': 0,
+      '15': 62.00, '20': 80.00, '25': 0, '30': 115.00, '40': 149.00,
+      '50': 187.00, '100': 360.00
+    },
+    airteltigo: {
+      '1': 4.50, '2': 10.00, '3': 14.00, '4': 18.00, '5': 22.00,
+      '6': 26.00, '7': 30.00, '8': 0, '10': 0, '12': 0,
+      '15': 0, '20': 0, '25': 0, '30': 0, '40': 0,
+      '50': 0, '100': 0
+    }
   });
   
   const [waecPrices, setWaecPrices] = useState({
@@ -75,6 +135,7 @@ export default function AdminPriceManagement() {
   });
   
   const [editingCell, setEditingCell] = useState(null);
+  const [selectedDeliveryNetwork, setSelectedDeliveryNetwork] = useState('mtn');
 
   // Check for existing session on mount
   useEffect(() => {
@@ -115,6 +176,7 @@ export default function AdminPriceManagement() {
           setAuthToken(storedToken);
           setIsAuthenticated(true);
           await fetchPrices(storedToken);
+          await fetchDeliveryPricing(storedToken);
         } else {
           sessionStorage.removeItem('price_auth_token');
           sessionStorage.removeItem('price_auth_expires');
@@ -125,6 +187,20 @@ export default function AdminPriceManagement() {
       }
     }
     setAuthChecking(false);
+  };
+
+  // Fetch delivery pricing from backend
+  const fetchDeliveryPricing = async (token) => {
+    try {
+      const res = await api.get('/admin/delivery/pricing', {
+        headers: { 'X-Price-Auth': token }
+      });
+      if (res.data.success) {
+        setDeliveryPricing(res.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch delivery pricing:', error);
+    }
   };
 
   const handleSessionExpired = () => {
@@ -155,6 +231,7 @@ export default function AdminPriceManagement() {
         
         toast.success('Password verified! Loading prices...');
         await fetchPrices(token);
+        await fetchDeliveryPricing(token);
       }
     } catch (error) {
       toast.error(error.response?.data?.error || 'Invalid password');
@@ -164,36 +241,36 @@ export default function AdminPriceManagement() {
   };
    
   const handleChangePassword = async () => {
-  if (!newPassword || newPassword.length < 6) {
-    toast.error('Password must be at least 6 characters');
-    return;
-  }
-  if (newPassword !== confirmPassword) {
-    toast.error('Passwords do not match');
-    return;
-  }
-
-  setChangingPassword(true);
-  try {
-    const res = await api.post('/admin/prices/update-password', {
-      new_password: newPassword,
-      confirm_password: confirmPassword
-    }, {
-      headers: { 'X-Price-Auth': authToken }
-    });
-    
-    if (res.data.success) {
-      toast.success('Price management password updated!');
-      setShowChangePassword(false);
-      setNewPassword('');
-      setConfirmPassword('');
+    if (!newPassword || newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
     }
-  } catch (error) {
-    toast.error(error.response?.data?.error || 'Failed to update password');
-  } finally {
-    setChangingPassword(false);
-  }
-};
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const res = await api.post('/admin/prices/update-password', {
+        new_password: newPassword,
+        confirm_password: confirmPassword
+      }, {
+        headers: { 'X-Price-Auth': authToken }
+      });
+      
+      if (res.data.success) {
+        toast.success('Price management password updated!');
+        setShowChangePassword(false);
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to update password');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -215,84 +292,79 @@ export default function AdminPriceManagement() {
   };
 
   const fetchPrices = async (token = null) => {
-  setLoading(true);
-  try {
-    const headers = token ? { 'X-Price-Auth': token } : {};
-    const res = await api.get('/admin/prices', { headers });
-    if (res.data.success) {
-      const data = res.data.data;
-      
-      // Initialize available sizes
-      const newAvailableSizes = {
-        mtn: {},
-        telecel: {},
-        airteltigo: {}
-      };
-      
-      // Handle user prices - extract availability info
-      if (data.user_prices) {
-        const formattedUserPrices = {};
-        for (const [network, packages] of Object.entries(data.user_prices)) {
-          formattedUserPrices[network] = {};
-          for (const [size, priceData] of Object.entries(packages)) {
-            if (typeof priceData === 'object' && priceData !== null) {
-              // New format with price and is_available
-              formattedUserPrices[network][size] = priceData.price;
-              newAvailableSizes[network][size] = priceData.is_available !== false;
-            } else {
-              // Old format (just price number)
-              formattedUserPrices[network][size] = priceData;
-              newAvailableSizes[network][size] = true;
+    setLoading(true);
+    try {
+      const headers = token ? { 'X-Price-Auth': token } : {};
+      const res = await api.get('/admin/prices', { headers });
+      if (res.data.success) {
+        const data = res.data.data;
+        
+        const newAvailableSizes = {
+          mtn: {},
+          telecel: {},
+          airteltigo: {}
+        };
+        
+        // Initialize all sizes for all networks
+        ALL_SIZES.forEach(size => {
+          newAvailableSizes.mtn[size] = true;
+          newAvailableSizes.telecel[size] = true;
+          newAvailableSizes.airteltigo[size] = true;
+        });
+        
+        if (data.user_prices) {
+          const formattedUserPrices = {};
+          for (const [network, packages] of Object.entries(data.user_prices)) {
+            formattedUserPrices[network] = {};
+            for (const [size, priceData] of Object.entries(packages)) {
+              if (typeof priceData === 'object' && priceData !== null) {
+                formattedUserPrices[network][size] = priceData.price;
+                newAvailableSizes[network][size] = priceData.is_available !== false;
+              } else {
+                formattedUserPrices[network][size] = priceData;
+                newAvailableSizes[network][size] = true;
+              }
             }
           }
+          setUserPrices(formattedUserPrices);
         }
-        setUserPrices(formattedUserPrices);
-      }
-      
-      // Handle agent prices
-      if (data.agent_prices) {
-        const formattedAgentPrices = {};
-        for (const [network, packages] of Object.entries(data.agent_prices)) {
-          formattedAgentPrices[network] = {};
-          for (const [size, priceData] of Object.entries(packages)) {
-            if (typeof priceData === 'object' && priceData !== null) {
-              formattedAgentPrices[network][size] = priceData.price;
-            } else {
-              formattedAgentPrices[network][size] = priceData;
+        
+        if (data.agent_prices) {
+          const formattedAgentPrices = {};
+          for (const [network, packages] of Object.entries(data.agent_prices)) {
+            formattedAgentPrices[network] = {};
+            for (const [size, priceData] of Object.entries(packages)) {
+              if (typeof priceData === 'object' && priceData !== null) {
+                formattedAgentPrices[network][size] = priceData.price;
+              } else {
+                formattedAgentPrices[network][size] = priceData;
+              }
             }
           }
+          setAgentPrices(formattedAgentPrices);
         }
-        setAgentPrices(formattedAgentPrices);
+        
+        setAvailableSizes(newAvailableSizes);
+        
+        if (data.waec_prices) setWaecPrices(data.waec_prices);
+        if (data.commission_rates) setCommissionRates(data.commission_rates);
       }
-      
-      // Set available sizes
-      setAvailableSizes(newAvailableSizes);
-      
-      if (data.waec_prices) setWaecPrices(data.waec_prices);
-      if (data.commission_rates) setCommissionRates(data.commission_rates);
+    } catch (error) {
+      console.error('Fetch prices error:', error);
+      if (error.response?.status === 401) {
+        handleSessionExpired();
+      } else {
+        toast.error('Failed to load prices');
+      }
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('Fetch prices error:', error);
-    if (error.response?.status === 401) {
-      handleSessionExpired();
-    } else {
-      toast.error('Failed to load prices');
-    }
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
-  // NEW: Toggle package availability
   const togglePackageAvailability = async (network, sizeGb, isCurrentlyAvailable) => {
-    const action = isCurrentlyAvailable ? 'disable' : 'enable';
-    const confirmText = isCurrentlyAvailable 
-      ? `This will make ${sizeGb}GB package UNAVAILABLE for ${network.toUpperCase()}. Users won't see this package. Continue?`
-      : `This will make ${sizeGb}GB package AVAILABLE for ${network.toUpperCase()}. Users will be able to purchase it. Continue?`;
-    
     const result = await Swal.fire({
       title: isCurrentlyAvailable ? 'Disable Package?' : 'Enable Package?',
-      text: confirmText,
+      text: `This will ${isCurrentlyAvailable ? 'disable' : 'enable'} ${sizeGb}GB package for ${network.toUpperCase()}.`,
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: isCurrentlyAvailable ? '#dc3545' : '#28a745',
@@ -311,7 +383,6 @@ export default function AdminPriceManagement() {
         });
         
         if (res.data.success) {
-          // Update local state
           setAvailableSizes(prev => ({
             ...prev,
             [network]: {
@@ -320,23 +391,19 @@ export default function AdminPriceManagement() {
             }
           }));
           
-          toast.success(`${sizeGb}GB package for ${network.toUpperCase()} is now ${!isCurrentlyAvailable ? 'AVAILABLE' : 'UNAVAILABLE'}`);
-          
-          // Refresh prices to ensure consistency
+          toast.success(`${sizeGb}GB package is now ${!isCurrentlyAvailable ? 'AVAILABLE' : 'UNAVAILABLE'}`);
           await fetchPrices(authToken);
         }
       } catch (error) {
-        console.error('Toggle availability error:', error);
         toast.error(error.response?.data?.error || 'Failed to update package availability');
       }
     }
   };
 
-  // NEW: Delete custom size package
   const deleteCustomSize = async (network, sizeGb) => {
     const result = await Swal.fire({
       title: 'Delete Package?',
-      text: `Are you sure you want to delete ${sizeGb}GB package for ${network.toUpperCase()}? This action cannot be undone.`,
+      text: `Delete ${sizeGb}GB package for ${network.toUpperCase()}?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc3545',
@@ -352,7 +419,6 @@ export default function AdminPriceManagement() {
         });
         
         if (res.data.success) {
-          // Remove from prices
           setUserPrices(prev => {
             const newPrices = { ...prev };
             delete newPrices[network][sizeGb];
@@ -365,25 +431,23 @@ export default function AdminPriceManagement() {
             return newPrices;
           });
           
-          // Remove from available sizes
           setAvailableSizes(prev => {
             const newAvailable = { ...prev };
             delete newAvailable[network][sizeGb];
             return newAvailable;
           });
           
-          toast.success(`Deleted ${sizeGb}GB package for ${network.toUpperCase()}`);
+          toast.success(`Deleted ${sizeGb}GB package`);
           await fetchPrices(authToken);
         }
       } catch (error) {
-        console.error('Delete size error:', error);
         toast.error(error.response?.data?.error || 'Failed to delete package');
       }
     }
   };
 
   const addCustomSize = async (network) => {
-    if (!newSize || newSize < 1 || newSize > 100) {
+    if (!newSize || newSize < 1) {
       toast.error('Please enter a valid size (1-100GB)');
       return;
     }
@@ -393,35 +457,26 @@ export default function AdminPriceManagement() {
       return;
     }
     
-    // Check if size already exists
-    if (userPrices[network]?.[newSize]) {
-      toast.error(`${newSize}GB package already exists for ${network.toUpperCase()}`);
-      return;
-    }
-    
     try {
-      // Add user price
       await api.put('/admin/prices/user', {
         network,
         size_gb: parseInt(newSize),
         price: parseFloat(newUserPrice)
       }, { headers: { 'X-Price-Auth': authToken } });
       
-      // Add agent price
       await api.put('/admin/prices/agent', {
         network,
         size_gb: parseInt(newSize),
         price: parseFloat(newAgentPrice)
       }, { headers: { 'X-Price-Auth': authToken } });
       
-      // Set as available by default
       await api.post('/admin/prices/toggle-availability', {
         network,
         size_gb: parseInt(newSize),
         available: true
       }, { headers: { 'X-Price-Auth': authToken } });
       
-      toast.success(`Added ${newSize}GB pricing for ${network.toUpperCase()}`);
+      toast.success(`Added ${newSize}GB package`);
       setNewSize('');
       setNewUserPrice('');
       setNewAgentPrice('');
@@ -429,7 +484,6 @@ export default function AdminPriceManagement() {
       fetchPrices(authToken);
       
     } catch (error) {
-      console.error('Add custom size error:', error);
       toast.error(error.response?.data?.error || 'Failed to add size');
     }
   };
@@ -492,6 +546,43 @@ export default function AdminPriceManagement() {
       } else {
         toast.error(error.response?.data?.error || 'Update failed');
       }
+      return false;
+    }
+  };
+
+  // Update delivery pricing (Express Bundle)
+  const updateDeliveryPricing = async (network, deliveryType, priceType, sizeGb, newPrice) => {
+    try {
+      const res = await api.put('/admin/delivery/pricing', {
+        network,
+        delivery_type: deliveryType,
+        price_type: priceType, // 'user_price' or 'agent_price'
+        size_gb: parseInt(sizeGb),
+        price: parseFloat(newPrice)
+      }, {
+        headers: { 'X-Price-Auth': authToken }
+      });
+      
+      if (res.data.success) {
+        setDeliveryPricing(prev => ({
+          ...prev,
+          [network]: {
+            ...prev[network],
+            [deliveryType]: {
+              ...prev[network]?.[deliveryType],
+              [priceType]: {
+                ...prev[network]?.[deliveryType]?.[priceType],
+                [sizeGb]: parseFloat(newPrice)
+              }
+            }
+          }
+        }));
+        toast.success(`Updated Express ${priceType} for ${sizeGb}GB`);
+        return true;
+      }
+    } catch (error) {
+      console.error('Update delivery pricing error:', error);
+      toast.error(error.response?.data?.error || 'Failed to update');
       return false;
     }
   };
@@ -571,6 +662,28 @@ export default function AdminPriceManagement() {
     }
   };
 
+  // Delivery edit handlers
+  const handleDeliveryEdit = (network, deliveryType, priceType, sizeGb, currentValue) => {
+    setEditingCell({ 
+      type: 'delivery', 
+      network, 
+      deliveryType, 
+      priceType, 
+      sizeGb, 
+      value: currentValue 
+    });
+  };
+
+  const handleDeliverySave = async () => {
+    if (!editingCell || editingCell.type !== 'delivery') return;
+    
+    const { network, deliveryType, priceType, sizeGb, value } = editingCell;
+    const success = await updateDeliveryPricing(network, deliveryType, priceType, sizeGb, value);
+    if (success) {
+      setEditingCell(null);
+    }
+  };
+
   const handleWaecEdit = (examType, currentValue) => {
     setEditingCell({ type: 'waec', examType, value: currentValue });
   };
@@ -603,19 +716,160 @@ export default function AdminPriceManagement() {
   };
 
   const networks = ['mtn', 'telecel', 'airteltigo'];
-  // Get all unique sizes from both user and agent prices
-  const getAllSizes = () => {
-    const sizeSet = new Set();
-    networks.forEach(network => {
-      Object.keys(userPrices[network] || {}).forEach(size => sizeSet.add(size));
-      Object.keys(agentPrices[network] || {}).forEach(size => sizeSet.add(size));
-    });
-    return Array.from(sizeSet).sort((a, b) => parseFloat(a) - parseFloat(b));
-  };
-  
-  const sizes = getAllSizes();
 
-  // Show loading while checking authentication
+  // Render delivery price cell
+  const renderDeliveryPriceCell = (network, deliveryType, priceType, size) => {
+    const isAvailable = availableSizes[network]?.[size] !== false;
+    const config = deliveryPricing[network]?.[deliveryType];
+    let price = config?.[priceType]?.[size] || 0;
+    
+    const isEditing = editingCell?.type === 'delivery' && 
+                     editingCell?.network === network && 
+                     editingCell?.deliveryType === deliveryType &&
+                     editingCell?.priceType === priceType &&
+                     editingCell?.sizeGb === size;
+    
+    const priceNumber = parseFloat(price) || 0;
+    
+    if (!isAvailable && priceNumber === 0) {
+      return (
+        <td className="price-cell unavailable">
+          <div className="price-unavailable">
+            <FaBan className="unavailable-icon" />
+            <span className="unavailable-text">Unavailable</span>
+          </div>
+        </td>
+      );
+    }
+    
+    return (
+      <td className={`price-cell ${!isAvailable ? 'disabled-package' : ''}`}>
+        {isEditing ? (
+          <div className="price-edit-container">
+            <input
+              type="number"
+              step="0.5"
+              value={editingCell.value}
+              onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+              className="price-input"
+              autoFocus
+            />
+            <button onClick={handleDeliverySave} className="price-save-btn">
+              <FaCheckCircle />
+            </button>
+            <button onClick={() => setEditingCell(null)} className="price-cancel-btn">
+              <FaTimes />
+            </button>
+          </div>
+        ) : (
+          <div className="price-display">
+            <span className={!isAvailable ? 'price-strikethrough' : ''}>
+              ₵{priceNumber.toFixed(2)}
+            </span>
+            <button 
+              onClick={() => handleDeliveryEdit(network, deliveryType, priceType, size, priceNumber)}
+              className="price-edit-btn"
+              title="Edit price"
+            >
+              <FaEdit />
+            </button>
+          </div>
+        )}
+      </td>
+    );
+  };
+
+  const renderPriceCell = (network, size, type) => {
+    const isAvailable = availableSizes[network]?.[size] !== false;
+    const isEditing = editingCell?.type === type && 
+                     editingCell?.network === network && 
+                     editingCell?.sizeGb === size;
+    
+    let priceData = type === 'user' 
+      ? userPrices[network]?.[size]
+      : agentPrices[network]?.[size];
+    
+    let currentPrice = 0;
+    if (typeof priceData === 'object' && priceData !== null) {
+      currentPrice = priceData.price || 0;
+    } else {
+      currentPrice = priceData || 0;
+    }
+    
+    const priceNumber = parseFloat(currentPrice) || 0;
+    
+    if (!isAvailable && priceNumber === 0) {
+      return (
+        <td className="price-cell unavailable">
+          <div className="price-unavailable">
+            <FaBan className="unavailable-icon" />
+            <span className="unavailable-text">Unavailable</span>
+            <button 
+              onClick={() => togglePackageAvailability(network, size, false)}
+              className="price-enable-btn"
+            >
+              <FaCheck /> Enable
+            </button>
+          </div>
+        </td>
+      );
+    }
+    
+    return (
+      <td className={`price-cell ${!isAvailable ? 'disabled-package' : ''}`}>
+        {isEditing ? (
+          <div className="price-edit-container">
+            <input
+              type="number"
+              step="0.5"
+              value={editingCell.value}
+              onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+              className="price-input"
+              autoFocus
+            />
+            <button onClick={handleSave} className="price-save-btn">
+              <FaCheckCircle />
+            </button>
+            <button onClick={() => setEditingCell(null)} className="price-cancel-btn">
+              <FaTimes />
+            </button>
+          </div>
+        ) : (
+          <div className="price-display">
+            <span className={!isAvailable ? 'price-strikethrough' : ''}>
+              ₵{priceNumber.toFixed(2)}
+            </span>
+            <div className="price-actions-group">
+              <button 
+                onClick={() => handleEdit(type, network, size, priceNumber)}
+                className="price-edit-btn"
+                title="Edit price"
+              >
+                <FaEdit />
+              </button>
+              <button 
+                onClick={() => togglePackageAvailability(network, size, isAvailable)}
+                className={`price-toggle-btn ${isAvailable ? 'active' : 'inactive'}`}
+                title={isAvailable ? 'Disable' : 'Enable'}
+              >
+                {isAvailable ? <FaToggleOn /> : <FaToggleOff />}
+              </button>
+              {!['1', '2', '5', '10', '20'].includes(size) && (
+                <button 
+                  onClick={() => deleteCustomSize(network, size)}
+                  className="price-delete-btn"
+                  title="Delete custom package"
+                >
+                  <FaTrash />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </td>
+    );
+  };
+
   if (authChecking) {
     return (
       <div className="price-auth-loading">
@@ -733,108 +987,12 @@ export default function AdminPriceManagement() {
     );
   }
 
-  // Helper function to render price cell with availability controls
-const renderPriceCell = (network, size, type) => {
-  const isAvailable = availableSizes[network]?.[size] !== false;
-  const isEditing = editingCell?.type === type && 
-                   editingCell?.network === network && 
-                   editingCell?.sizeGb === size;
-  
-  // Get current price - handle both number and object formats
-  let priceData = type === 'user' 
-    ? userPrices[network]?.[size]
-    : agentPrices[network]?.[size];
-  
-  // Extract price value (handles both number and object)
-  let currentPrice = 0;
-  if (typeof priceData === 'object' && priceData !== null) {
-    currentPrice = priceData.price || 0;
-  } else {
-    currentPrice = priceData || 0;
-  }
-  
-  // Convert to number and ensure it's valid
-  const priceNumber = parseFloat(currentPrice) || 0;
-  
-  if (!isAvailable && priceNumber === 0) {
-    return (
-      <td className="price-cell unavailable">
-        <div className="price-unavailable">
-          <FaBan className="unavailable-icon" />
-          <span className="unavailable-text">Unavailable</span>
-          <button 
-            onClick={() => togglePackageAvailability(network, size, false)}
-            className="price-enable-btn"
-            title="Enable this package"
-          >
-            <FaCheck /> Enable
-          </button>
-        </div>
-      </td>
-    );
-  }
-  
-  return (
-    <td className={`price-cell ${!isAvailable ? 'disabled-package' : ''}`}>
-      {isEditing ? (
-        <div className="price-edit-container">
-          <input
-            type="number"
-            step="0.5"
-            value={editingCell.value}
-            onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-            className="price-input"
-            autoFocus
-          />
-          <button onClick={handleSave} className="price-save-btn">
-            <FaCheckCircle />
-          </button>
-          <button onClick={() => setEditingCell(null)} className="price-cancel-btn">
-            <FaTimes />
-          </button>
-        </div>
-      ) : (
-        <div className="price-display">
-          <span className={!isAvailable ? 'price-strikethrough' : ''}>
-            ₵{priceNumber.toFixed(2)}
-          </span>
-          <div className="price-actions-group">
-            <button 
-              onClick={() => handleEdit(type, network, size, priceNumber)}
-              className="price-edit-btn"
-              title="Edit price"
-            >
-              <FaEdit />
-            </button>
-            <button 
-              onClick={() => togglePackageAvailability(network, size, isAvailable)}
-              className={`price-toggle-btn ${isAvailable ? 'active' : 'inactive'}`}
-              title={isAvailable ? 'Disable package' : 'Enable package'}
-            >
-              {isAvailable ? <FaToggleOn /> : <FaToggleOff />}
-            </button>
-            {size !== '1' && size !== '2' && size !== '5' && size !== '10' && size !== '20' && (
-              <button 
-                onClick={() => deleteCustomSize(network, size)}
-                className="price-delete-btn"
-                title="Delete custom package"
-              >
-                <FaTrash />
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-    </td>
-  );
-};
-
   return (
     <div className="price-management-container">
       <div className="price-header">
         <div className="price-header-info">
           <h1><FaDollarSign /> Price Management - {COMPANY.name}</h1>
-          <p>Manage user prices, agent wholesale prices, WAEC vouchers, and commission rates</p>
+          <p>Manage user prices, agent wholesale prices, delivery pricing (Express), WAEC vouchers, and commission rates</p>
         </div>
         <button className="price-logout-btn" onClick={handleLogout}>
           <FaSignOutAlt /> Lock & Exit
@@ -856,6 +1014,12 @@ const renderPriceCell = (network, size, type) => {
           <FaDatabase /> Agent Prices (Wholesale)
         </button>
         <button 
+          className={`price-tab ${activeTab === 'delivery_pricing' ? 'active' : ''}`}
+          onClick={() => setActiveTab('delivery_pricing')}
+        >
+          <FaBolt /> Delivery Pricing
+        </button>
+        <button 
           className={`price-tab ${activeTab === 'waec' ? 'active' : ''}`}
           onClick={() => setActiveTab('waec')}
         >
@@ -874,7 +1038,7 @@ const renderPriceCell = (network, size, type) => {
         <div className="price-table-wrapper">
           <div className="price-section-header">
             <h2><FaUsers /> User Retail Prices</h2>
-            <p>Update prices for regular users buying data on Roamsmart</p>
+            <p>Update prices for regular users buying data</p>
             <div className="price-legend">
               <span><FaToggleOn className="legend-icon active" /> Available</span>
               <span><FaToggleOff className="legend-icon inactive" /> Disabled</span>
@@ -888,26 +1052,21 @@ const renderPriceCell = (network, size, type) => {
               <thead>
                 <tr>
                   <th>Network</th>
-                  {sizes.map(size => <th key={size}>{size}GB</th>)}
+                  {ALL_SIZES.map(size => <th key={size}>{size}GB</th>)}
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {networks.map(network => (
-                  <tr key={network} className={network === 'airteltigo' ? 'network-warning' : ''}>
-                    <td className="price-network-cell">
-                      {network.toUpperCase()}
-                      {network === 'airteltigo' && (
-                        <small className="network-note">(Limited packages available)</small>
-                      )}
-                    </td>
-                    {sizes.map(size => renderPriceCell(network, size, 'user'))}
+                  <tr key={network}>
+                    <td className="price-network-cell">{network.toUpperCase()}</td>
+                    {ALL_SIZES.map(size => renderPriceCell(network, size, 'user'))}
                     <td className="price-action-cell">
                       <button 
                         className="btn-outline btn-sm"
                         onClick={() => handleAddSizeClick(network)}
                       >
-                        <FaPlus /> Add Custom Size
+                        <FaPlus /> Add Size
                       </button>
                     </td>
                   </tr>
@@ -923,7 +1082,7 @@ const renderPriceCell = (network, size, type) => {
         <div className="price-table-wrapper">
           <div className="price-section-header">
             <h2><FaDatabase /> Agent Wholesale Prices</h2>
-            <p>Update wholesale prices for agents on Roamsmart</p>
+            <p>Update wholesale prices for agents</p>
             <div className="price-legend">
               <span><FaToggleOn className="legend-icon active" /> Available</span>
               <span><FaToggleOff className="legend-icon inactive" /> Disabled</span>
@@ -937,7 +1096,7 @@ const renderPriceCell = (network, size, type) => {
               <thead>
                 <tr>
                   <th>Network</th>
-                  {sizes.map(size => <th key={size}>{size}GB</th>)}
+                  {ALL_SIZES.map(size => <th key={size}>{size}GB</th>)}
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -945,7 +1104,7 @@ const renderPriceCell = (network, size, type) => {
                 {networks.map(network => (
                   <tr key={network}>
                     <td className="price-network-cell">{network.toUpperCase()}</td>
-                    {sizes.map(size => renderPriceCell(network, size, 'agent'))}
+                    {ALL_SIZES.map(size => renderPriceCell(network, size, 'agent'))}
                     <td className="price-action-cell">
                       <button 
                         className="btn-outline btn-sm"
@@ -966,7 +1125,7 @@ const renderPriceCell = (network, size, type) => {
               {networks.map(network => (
                 <div key={network} className="price-margin-card">
                   <h5>{network.toUpperCase()}</h5>
-                  {sizes.filter(size => availableSizes[network]?.[size] !== false).map(size => {
+                  {ALL_SIZES.filter(size => availableSizes[network]?.[size] !== false && userPrices[network]?.[size] > 0).map(size => {
                     const userPrice = userPrices[network]?.[size] || 0;
                     const agentPrice = agentPrices[network]?.[size] || 0;
                     const margin = userPrice - agentPrice;
@@ -987,7 +1146,68 @@ const renderPriceCell = (network, size, type) => {
         </div>
       )}
 
-      {/* WAEC Prices Tab (unchanged) */}
+      {/* Delivery Pricing Tab - MTN Express Bundle */}
+      {activeTab === 'delivery_pricing' && (
+        <div className="price-table-wrapper">
+          <div className="price-section-header">
+            <h2><FaBolt /> MTN Express Bundle Pricing</h2>
+            <p>Manage prices for MTN Express Bundle (Faster delivery - Priority processing)</p>
+            <div className="price-legend">
+              <span><FaToggleOn className="legend-icon active" /> Available</span>
+              <span><FaToggleOff className="legend-icon inactive" /> Disabled</span>
+              <span><FaEdit className="legend-icon" /> Edit Price</span>
+            </div>
+          </div>
+
+          <div className="price-table-responsive">
+            <table className="price-data-table">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  {ALL_SIZES.map(size => <th key={size}>{size}GB</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {/* User Prices Row */}
+                <tr>
+                  <td className="price-network-cell" style={{ fontWeight: 'bold', color: '#28a745' }}>
+                    <FaUsers /> User Price
+                  </td>
+                  {ALL_SIZES.map(size => renderDeliveryPriceCell('mtn', 'express', 'user_price', size))}
+                </tr>
+                {/* Agent Prices Row */}
+                <tr>
+                  <td className="price-network-cell" style={{ fontWeight: 'bold', color: '#8B0000' }}>
+                    <FaDatabase /> Agent Price
+                  </td>
+                  {ALL_SIZES.map(size => renderDeliveryPriceCell('mtn', 'express', 'agent_price', size))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div className="delivery-info-note" style={{ 
+            background: '#f8f9fa', 
+            padding: '16px', 
+            borderRadius: '8px',
+            marginTop: '20px',
+            borderLeft: '4px solid #f39c12'
+          }}>
+            <FaInfoCircle style={{ color: '#f39c12', marginRight: '8px' }} />
+            <div style={{ display: 'inline' }}>
+              <strong>MTN Express Bundle:</strong>
+              <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
+                <li>⚡ <strong>Priority Processing</strong> - Faster than Master Bundle</li>
+                <li>📦 All sizes from 1GB to 100GB</li>
+                <li>💰 Higher price = Faster delivery</li>
+                <li>👑 Premium delivery option for customers who need speed</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* WAEC Prices Tab */}
       {activeTab === 'waec' && (
         <div className="price-table-wrapper">
           <div className="price-section-header">
@@ -1037,7 +1257,7 @@ const renderPriceCell = (network, size, type) => {
         </div>
       )}
 
-      {/* Commission Rates Tab (unchanged) */}
+      {/* Commission Rates Tab */}
       {activeTab === 'commission' && (
         <div className="price-table-wrapper">
           <div className="price-section-header">
@@ -1106,7 +1326,6 @@ const renderPriceCell = (network, size, type) => {
           <div className="price-modal-content add-size-modal" onClick={e => e.stopPropagation()}>
             <button className="price-modal-close" onClick={() => setShowAddSize(false)}>×</button>
             <h3><FaPlus /> Add Custom Size for {selectedNetwork.toUpperCase()}</h3>
-            <p>Add a new data package size with custom pricing</p>
             
             <div className="price-form-group">
               <label>Data Size (GB)</label>
@@ -1145,17 +1364,11 @@ const renderPriceCell = (network, size, type) => {
                 min="0"
                 className="price-form-input"
               />
-              <small className="price-form-hint">Agent price should be lower than user price</small>
             </div>
             
             <div className="price-modal-actions">
-              <button className="price-btn-secondary" onClick={() => setShowAddSize(false)}>
-                Cancel
-              </button>
-              <button 
-                className="price-btn-primary" 
-                onClick={() => addCustomSize(selectedNetwork)}
-              >
+              <button className="price-btn-secondary" onClick={() => setShowAddSize(false)}>Cancel</button>
+              <button className="price-btn-primary" onClick={() => addCustomSize(selectedNetwork)}>
                 Add {newSize}GB Package
               </button>
             </div>
@@ -1165,7 +1378,7 @@ const renderPriceCell = (network, size, type) => {
 
       <div className="price-footer">
         <p className="price-footer-text">
-          <small>Prices updated here will take effect immediately on Roamsmart platform</small>
+          <small>Prices updated here will take effect immediately</small>
         </p>
       </div>
     </div>
