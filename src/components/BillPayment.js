@@ -329,131 +329,265 @@ export default function BillPayment({ isAgent = false, onClose, onSuccess }) {
 
   // ========== PAY BILL ==========
   const handlePayment = async () => {
-    if (!selectedBiller || !accountNumber || !amount) {
-      toast.error('Please fill all required fields');
+  if (!selectedBiller || !accountNumber || !amount) {
+    toast.error('Please fill all required fields');
+    return;
+  }
+
+  const amountNum = parseFloat(amount);
+  if (amountNum < 1) {
+    toast.error('Amount must be at least ₵1');
+    return;
+  }
+
+  let meterNumber = null;
+  if (selectedBiller.code === 'ECG') {
+    if (selectedMeter) {
+      meterNumber = selectedMeter.meter_number;
+    } else if (validatedAccount?.selected_meter) {
+      meterNumber = validatedAccount.selected_meter;
+    } else if (metersList.length === 1) {
+      meterNumber = metersList[0].meter_number;
+    } else {
+      meterNumber = accountNumber;
+    }
+    
+    if (!meterNumber) {
+      toast.error('Please select a meter number for ECG');
       return;
     }
+  }
 
-    const amountNum = parseFloat(amount);
-    if (amountNum < 1) {
-      toast.error('Amount must be at least ₵1');
+  let waterMeterNumber = null;
+  let waterSessionId = null;
+  if (selectedBiller.code === 'GWCL') {
+    waterMeterNumber = accountNumber;
+    waterSessionId = validatedAccount?.session_id;
+    if (!waterSessionId) {
+      toast.error('Please validate the water account first');
       return;
     }
+  }
 
-    let meterNumber = null;
+  const result = await Swal.fire({
+    title: 'Confirm Bill Payment',
+    html: `
+      <div style="text-align: left;">
+        <p><strong>Biller:</strong> ${selectedBiller.name}</p>
+        <p><strong>Account Number:</strong> ${accountNumber}</p>
+        ${selectedBiller.code === 'ECG' ? `<p><strong>Meter Number:</strong> ${meterNumber}</p>` : ''}
+        <p><strong>Customer:</strong> ${customerName || 'N/A'}</p>
+        <p><strong>Amount:</strong> <strong style="color: #8B0000;">₵${amountNum.toFixed(2)}</strong></p>
+        <p>This amount will be deducted from your ${COMPANY.shortName} wallet.</p>
+      </div>
+    `,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: '#8B0000',
+    confirmButtonText: 'Yes, Pay Now',
+    cancelButtonText: 'Cancel'
+  });
+
+  if (!result.isConfirmed) return;
+
+  setPaying(true);
+  try {
+    const payload = {
+      biller_code: selectedBiller.code,
+      account_number: accountNumber,
+      amount: amountNum,
+      customer_name: customerName || 'Customer',
+      customer_email: customerEmail,
+      customer_phone: customerPhone || user?.phone || ''
+    };
+    
     if (selectedBiller.code === 'ECG') {
-      if (selectedMeter) {
-        meterNumber = selectedMeter.meter_number;
-      } else if (validatedAccount?.selected_meter) {
-        meterNumber = validatedAccount.selected_meter;
-      } else if (metersList.length === 1) {
-        meterNumber = metersList[0].meter_number;
-      } else {
-        meterNumber = accountNumber;
-      }
-      
-      if (!meterNumber) {
-        toast.error('Please select a meter number for ECG');
-        return;
-      }
+      payload.meter_number = meterNumber;
     }
-
-    let waterMeterNumber = null;
-    let waterSessionId = null;
+    
     if (selectedBiller.code === 'GWCL') {
-      waterMeterNumber = accountNumber;
-      waterSessionId = validatedAccount?.session_id;
-      if (!waterSessionId) {
-        toast.error('Please validate the water account first');
-        return;
-      }
+      payload.meter_number = waterMeterNumber;
+      payload.session_id = waterSessionId;
     }
-
-    const result = await Swal.fire({
-      title: 'Confirm Bill Payment',
-      html: `
-        <div style="text-align: left;">
-          <p><strong>Biller:</strong> ${selectedBiller.name}</p>
-          <p><strong>Account Number:</strong> ${accountNumber}</p>
-          ${selectedBiller.code === 'ECG' ? `<p><strong>Meter Number:</strong> ${meterNumber}</p>` : ''}
-          <p><strong>Customer:</strong> ${customerName || 'N/A'}</p>
-          <p><strong>Amount:</strong> <strong style="color: #8B0000;">₵${amountNum.toFixed(2)}</strong></p>
-          <p>This amount will be deducted from your ${COMPANY.shortName} wallet.</p>
-        </div>
-      `,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#8B0000',
-      confirmButtonText: 'Yes, Pay Now',
-      cancelButtonText: 'Cancel'
-    });
-
-    if (!result.isConfirmed) return;
-
-    setPaying(true);
-    try {
-      const payload = {
-        biller_code: selectedBiller.code,
-        account_number: accountNumber,
-        amount: amountNum,
-        customer_name: customerName || 'Customer',
-        customer_email: customerEmail,
-        customer_phone: customerPhone || user?.phone || '' // Use user from auth context
-      };
+    
+    console.log('Payment payload:', payload);
+    
+    const res = await api.post(endpoints.pay, payload);
+    
+    // ========== HANDLE SUCCESS ==========
+    if (res.data.success) {
+      toast.success(`Bill paid successfully on ${COMPANY.shortName}!`);
       
-      if (selectedBiller.code === 'ECG') {
-        payload.meter_number = meterNumber;
+      setAccountNumber('');
+      setAmount('');
+      setValidatedAccount(null);
+      setBillDetails(null);
+      setSelectedBiller(null);
+      setCustomerName('');
+      setCustomerEmail('');
+      setCustomerPhone('');
+      setMetersList([]);
+      setSelectedMeter(null);
+      
+      fetchPaymentHistory();
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Payment Successful!',
+        html: `
+          <p>Your payment of <strong>₵${amountNum.toFixed(2)}</strong> to <strong>${selectedBiller.name}</strong> has been processed.</p>
+          <p>Transaction Reference: ${res.data.data?.reference || res.data.reference}</p>
+          ${res.data.data?.commission ? `<p>Commission Earned: <strong>₵${res.data.data.commission.you_earned?.toFixed(4)}</strong></p>` : ''}
+        `,
+        confirmButtonColor: '#8B0000'
+      });
+      
+      if (typeof onClose === 'function') {
+        onClose();
       }
-      
-      if (selectedBiller.code === 'GWCL') {
-        payload.meter_number = waterMeterNumber;
-        payload.session_id = waterSessionId;
-      }
-      
-      console.log('Payment payload:', payload);
-      
-      const res = await api.post(endpoints.pay, payload);
-      
-      if (res.data.success) {
-        toast.success(`Bill paid successfully on ${COMPANY.shortName}!`);
-        
-        setAccountNumber('');
-        setAmount('');
-        setValidatedAccount(null);
-        setBillDetails(null);
-        setSelectedBiller(null);
-        setCustomerName('');
-        setCustomerEmail('');
-        setCustomerPhone('');
-        setMetersList([]);
-        setSelectedMeter(null);
-        
-        fetchPaymentHistory();
-        
-        Swal.fire({
-          icon: 'success',
-          title: 'Payment Successful!',
-          html: `
-            <p>Your payment of <strong>₵${amountNum.toFixed(2)}</strong> to <strong>${selectedBiller.name}</strong> has been processed.</p>
-            <p>Transaction Reference: ${res.data.data?.reference || res.data.reference}</p>
-            ${res.data.data?.commission ? `<p>Commission Earned: <strong>₵${res.data.data.commission.you_earned?.toFixed(4)}</strong></p>` : ''}
-          `,
-          confirmButtonColor: '#8B0000'
-        });
-        
-        if (typeof onClose === 'function') {
-          onClose();
-        }
-      } else {
-        toast.error(res.data.error || 'Payment failed. Please try again.');
-      }
-    } catch (error) {
-      console.error('Payment error:', error);
-      toast.error(error.response?.data?.error || 'Payment failed. Please try again.');
-    } finally {
-      setPaying(false);
+      return;
     }
-  };
+    
+    // ========== HANDLE API ERROR RESPONSE ==========
+    const errorData = res.data;
+    const errorCode = errorData?.code;
+    const errorMsg = errorData?.error || 'Payment failed. Please try again.';
+    const suggestion = errorData?.suggestion || '';
+    
+    // Handle insufficient Hubtel balance
+    if (errorCode === 'INSUFFICIENT_HUBTEL_BALANCE' || 
+        errorMsg.includes('insufficient') || 
+        errorMsg.includes('Hubtel account balance')) {
+      
+      // Show detailed error with suggestion
+      await Swal.fire({
+        icon: 'warning',
+        title: '⚠️ Hubtel Balance Issue',
+        html: `
+          <div style="text-align: left;">
+            <p><strong>${errorMsg}</strong></p>
+            ${suggestion ? `<p>💡 ${suggestion}</p>` : ''}
+            ${errorData?.data?.hubtel_balance !== undefined ? `
+              <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin: 10px 0;">
+                <p><strong>Hubtel Balance:</strong> GHS ${errorData.data.hubtel_balance?.toFixed(2) || '0.00'}</p>
+                <p><strong>Required:</strong> GHS ${amountNum.toFixed(2)}</p>
+                <p><strong>Shortfall:</strong> GHS ${(amountNum - (errorData.data.hubtel_balance || 0)).toFixed(2)}</p>
+              </div>
+            ` : ''}
+            <div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin-top: 12px;">
+              <p style="margin: 0; font-size: 0.9rem;">
+                <strong>💡 What to do:</strong>
+              </p>
+              <ul style="margin: 8px 0 0 20px; font-size: 0.85rem;">
+                <li>Contact Roamsmart admin to top up the Hubtel account</li>
+                <li>Try a smaller payment amount</li>
+                <li>Use a different payment method</li>
+              </ul>
+            </div>
+          </div>
+        `,
+        confirmButtonColor: '#8B0000',
+        confirmButtonText: 'OK, I Understand'
+      });
+      
+      // No wallet deduction occurred - no need to refund
+      toast.error('Payment was not processed. Your wallet balance is unchanged.');
+      return;
+    }
+    
+    // Handle other specific error codes
+    if (errorCode === 'HUBTEL_NOT_CONFIGURED') {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Service Unavailable',
+        html: `
+          <p>Hubtel service is not configured.</p>
+          <p>Please contact support to resolve this issue.</p>
+        `,
+        confirmButtonColor: '#8B0000'
+      });
+      return;
+    }
+    
+    if (errorCode === 'HUBTEL_API_ERROR') {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Hubtel API Error',
+        html: `
+          <p>There was an error communicating with Hubtel.</p>
+          <p><strong>Error:</strong> ${errorMsg}</p>
+          <p>Please try again later.</p>
+        `,
+        confirmButtonColor: '#8B0000'
+      });
+      return;
+    }
+    
+    // Generic error
+    toast.error(errorMsg);
+    
+  } catch (error) {
+    console.error('Payment error:', error);
+    
+    // ========== HANDLE NETWORK/TIMEOUT ERRORS ==========
+    const errorResponse = error.response?.data;
+    const errorMsg = errorResponse?.error || error.message || 'Payment failed. Please try again.';
+    const errorCode = errorResponse?.code;
+    
+    // Check if it's an insufficient balance error from the backend
+    if (errorCode === 'INSUFFICIENT_HUBTEL_BALANCE' || 
+        errorMsg.toLowerCase().includes('insufficient') || 
+        errorMsg.toLowerCase().includes('hubtel balance')) {
+      
+      await Swal.fire({
+        icon: 'warning',
+        title: '⚠️ Hubtel Balance Issue',
+        html: `
+          <div style="text-align: left;">
+            <p><strong>${errorMsg}</strong></p>
+            <div style="background: #fff3cd; padding: 12px; border-radius: 8px; margin-top: 12px;">
+              <p style="margin: 0; font-size: 0.9rem;">
+                <strong>💡 What to do:</strong>
+              </p>
+              <ul style="margin: 8px 0 0 20px; font-size: 0.85rem;">
+                <li>Contact Roamsmart admin to top up the Hubtel account</li>
+                <li>Try a smaller payment amount</li>
+                <li>Use a different payment method</li>
+              </ul>
+            </div>
+            <p style="margin-top: 12px; color: #28a745;">
+              ✅ Your wallet has NOT been charged.
+            </p>
+          </div>
+        `,
+        confirmButtonColor: '#8B0000',
+        confirmButtonText: 'OK, I Understand'
+      });
+      return;
+    }
+    
+    // Network error
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      await Swal.fire({
+        icon: 'error',
+        title: 'Request Timeout',
+        html: `
+          <p>The payment request timed out.</p>
+          <p>Please check your connection and try again.</p>
+          <p style="color: #28a745;">✅ Your wallet has NOT been charged.</p>
+        `,
+        confirmButtonColor: '#8B0000'
+      });
+      return;
+    }
+    
+    // Generic error
+    toast.error(errorMsg);
+    
+  } finally {
+    setPaying(false);
+  }
+};
 
   // ========== RECURRING BILL HANDLERS ==========
   const addRecurringBill = async () => {
